@@ -77,15 +77,13 @@ const Home = () => {
         </div>
       </main>
 
-      {/* Bottom Navigation - Placeholder */}
+      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 border-t border-border/40 bg-background">
         <div className="container mx-auto px-4 py-3">
           <div className="flex justify-around text-sm">
-            <div className="text-primary font-medium">Home</div>
-            <div className="text-muted-foreground">Leaderboards</div>
-            <div className="text-muted-foreground">Pools</div>
-            <div className="text-muted-foreground">Badges</div>
-            <div className="text-muted-foreground">Profile</div>
+            <button onClick={() => navigate("/home")} className="text-primary font-medium">Home</button>
+            <button onClick={() => navigate("/leaderboard")} className="text-muted-foreground hover:text-foreground transition-colors">Leaderboards</button>
+            <button onClick={() => navigate("/profile")} className="text-muted-foreground hover:text-foreground transition-colors">Profile</button>
           </div>
         </div>
       </nav>

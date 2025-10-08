@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      pool_members: {
+        Row: {
+          id: string
+          joined_at: string | null
+          pool_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          pool_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          pool_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_members_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pools: {
+        Row: {
+          created_at: string | null
+          creator_id: string
+          id: string
+          invite_code: string
+          is_active: boolean | null
+          name: string
+          schools: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id: string
+          id?: string
+          invite_code: string
+          is_active?: boolean | null
+          name: string
+          schools?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string
+          id?: string
+          invite_code?: string
+          is_active?: boolean | null
+          name?: string
+          schools?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           contact_method: string
@@ -47,6 +109,42 @@ export type Database = {
         }
         Relationships: []
       }
+      school_scores: {
+        Row: {
+          average_points: number | null
+          created_at: string | null
+          id: string
+          rank: number | null
+          school_name: string
+          season_year: number
+          total_users: number | null
+          updated_at: string | null
+          week_number: number
+        }
+        Insert: {
+          average_points?: number | null
+          created_at?: string | null
+          id?: string
+          rank?: number | null
+          school_name: string
+          season_year: number
+          total_users?: number | null
+          updated_at?: string | null
+          week_number: number
+        }
+        Update: {
+          average_points?: number | null
+          created_at?: string | null
+          id?: string
+          rank?: number | null
+          school_name?: string
+          season_year?: number
+          total_users?: number | null
+          updated_at?: string | null
+          week_number?: number
+        }
+        Relationships: []
+      }
       schools: {
         Row: {
           created_at: string
@@ -71,6 +169,84 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          badge_type: Database["public"]["Enums"]["badge_type"]
+          earned_at: string | null
+          id: string
+          season_year: number
+          user_id: string
+          week_number: number | null
+        }
+        Insert: {
+          badge_type: Database["public"]["Enums"]["badge_type"]
+          earned_at?: string | null
+          id?: string
+          season_year: number
+          user_id: string
+          week_number?: number | null
+        }
+        Update: {
+          badge_type?: Database["public"]["Enums"]["badge_type"]
+          earned_at?: string | null
+          id?: string
+          season_year?: number
+          user_id?: string
+          week_number?: number | null
+        }
+        Relationships: []
+      }
+      user_scores: {
+        Row: {
+          accuracy_percentage: number | null
+          created_at: string | null
+          id: string
+          predictions_correct: number | null
+          predictions_made: number | null
+          rank_global: number | null
+          rank_province: number | null
+          rank_school: number | null
+          season_points: number | null
+          season_year: number
+          updated_at: string | null
+          user_id: string
+          week_number: number
+          weekly_points: number | null
+        }
+        Insert: {
+          accuracy_percentage?: number | null
+          created_at?: string | null
+          id?: string
+          predictions_correct?: number | null
+          predictions_made?: number | null
+          rank_global?: number | null
+          rank_province?: number | null
+          rank_school?: number | null
+          season_points?: number | null
+          season_year: number
+          updated_at?: string | null
+          user_id: string
+          week_number: number
+          weekly_points?: number | null
+        }
+        Update: {
+          accuracy_percentage?: number | null
+          created_at?: string | null
+          id?: string
+          predictions_correct?: number | null
+          predictions_made?: number | null
+          rank_global?: number | null
+          rank_province?: number | null
+          rank_school?: number | null
+          season_points?: number | null
+          season_year?: number
+          updated_at?: string | null
+          user_id?: string
+          week_number?: number
+          weekly_points?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -79,7 +255,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      badge_type:
+        | "top_dog"
+        | "podium_place"
+        | "climber"
+        | "consistent_contender"
+        | "school_hero"
+        | "perfect_weekend"
+        | "derby_winner"
+        | "streak_master"
+      leaderboard_type: "global" | "school" | "province" | "pool"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -206,6 +391,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      badge_type: [
+        "top_dog",
+        "podium_place",
+        "climber",
+        "consistent_contender",
+        "school_hero",
+        "perfect_weekend",
+        "derby_winner",
+        "streak_master",
+      ],
+      leaderboard_type: ["global", "school", "province", "pool"],
+    },
   },
 } as const
