@@ -7,7 +7,23 @@ const Hero = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="relative z-10 border-b border-border/40 bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-primary">Tryble</h2>
+          <Button 
+            variant="default"
+            onClick={() => navigate("/auth", { state: { mode: "signin" } })}
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            Sign In
+          </Button>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <div className="relative flex-1 flex items-center justify-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
@@ -60,6 +76,7 @@ const Hero = () => {
           No gambling. No odds. Just school spirit and friendly competition.
         </p>
       </div>
+    </div>
     </section>
   );
 };

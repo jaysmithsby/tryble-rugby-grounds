@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import SignUpFlow from "@/components/auth/SignUpFlow";
 import SignInForm from "@/components/auth/SignInForm";
 import { Button } from "@/components/ui/button";
 
 const Auth = () => {
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const location = useLocation();
+  const [mode, setMode] = useState<"signin" | "signup">(
+    (location.state as any)?.mode || "signup"
+  );
   const navigate = useNavigate();
 
   return (
