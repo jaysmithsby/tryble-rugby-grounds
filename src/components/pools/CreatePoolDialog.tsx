@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, X } from "lucide-react";
+import { Users, X, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizePoolName } from "@/lib/profanityFilter";
@@ -21,6 +21,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
   const [votingMode, setVotingMode] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [availableSchools, setAvailableSchools] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -48,14 +49,12 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
       setSelectedSchools(selectedSchools.filter(s => s !== school));
     } else if (selectedSchools.length < 10) {
       setSelectedSchools([...selectedSchools, school]);
-    } else {
-      toast({
-        title: "Maximum schools reached",
-        description: "You can select up to 10 schools.",
-        variant: "destructive"
-      });
     }
   };
+
+  const filteredSchools = availableSchools.filter(school =>
+    school.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const createPool = async () => {
     const validation = sanitizePoolName(poolName);
@@ -147,7 +146,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="poolName">Pool Name</Label>
             <Input
               id="poolName"
@@ -156,15 +155,15 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
               onChange={(e) => setPoolName(e.target.value)}
               maxLength={50}
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               Choose a respectful, school-appropriate name
             </p>
           </div>
 
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="space-y-1">
-              <Label>Enable Voting Mode</Label>
-              <p className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Enable Voting Mode</Label>
+              <p className="text-xs text-muted-foreground">
                 Let members vote on which schools to follow
               </p>
             </div>
@@ -175,48 +174,84 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
           </div>
 
           {!votingMode && (
-            <div>
-              <Label>Select Schools to Follow (up to 10)</Label>
-              <p className="text-xs text-muted-foreground mb-3">
-                {selectedSchools.length}/10 schools selected
-              </p>
-              
-              <div className="flex flex-wrap gap-2 mb-3">
-                {selectedSchools.map((school) => (
-                  <Badge
-                    key={school}
-                    variant="default"
-                    className="cursor-pointer"
-                    onClick={() => toggleSchool(school)}
-                  >
-                    {school}
-                    <X className="w-3 h-3 ml-1" />
-                  </Badge>
-                ))}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Schools to Follow (up to 10)</Label>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {selectedSchools.length}/10 schools selected
+                  </p>
+                  {selectedSchools.length >= 10 && (
+                    <p className="text-xs text-destructive font-medium">
+                      Maximum reached
+                    </p>
+                  )}
+                </div>
               </div>
-
-              <ScrollArea className="h-48 border rounded-lg p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {availableSchools.map((school) => (
-                    <Button
+              
+              {selectedSchools.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30 min-h-[60px]">
+                  {selectedSchools.map((school) => (
+                    <Badge
                       key={school}
-                      variant={selectedSchools.includes(school) ? "default" : "outline"}
-                      size="sm"
+                      variant="default"
+                      className="cursor-pointer h-7 px-3"
                       onClick={() => toggleSchool(school)}
-                      className="justify-start"
                     >
                       {school}
-                    </Button>
+                      <X className="w-3 h-3 ml-1.5" />
+                    </Badge>
                   ))}
                 </div>
-              </ScrollArea>
+              )}
+
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search schools..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <ScrollArea className="h-56 border rounded-lg bg-background">
+                  <div className="p-3 space-y-2">
+                    {filteredSchools.length > 0 ? (
+                      filteredSchools.map((school) => (
+                        <Button
+                          key={school}
+                          variant={selectedSchools.includes(school) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleSchool(school)}
+                          disabled={selectedSchools.length >= 10 && !selectedSchools.includes(school)}
+                          className="w-full justify-start h-10"
+                        >
+                          {school}
+                        </Button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No schools found
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {selectedSchools.length >= 10 && (
+                <p className="text-xs text-muted-foreground text-center p-2 bg-muted/50 rounded">
+                  ℹ️ You can only follow up to 10 schools per pool
+                </p>
+              )}
             </div>
           )}
 
           {votingMode && (
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm">
-                🗳️ Members will vote on which schools to follow. The top 10 schools by votes will be included in this pool's predictions.
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <p className="text-sm text-muted-foreground">
+                🗳️ Members will vote on which schools to include after joining the pool. The top 10 schools by votes will be included in predictions.
               </p>
             </div>
           )}
