@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Trophy, TrendingUp, Target, Users, School, Globe, MapPin, Share2, QrCode } from "lucide-react";
+import { Trophy, TrendingUp, Target, Users, School, Globe, MapPin, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
+import { PoolCard } from "@/components/pools/PoolCard";
+import { PoolInvite } from "@/components/pools/PoolInvite";
 
 type LeaderboardEntry = {
   rank: number;
@@ -31,8 +34,8 @@ const Leaderboard = () => {
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [schoolLeaderboard, setSchoolLeaderboard] = useState<SchoolLeaderboardEntry[]>([]);
   const [userPools, setUserPools] = useState<any[]>([]);
+  const [poolMemberCounts, setPoolMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [createPoolName, setCreatePoolName] = useState("");
   const [joinPoolCode, setJoinPoolCode] = useState("");
   const { toast } = useToast();
 
@@ -78,55 +81,33 @@ const Leaderboard = () => {
             id,
             name,
             invite_code,
-            schools
+            schools,
+            voting_mode
           )
         `)
         .eq("user_id", user.id);
 
       if (error) throw error;
-      setUserPools(data?.map(d => d.pools) || []);
+      const pools = data?.map(d => d.pools) || [];
+      setUserPools(pools);
+
+      // Load member counts for each pool
+      const counts: Record<string, number> = {};
+      for (const pool of pools) {
+        if (pool) {
+          const { data: members } = await supabase
+            .from("pool_members")
+            .select("user_id", { count: "exact" })
+            .eq("pool_id", pool.id);
+          counts[pool.id] = members?.length || 0;
+        }
+      }
+      setPoolMemberCounts(counts);
     } catch (error) {
       console.error("Error loading pools:", error);
     }
   };
 
-  const createPool = async () => {
-    if (!createPoolName.trim()) {
-      toast({ title: "Please enter a pool name", variant: "destructive" });
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      const { data, error } = await supabase
-        .from("pools")
-        .insert({
-          name: createPoolName,
-          invite_code: inviteCode,
-          creator_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Auto-join creator
-      await supabase.from("pool_members").insert({
-        pool_id: data.id,
-        user_id: user.id,
-      });
-
-      toast({ title: `Pool created! Code: ${inviteCode}` });
-      setCreatePoolName("");
-      loadUserPools();
-    } catch (error: any) {
-      toast({ title: "Error creating pool", description: error.message, variant: "destructive" });
-    }
-  };
 
   const joinPool = async () => {
     if (!joinPoolCode.trim()) {
@@ -358,34 +339,7 @@ const Leaderboard = () => {
           <TabsContent value="pools" className="space-y-4">
             {/* Pool Management */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="w-full">
-                    <Users className="w-4 h-4 mr-2" />
-                    Create Pool
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create a New Pool</DialogTitle>
-                    <DialogDescription>
-                      Create a private leaderboard for your friends or school
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <Label htmlFor="poolName">Pool Name</Label>
-                      <Input
-                        id="poolName"
-                        placeholder="e.g., MHS Rugby Fans"
-                        value={createPoolName}
-                        onChange={(e) => setCreatePoolName(e.target.value)}
-                      />
-                    </div>
-                    <Button onClick={createPool} className="w-full">Create Pool</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <CreatePoolDialog onPoolCreated={loadUserPools} />
 
               <Dialog>
                 <DialogTrigger asChild>
@@ -419,27 +373,13 @@ const Leaderboard = () => {
 
             {/* User's Pools */}
             {userPools.length > 0 ? (
-              <div className="space-y-4">
-                {userPools.map((pool: any) => (
-                  <Card key={pool.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{pool.name}</CardTitle>
-                        <Badge variant="outline" className="font-mono">
-                          {pool.invite_code}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-muted-foreground mb-4">
-                        Pool leaderboard coming soon
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full">
-                        <QrCode className="w-4 h-4 mr-2" />
-                        Share Pool
-                      </Button>
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {userPools.map((pool: any) => pool && (
+                  <PoolCard
+                    key={pool.id}
+                    pool={pool}
+                    memberCount={poolMemberCounts[pool.id] || 0}
+                  />
                 ))}
               </div>
             ) : (

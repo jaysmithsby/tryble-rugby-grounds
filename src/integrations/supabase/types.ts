@@ -43,6 +43,38 @@ export type Database = {
           },
         ]
       }
+      pool_school_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          pool_id: string
+          school_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          pool_id: string
+          school_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          pool_id?: string
+          school_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_school_votes_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pools: {
         Row: {
           created_at: string | null
@@ -50,9 +82,11 @@ export type Database = {
           id: string
           invite_code: string
           is_active: boolean | null
+          max_schools: number | null
           name: string
           schools: string[] | null
           updated_at: string | null
+          voting_mode: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -60,9 +94,11 @@ export type Database = {
           id?: string
           invite_code: string
           is_active?: boolean | null
+          max_schools?: number | null
           name: string
           schools?: string[] | null
           updated_at?: string | null
+          voting_mode?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -70,9 +106,11 @@ export type Database = {
           id?: string
           invite_code?: string
           is_active?: boolean | null
+          max_schools?: number | null
           name?: string
           schools?: string[] | null
           updated_at?: string | null
+          voting_mode?: boolean | null
         }
         Relationships: []
       }
