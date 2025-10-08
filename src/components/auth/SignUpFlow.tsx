@@ -40,11 +40,12 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
-  const handleSignUp = async () => {
+  const handleSignUp = async (password: string) => {
     try {
       setLoading(true);
       
-      const validated = signUpSchema.parse(formData);
+      const dataToValidate = { ...formData, password };
+      const validated = signUpSchema.parse(dataToValidate);
       
       const { data, error } = await supabase.auth.signUp({
         email: validated.contactMethod === "email" ? validated.contactValue : `${Date.now()}@tryble.app`,
@@ -130,8 +131,7 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
         return (
           <StepPassword
             onNext={(password) => {
-              updateFormData({ password });
-              handleSignUp();
+              handleSignUp(password);
             }}
             onBack={() => setStep(4)}
             loading={loading}
