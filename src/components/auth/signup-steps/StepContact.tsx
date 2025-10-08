@@ -2,22 +2,35 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Phone } from "lucide-react";
+import { countryCodes } from "@/data/countryCodes";
 
 interface StepContactProps {
   contactMethod: "email" | "mobile";
   contactValue: string;
-  onNext: (method: "email" | "mobile", value: string) => void;
+  countryCode?: string;
+  onNext: (method: "email" | "mobile", value: string, countryCode?: string) => void;
   onBack: () => void;
 }
 
-const StepContact = ({ contactMethod: initialMethod, contactValue: initialValue, onNext, onBack }: StepContactProps) => {
+const StepContact = ({ 
+  contactMethod: initialMethod, 
+  contactValue: initialValue, 
+  countryCode: initialCountryCode = "+27",
+  onNext, 
+  onBack 
+}: StepContactProps) => {
   const [method, setMethod] = useState<"email" | "mobile">(initialMethod);
   const [value, setValue] = useState(initialValue);
+  const [selectedCountryCode, setSelectedCountryCode] = useState(initialCountryCode);
 
   const handleNext = () => {
     if (value.trim()) {
-      onNext(method, value.trim());
+      const finalValue = method === "mobile" 
+        ? `${selectedCountryCode}${value.trim()}` 
+        : value.trim();
+      onNext(method, finalValue, selectedCountryCode);
     }
   };
 
@@ -61,14 +74,43 @@ const StepContact = ({ contactMethod: initialMethod, contactValue: initialValue,
           <Label htmlFor="contact">
             {method === "email" ? "Email Address" : "Mobile Number"}
           </Label>
-          <Input
-            id="contact"
-            type={method === "email" ? "email" : "tel"}
-            placeholder={method === "email" ? "your@email.com" : "+27 XX XXX XXXX"}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleNext()}
-          />
+          {method === "mobile" ? (
+            <div className="flex gap-2">
+              <Select value={selectedCountryCode} onValueChange={setSelectedCountryCode}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {countryCodes.map((country) => (
+                    <SelectItem key={country.code} value={country.dialCode}>
+                      <span className="flex items-center gap-2">
+                        <span>{country.flag}</span>
+                        <span>{country.dialCode}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="contact"
+                type="tel"
+                placeholder="XX XXX XXXX"
+                value={value}
+                onChange={(e) => setValue(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => e.key === "Enter" && handleNext()}
+                className="flex-1"
+              />
+            </div>
+          ) : (
+            <Input
+              id="contact"
+              type="email"
+              placeholder="your@email.com"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleNext()}
+            />
+          )}
         </div>
 
         <div className="flex gap-3">

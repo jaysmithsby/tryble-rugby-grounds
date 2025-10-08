@@ -8,11 +8,13 @@ import StepContact from "./signup-steps/StepContact";
 import StepRole from "./signup-steps/StepRole";
 import StepSchool from "./signup-steps/StepSchool";
 import StepPassword from "./signup-steps/StepPassword";
+import StepComplete from "./signup-steps/StepComplete";
 
 const signUpSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   contactMethod: z.enum(["email", "mobile"]),
   contactValue: z.string().trim().min(1, "Contact information is required"),
+  countryCode: z.string().optional(),
   userType: z.enum(["scholar", "alumni", "parent", "fan"]),
   schoolName: z.string().trim().min(1, "School name is required").max(200),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -29,6 +31,7 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<SignUpData>>({
     contactMethod: "email",
+    countryCode: "+27",
   });
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -62,11 +65,8 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
       if (error) throw error;
 
       if (data.user) {
-        toast({
-          title: "Welcome to Tryble!",
-          description: "Your account has been created successfully.",
-        });
-        navigate("/home");
+        // Move to completion step instead of navigating immediately
+        setStep(6);
       }
     } catch (error: any) {
       toast({
@@ -96,8 +96,9 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
           <StepContact
             contactMethod={formData.contactMethod || "email"}
             contactValue={formData.contactValue || ""}
-            onNext={(method, value) => {
-              updateFormData({ contactMethod: method, contactValue: value });
+            countryCode={formData.countryCode}
+            onNext={(method, value, countryCode) => {
+              updateFormData({ contactMethod: method, contactValue: value, countryCode });
               setStep(3);
             }}
             onBack={() => setStep(1)}
@@ -136,6 +137,19 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
             loading={loading}
           />
         );
+      case 6:
+        return (
+          <StepComplete
+            userData={{
+              firstName: formData.firstName || "",
+              contactMethod: formData.contactMethod || "email",
+              contactValue: formData.contactValue || "",
+              userType: formData.userType || "fan",
+              schoolName: formData.schoolName || "",
+            }}
+            onComplete={() => navigate("/home")}
+          />
+        );
       default:
         return null;
     }
@@ -143,28 +157,33 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Progress Indicator */}
-      <div className="flex justify-center gap-2">
-        {[1, 2, 3, 4, 5].map((s) => (
-          <div
-            key={s}
-            className={`h-1.5 w-12 rounded-full transition-colors ${
-              s <= step ? "bg-primary" : "bg-muted"
-            }`}
-          />
-        ))}
-      </div>
+      {/* Progress Indicator - only show for steps 1-5 */}
+      {step <= 5 && (
+        <div className="flex justify-center gap-2">
+          {[1, 2, 3, 4, 5].map((s) => (
+            <div
+              key={s}
+              className={`h-1.5 w-12 rounded-full transition-colors ${
+                s <= step ? "bg-primary" : "bg-muted"
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       {renderStep()}
 
-      <div className="text-center">
-        <button
-          onClick={onSwitchToSignIn}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Already have an account? <span className="text-primary font-medium">Sign In</span>
-        </button>
-      </div>
+      {/* Only show sign in link on steps 1-5 */}
+      {step <= 5 && (
+        <div className="text-center">
+          <button
+            onClick={onSwitchToSignIn}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Already have an account? <span className="text-primary font-medium">Sign In</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
