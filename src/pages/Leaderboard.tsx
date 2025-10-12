@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
 import { PoolCard } from "@/components/pools/PoolCard";
 import { PoolInvite } from "@/components/pools/PoolInvite";
+import { BottomNav } from "@/components/BottomNav";
 
 type LeaderboardEntry = {
   rank: number;
@@ -407,6 +408,9 @@ const Leaderboard = () => {
           </div>
         )}
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 };

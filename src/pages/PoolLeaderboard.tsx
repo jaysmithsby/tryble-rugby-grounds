@@ -8,6 +8,7 @@ import { ArrowLeft, Trophy, Users, Vote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PoolInvite } from "@/components/pools/PoolInvite";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BottomNav } from "@/components/BottomNav";
 
 type LeaderboardEntry = {
   rank: number;
@@ -369,6 +370,9 @@ export const PoolLeaderboard = () => {
           💡 Pool activity is visible in the Parent Dashboard
         </p>
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 };

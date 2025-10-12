@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { BottomNav } from "@/components/BottomNav";
 
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -78,15 +79,7 @@ const Home = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-border/40 bg-background">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex justify-around text-sm">
-            <button onClick={() => navigate("/home")} className="text-primary font-medium">Home</button>
-            <button onClick={() => navigate("/leaderboard")} className="text-muted-foreground hover:text-foreground transition-colors">Leaderboards</button>
-            <button onClick={() => navigate("/profile")} className="text-muted-foreground hover:text-foreground transition-colors">Profile</button>
-          </div>
-        </div>
-      </nav>
+      <BottomNav />
     </div>
   );
 };
