@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      fixtures: {
+        Row: {
+          away_school_id: string
+          away_score: number | null
+          created_at: string
+          festival_id: string | null
+          home_school_id: string
+          home_score: number | null
+          id: string
+          is_derby: boolean | null
+          is_visible: boolean | null
+          match_date: string
+          round_name: string | null
+          season: string
+          sport: string
+          status: string
+          updated_at: string
+          venue: string
+          year: number
+        }
+        Insert: {
+          away_school_id: string
+          away_score?: number | null
+          created_at?: string
+          festival_id?: string | null
+          home_school_id: string
+          home_score?: number | null
+          id?: string
+          is_derby?: boolean | null
+          is_visible?: boolean | null
+          match_date: string
+          round_name?: string | null
+          season: string
+          sport?: string
+          status?: string
+          updated_at?: string
+          venue: string
+          year: number
+        }
+        Update: {
+          away_school_id?: string
+          away_score?: number | null
+          created_at?: string
+          festival_id?: string | null
+          home_school_id?: string
+          home_score?: number | null
+          id?: string
+          is_derby?: boolean | null
+          is_visible?: boolean | null
+          match_date?: string
+          round_name?: string | null
+          season?: string
+          sport?: string
+          status?: string
+          updated_at?: string
+          venue?: string
+          year?: number
+        }
+        Relationships: []
+      }
       pool_members: {
         Row: {
           id: string
@@ -234,6 +294,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_scores: {
         Row: {
           accuracy_percentage: number | null
@@ -290,9 +371,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       badge_type:
         | "top_dog"
         | "podium_place"
@@ -430,6 +518,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       badge_type: [
         "top_dog",
         "podium_place",
