@@ -8,6 +8,8 @@ import { FixturesTable } from "@/components/admin/FixturesTable";
 import { CreateFixtureDialog } from "@/components/admin/CreateFixtureDialog";
 import { EditFixtureDialog } from "@/components/admin/EditFixtureDialog";
 import { ImportFixturesButton } from "@/components/admin/ImportFixturesButton";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { BottomNav } from "@/components/BottomNav";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -86,12 +88,12 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+    <>
+      <AdminLayout>
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-            <p className="text-muted-foreground mt-2">Manage rugby fixtures and match results</p>
+            <h2 className="text-2xl font-bold text-foreground">Fixtures Manager</h2>
+            <p className="text-muted-foreground mt-1">Manage rugby fixtures and match results</p>
           </div>
           <div className="flex gap-2">
             <ImportFixturesButton />
@@ -114,7 +116,8 @@ export default function Admin() {
           onOpenChange={setEditDialogOpen}
           fixture={selectedFixture}
         />
-      </div>
-    </div>
+      </AdminLayout>
+      <BottomNav />
+    </>
   );
 }

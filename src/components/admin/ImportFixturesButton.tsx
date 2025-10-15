@@ -34,7 +34,8 @@ export function ImportFixturesButton() {
               season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
               year: row.year ? parseInt(row.year) : new Date().getFullYear(),
               festival_id: row.festival_id || null,
-              is_derby: false,
+              round_name: row.round_name || null,
+              is_derby: row.is_derby === 'true' || row.is_derby === true || false,
               is_visible: true,
             }));
 

@@ -1,0 +1,108 @@
+import { ReactNode } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3 } from "lucide-react";
+
+interface AdminLayoutProps {
+  children?: ReactNode;
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+          <p className="text-muted-foreground mt-2">Manage Tryble platform content and users</p>
+        </div>
+
+        <Tabs defaultValue="fixtures" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto">
+            <TabsTrigger value="fixtures" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              <span className="hidden sm:inline">Fixtures</span>
+            </TabsTrigger>
+            <TabsTrigger value="schools" className="gap-2">
+              <School className="h-4 w-4" />
+              <span className="hidden sm:inline">Schools</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="tournaments" className="gap-2">
+              <Trophy className="h-4 w-4" />
+              <span className="hidden sm:inline">Tournaments</span>
+            </TabsTrigger>
+            <TabsTrigger value="ads" className="gap-2">
+              <Megaphone className="h-4 w-4" />
+              <span className="hidden sm:inline">Ads</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="fixtures" className="space-y-4">
+            {children}
+          </TabsContent>
+
+          <TabsContent value="schools" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
+              <School className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">Schools Manager</h3>
+              <p className="text-muted-foreground">
+                Manage school profiles, crests, regions, and visibility settings.
+              </p>
+              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">User Management</h3>
+              <p className="text-muted-foreground">
+                View and manage user accounts, permissions, and activity.
+              </p>
+              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tournaments" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
+              <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">Tournaments Manager</h3>
+              <p className="text-muted-foreground">
+                Create and manage rugby tournaments and festival fixtures.
+              </p>
+              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ads" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
+              <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">Ads & Sponsors</h3>
+              <p className="text-muted-foreground">
+                Manage sponsor banners, ad placements, and campaign analytics.
+              </p>
+              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">Analytics Dashboard</h3>
+              <p className="text-muted-foreground">
+                View user traffic, engagement metrics, and prediction trends.
+              </p>
+              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
