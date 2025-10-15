@@ -29,14 +29,31 @@ interface FixturesTableProps {
 export function FixturesTable({ onEdit }: FixturesTableProps) {
   const { toast } = useToast();
   const [fixtures, setFixtures] = useState<any[]>([]);
+  const [schools, setSchools] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
 
   useEffect(() => {
+    fetchSchools();
     fetchFixtures();
   }, []);
+
+  const fetchSchools = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('id, name');
+
+      if (error) throw error;
+
+      const schoolMap = new Map(data?.map(s => [s.id, s.name]) || []);
+      setSchools(schoolMap);
+    } catch (error) {
+      console.error('Error fetching schools:', error);
+    }
+  };
 
   const fetchFixtures = async () => {
     try {
@@ -47,6 +64,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         .order('match_date', { ascending: false });
 
       if (error) throw error;
+      console.log(`Loaded ${data?.length || 0} fixtures`);
       setFixtures(data || []);
     } catch (error) {
       console.error('Error fetching fixtures:', error);
@@ -86,9 +104,14 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   };
 
   const filteredFixtures = fixtures.filter((fixture) => {
+    const homeSchool = schools.get(fixture.home_school_id) || '';
+    const awaySchool = schools.get(fixture.away_school_id) || '';
+    
     const matchesSearch =
       searchQuery === "" ||
-      fixture.venue.toLowerCase().includes(searchQuery.toLowerCase());
+      fixture.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      homeSchool.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      awaySchool.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || fixture.status === statusFilter;
@@ -128,7 +151,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by venue..."
+            placeholder="Search by school name or venue..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -176,17 +199,23 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
             {filteredFixtures.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No fixtures found
+                  {fixtures.length === 0 
+                    ? "No fixtures loaded. Import CSV data to get started."
+                    : "No matches found for that school. Try another search."}
                 </TableCell>
               </TableRow>
             ) : (
-              filteredFixtures.map((fixture) => (
+              filteredFixtures.map((fixture) => {
+                const homeSchool = schools.get(fixture.home_school_id) || 'Unknown School';
+                const awaySchool = schools.get(fixture.away_school_id) || 'Unknown School';
+                
+                return (
                 <TableRow key={fixture.id}>
                   <TableCell className="font-medium">
                     {format(new Date(fixture.match_date), 'MMM dd, yyyy')}
                   </TableCell>
-                  <TableCell className="text-sm">{fixture.home_school_id.substring(0, 8)}...</TableCell>
-                  <TableCell className="text-sm">{fixture.away_school_id.substring(0, 8)}...</TableCell>
+                  <TableCell className="text-sm">{homeSchool}</TableCell>
+                  <TableCell className="text-sm">{awaySchool}</TableCell>
                   <TableCell className="text-sm">{fixture.venue}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={getStatusColor(fixture.status)}>
@@ -221,7 +250,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

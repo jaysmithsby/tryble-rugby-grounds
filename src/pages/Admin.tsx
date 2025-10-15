@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FixturesTable } from "@/components/admin/FixturesTable";
 import { CreateFixtureDialog } from "@/components/admin/CreateFixtureDialog";
 import { EditFixtureDialog } from "@/components/admin/EditFixtureDialog";
+import { ImportFixturesButton } from "@/components/admin/ImportFixturesButton";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -92,10 +93,13 @@ export default function Admin() {
             <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
             <p className="text-muted-foreground mt-2">Manage rugby fixtures and match results</p>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Fixture
-          </Button>
+          <div className="flex gap-2">
+            <ImportFixturesButton />
+            <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Fixture
+            </Button>
+          </div>
         </div>
 
         <FixturesTable onEdit={handleEditFixture} />
