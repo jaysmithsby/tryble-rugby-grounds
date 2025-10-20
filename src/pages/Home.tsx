@@ -4,6 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { BottomNav } from "@/components/BottomNav";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
+import { DerbyBanner } from "@/components/home/DerbyBanner";
+import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
+import { FixtureCard } from "@/components/home/FixtureCard";
+import { TriviaCarousel } from "@/components/home/TriviaCarousel";
+import { Trophy } from "lucide-react";
 
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -49,12 +54,42 @@ const Home = () => {
     );
   }
 
+  const dummyFixtures = [
+    {
+      homeTeam: "Blackrock College",
+      awayTeam: "Belvedere College",
+      homeTeamShort: "BC",
+      awayTeamShort: "BEL",
+      time: "Sat 15:00",
+      venue: "RDS",
+    },
+    {
+      homeTeam: "Terenure College",
+      awayTeam: "St. Mary's",
+      homeTeamShort: "TC",
+      awayTeamShort: "STM",
+      time: "Sat 13:00",
+      venue: "Donnybrook",
+    },
+    {
+      homeTeam: "Gonzaga College",
+      awayTeam: "Cistercian",
+      homeTeamShort: "GC",
+      awayTeamShort: "CIS",
+      time: "Sun 14:00",
+      venue: "Energia Park",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <header className="border-b border-border/40">
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold text-primary">Tryble</div>
+          <div className="flex items-center gap-2">
+            <Trophy className="w-6 h-6 text-primary" />
+            <span className="text-2xl font-bold text-primary">Tryble</span>
+          </div>
           <button
             onClick={handleSignOut}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -65,18 +100,31 @@ const Home = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold">Welcome to Tryble</h1>
-          <p className="text-muted-foreground">
-            The home screen with fixtures, predictions, and leaderboards is coming soon!
-          </p>
-          {user && (
-            <p className="text-sm text-muted-foreground">
-              Logged in as: {user.email}
-            </p>
+      <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
+        {/* This Week's Derby Banner */}
+        <DerbyBanner />
+
+        {/* Weekly Summary Widget */}
+        <WeeklySummaryWidget />
+
+        {/* Upcoming Fixtures */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold px-1">Upcoming Fixtures</h2>
+          {dummyFixtures.length > 0 ? (
+            <div className="space-y-3">
+              {dummyFixtures.map((fixture, index) => (
+                <FixtureCard key={index} {...fixture} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
+              <p className="text-muted-foreground">No matches yet — check back soon!</p>
+            </div>
           )}
         </div>
+
+        {/* Trivia / News Carousel */}
+        <TriviaCarousel />
 
         {/* Score Submission Section */}
         <ScoreSubmission />
