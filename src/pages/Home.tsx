@@ -7,6 +7,8 @@ import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { DerbyBanner } from "@/components/home/DerbyBanner";
 import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/home/FixtureCard";
+import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
+import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { TriviaCarousel } from "@/components/home/TriviaCarousel";
 import { Trophy } from "lucide-react";
 
@@ -54,15 +56,23 @@ const Home = () => {
     );
   }
 
+  // User's school (simulated)
+  const userSchool = "Blackrock College";
+  const userSchoolShort = "BC";
+
+  // User's school fixture (can be upcoming or completed)
+  const schoolFixture = {
+    userSchool: "Blackrock College",
+    userSchoolShort: "BC",
+    opponentSchool: "Belvedere College",
+    opponentSchoolShort: "BEL",
+    time: "Completed - Sat 15:00",
+    venue: "RDS",
+    isCompleted: true, // Toggle this to test upcoming vs completed
+    matchDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
+  };
+
   const dummyFixtures = [
-    {
-      homeTeam: "Blackrock College",
-      awayTeam: "Belvedere College",
-      homeTeamShort: "BC",
-      awayTeamShort: "BEL",
-      time: "Sat 15:00",
-      venue: "RDS",
-    },
     {
       homeTeam: "Terenure College",
       awayTeam: "St. Mary's",
@@ -78,6 +88,44 @@ const Home = () => {
       awayTeamShort: "CIS",
       time: "Sun 14:00",
       venue: "Energia Park",
+    },
+    {
+      homeTeam: "Clongowes Wood",
+      awayTeam: "St. Michael's",
+      homeTeamShort: "CW",
+      awayTeamShort: "STM",
+      time: "Sun 16:00",
+      venue: "Donnybrook",
+    },
+  ];
+
+  const recentFixtures = [
+    {
+      homeTeam: "St. Mary's College",
+      awayTeam: "Newbridge College",
+      homeTeamShort: "SMC",
+      awayTeamShort: "NC",
+      completedTime: "Completed - Fri 18:00",
+      venue: "Templeville Road",
+      matchDate: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 hours ago (within 48hr window)
+    },
+    {
+      homeTeam: "Castleknock College",
+      awayTeam: "Presentation College",
+      homeTeamShort: "CC",
+      awayTeamShort: "PC",
+      completedTime: "Completed - Fri 16:00",
+      venue: "Somerton Park",
+      matchDate: new Date(Date.now() - 40 * 60 * 60 * 1000), // 40 hours ago (within 48hr window)
+    },
+    {
+      homeTeam: "Roscrea College",
+      awayTeam: "CBC Cork",
+      homeTeamShort: "RC",
+      awayTeamShort: "CBC",
+      completedTime: "Completed - Thu 15:00",
+      venue: "Roscrea",
+      matchDate: new Date(Date.now() - 60 * 60 * 60 * 1000), // 60 hours ago (outside window)
     },
   ];
 
@@ -107,6 +155,11 @@ const Home = () => {
         {/* Weekly Summary Widget */}
         <WeeklySummaryWidget />
 
+        {/* Your School's Fixture - Special Highlight */}
+        <div className="space-y-3">
+          <SchoolFixtureCard {...schoolFixture} />
+        </div>
+
         {/* Upcoming Fixtures */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold px-1">Upcoming Fixtures</h2>
@@ -119,6 +172,22 @@ const Home = () => {
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">No matches yet — check back soon!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Matches - Submit Score */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold px-1">Recent Matches – Submit Score</h2>
+          {recentFixtures.length > 0 ? (
+            <div className="space-y-3">
+              {recentFixtures.map((fixture, index) => (
+                <RecentFixtureCard key={index} {...fixture} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gradient-card rounded-lg border border-border/40">
+              <p className="text-muted-foreground">No recent matches to report.</p>
             </div>
           )}
         </div>
