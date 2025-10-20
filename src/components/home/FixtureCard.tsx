@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
+import { Clock, Lock } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
 
 interface FixtureCardProps {
@@ -13,6 +13,10 @@ interface FixtureCardProps {
   venue: string;
   matchId?: string;
   appliesTo?: string[]; // Pool names this fixture appears in
+  isPredicted?: boolean;
+  predictedTeam?: "home" | "away";
+  predictedMargin?: number;
+  onPredictionMade?: (team: "home" | "away", margin: number) => void;
 }
 
 export const FixtureCard = ({ 
@@ -23,9 +27,19 @@ export const FixtureCard = ({
   time, 
   venue,
   matchId,
-  appliesTo = []
+  appliesTo = [],
+  isPredicted = false,
+  predictedTeam,
+  predictedMargin,
+  onPredictionMade
 }: FixtureCardProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handlePredictionSubmit = (team: "home" | "away", margin: number) => {
+    onPredictionMade?.(team, margin);
+  };
+
+  const predictedTeamName = predictedTeam === "home" ? homeTeam : awayTeam;
 
   return (
     <>
@@ -38,6 +52,7 @@ export const FixtureCard = ({
         awayTeamShort={awayTeamShort}
         matchId={matchId}
         appliesTo={appliesTo}
+        onPredictionSubmit={handlePredictionSubmit}
       />
     <Card className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300">
       <div className="p-4 space-y-3">
@@ -46,7 +61,12 @@ export const FixtureCard = ({
             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
-          <span className="text-xs text-muted-foreground">{venue}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{venue}</span>
+            {isPredicted && (
+              <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
@@ -69,11 +89,24 @@ export const FixtureCard = ({
           </div>
         </div>
 
+        {isPredicted && (
+          <div className="pt-2 border-t border-border/40">
+            <p className="text-xs text-primary font-medium text-center">
+              You picked: {predictedTeamName} to win by {predictedMargin}
+            </p>
+          </div>
+        )}
+
         <Button 
           onClick={() => setDialogOpen(true)}
-          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold shadow-lg"
+          disabled={isPredicted}
+          className={`w-full font-bold shadow-lg ${
+            isPredicted 
+              ? "bg-muted text-muted-foreground cursor-not-allowed" 
+              : "bg-accent hover:bg-accent/90 text-accent-foreground"
+          }`}
         >
-          Predict Now
+          {isPredicted ? "Prediction Made" : "Predict Now"}
         </Button>
       </div>
     </Card>

@@ -17,6 +17,7 @@ interface PredictionDialogProps {
   awayTeamShort: string;
   matchId?: string;
   appliesTo?: string[]; // List of pool names this prediction applies to
+  onPredictionSubmit?: (team: "home" | "away", margin: number) => void;
 }
 
 export const PredictionDialog = ({
@@ -26,7 +27,8 @@ export const PredictionDialog = ({
   awayTeam,
   homeTeamShort,
   awayTeamShort,
-  appliesTo = []
+  appliesTo = [],
+  onPredictionSubmit
 }: PredictionDialogProps) => {
   const [selectedTeam, setSelectedTeam] = useState<"home" | "away">("home");
   const [margin, setMargin] = useState<number>(7);
@@ -35,6 +37,8 @@ export const PredictionDialog = ({
   const handleSubmit = () => {
     // Simulate prediction submission
     const winner = selectedTeam === "home" ? homeTeam : awayTeam;
+    
+    onPredictionSubmit?.(selectedTeam, margin);
     
     toast({
       title: "Prediction Submitted!",

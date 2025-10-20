@@ -15,7 +15,16 @@ import { Trophy } from "lucide-react";
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
   const navigate = useNavigate();
+
+  // Handle prediction submission
+  const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number) => {
+    setPredictions(prev => ({
+      ...prev,
+      [matchId]: { team, margin }
+    }));
+  };
 
   useEffect(() => {
     // Check if user is logged in
@@ -217,7 +226,14 @@ const Home = () => {
           {dummyFixtures.length > 0 ? (
             <div className="space-y-3">
               {dummyFixtures.map((fixture, index) => (
-                <FixtureCard key={index} {...fixture} />
+                <FixtureCard 
+                  key={index} 
+                  {...fixture}
+                  isPredicted={!!predictions[fixture.matchId]}
+                  predictedTeam={predictions[fixture.matchId]?.team}
+                  predictedMargin={predictions[fixture.matchId]?.margin}
+                  onPredictionMade={(team, margin) => handlePredictionMade(fixture.matchId, team, margin)}
+                />
               ))}
             </div>
           ) : (
