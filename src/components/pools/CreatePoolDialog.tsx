@@ -69,12 +69,11 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
   };
 
   const applyTemplate = (template: PoolTemplate) => {
-    setPoolName(template.name);
     setSelectedSchools(template.schools);
     setVotingMode(false);
     toast({
       title: "Template applied",
-      description: `${template.schools.length} schools selected`
+      description: `${template.schools.length} schools selected from ${template.name}`
     });
   };
 
