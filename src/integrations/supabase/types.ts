@@ -196,10 +196,12 @@ export type Database = {
           id: string
           invite_code: string
           is_active: boolean | null
+          is_voting_finalized: boolean | null
           max_schools: number | null
           name: string
           schools: string[] | null
           updated_at: string | null
+          voting_closes_at: string | null
           voting_mode: boolean | null
         }
         Insert: {
@@ -208,10 +210,12 @@ export type Database = {
           id?: string
           invite_code: string
           is_active?: boolean | null
+          is_voting_finalized?: boolean | null
           max_schools?: number | null
           name: string
           schools?: string[] | null
           updated_at?: string | null
+          voting_closes_at?: string | null
           voting_mode?: boolean | null
         }
         Update: {
@@ -220,10 +224,12 @@ export type Database = {
           id?: string
           invite_code?: string
           is_active?: boolean | null
+          is_voting_finalized?: boolean | null
           max_schools?: number | null
           name?: string
           schools?: string[] | null
           updated_at?: string | null
+          voting_closes_at?: string | null
           voting_mode?: boolean | null
         }
         Relationships: []
@@ -428,6 +434,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_all_members_voted: {
+        Args: { pool_id_param: string }
+        Returns: boolean
+      }
+      finalize_pool_voting: {
+        Args: { pool_id_param: string }
+        Returns: undefined
+      }
+      get_next_friday_8pm: {
+        Args: { from_time: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

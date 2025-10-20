@@ -120,6 +120,16 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
 
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
+      // Calculate voting close time (next Friday 8pm) if voting mode
+      let votingClosesAt = null;
+      if (votingMode) {
+        const { data: closeDateData, error: closeDateError } = await supabase
+          .rpc('get_next_friday_8pm', { from_time: new Date().toISOString() });
+        
+        if (closeDateError) throw closeDateError;
+        votingClosesAt = closeDateData;
+      }
+
       const { data: pool, error: poolError } = await supabase
         .from("pools")
         .insert({
@@ -128,6 +138,8 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
           creator_id: user.id,
           schools: votingMode ? [] : selectedSchools,
           voting_mode: votingMode,
+          voting_closes_at: votingClosesAt,
+          is_voting_finalized: !votingMode,
           max_schools: 10
         })
         .select()

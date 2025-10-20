@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Trophy, Users, Vote } from "lucide-react";
+import { ArrowLeft, Trophy, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PoolInvite } from "@/components/pools/PoolInvite";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { PoolVoting } from "@/components/pools/PoolVoting";
 import { BottomNav } from "@/components/BottomNav";
 
 type LeaderboardEntry = {
@@ -27,9 +27,6 @@ export const PoolLeaderboard = () => {
   const [pool, setPool] = useState<any>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [availableSchools, setAvailableSchools] = useState<string[]>([]);
-  const [userVotes, setUserVotes] = useState<string[]>([]);
-  const [schoolVotes, setSchoolVotes] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,11 +57,6 @@ export const PoolLeaderboard = () => {
       if (membersError) throw membersError;
       setMemberCount(members?.length || 0);
 
-      // Load voting data if in voting mode
-      if (poolData.voting_mode) {
-        await loadVotingData();
-      }
-
       // Load leaderboard data (mock for now)
       loadLeaderboardData();
     } catch (error: any) {
@@ -75,100 +67,6 @@ export const PoolLeaderboard = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadVotingData = async () => {
-    try {
-      // Load available schools
-      const { data: schools } = await supabase
-        .from("schools")
-        .select("name")
-        .eq("status", "verified")
-        .order("name");
-
-      setAvailableSchools(schools?.map(s => s.name) || []);
-
-      // Load vote counts
-      const { data: votes } = await supabase
-        .from("pool_school_votes")
-        .select("school_name")
-        .eq("pool_id", poolId!);
-
-      const voteCounts: Record<string, number> = {};
-      votes?.forEach(vote => {
-        voteCounts[vote.school_name] = (voteCounts[vote.school_name] || 0) + 1;
-      });
-      setSchoolVotes(voteCounts);
-
-      // Load user's votes
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userVoteData } = await supabase
-          .from("pool_school_votes")
-          .select("school_name")
-          .eq("pool_id", poolId!)
-          .eq("user_id", user.id);
-
-        setUserVotes(userVoteData?.map(v => v.school_name) || []);
-      }
-    } catch (error) {
-      console.error("Error loading voting data:", error);
-    }
-  };
-
-  const toggleVote = async (school: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      if (userVotes.includes(school)) {
-        // Remove vote
-        await supabase
-          .from("pool_school_votes")
-          .delete()
-          .eq("pool_id", poolId!)
-          .eq("user_id", user.id)
-          .eq("school_name", school);
-
-        setUserVotes(userVotes.filter(s => s !== school));
-        setSchoolVotes(prev => ({
-          ...prev,
-          [school]: (prev[school] || 1) - 1
-        }));
-      } else if (userVotes.length < 10) {
-        // Add vote
-        await supabase
-          .from("pool_school_votes")
-          .insert({
-            pool_id: poolId!,
-            user_id: user.id,
-            school_name: school
-          });
-
-        setUserVotes([...userVotes, school]);
-        setSchoolVotes(prev => ({
-          ...prev,
-          [school]: (prev[school] || 0) + 1
-        }));
-
-        toast({
-          title: "Vote added!",
-          description: `You voted for ${school}`
-        });
-      } else {
-        toast({
-          title: "Maximum votes reached",
-          description: "You can vote for up to 10 schools",
-          variant: "destructive"
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error voting",
-        description: error.message,
-        variant: "destructive"
-      });
     }
   };
 
@@ -289,41 +187,43 @@ export const PoolLeaderboard = () => {
           </CardContent>
         </Card>
 
-        {/* Voting Section (if voting mode) */}
-        {pool.voting_mode && (
+        {/* Voting Section (if voting mode and not finalized) */}
+        {pool.voting_mode && !pool.is_voting_finalized && pool.voting_closes_at && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Vote className="w-5 h-5" />
-                Vote for Schools to Follow
-              </CardTitle>
+              <CardTitle className="text-lg">Vote for Schools to Follow</CardTitle>
               <CardDescription>
-                Top 10 schools by votes will be included. You have {userVotes.length}/10 votes.
+                Select up to 10 schools for this pool
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-64">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {availableSchools
-                    .sort((a, b) => (schoolVotes[b] || 0) - (schoolVotes[a] || 0))
-                    .map((school) => (
-                      <Button
-                        key={school}
-                        variant={userVotes.includes(school) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => toggleVote(school)}
-                        className="justify-between"
-                      >
-                        <span>{school}</span>
-                        {schoolVotes[school] > 0 && (
-                          <Badge variant="secondary" className="ml-2">
-                            {schoolVotes[school]}
-                          </Badge>
-                        )}
-                      </Button>
-                    ))}
-                </div>
-              </ScrollArea>
+              <PoolVoting
+                poolId={poolId!}
+                votingClosesAt={pool.voting_closes_at}
+                isFinalized={pool.is_voting_finalized}
+                onVotingComplete={loadPoolData}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Finalized Schools (if voting is done) */}
+        {pool.voting_mode && pool.is_voting_finalized && pool.schools?.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Pool Schools</CardTitle>
+              <CardDescription>
+                The following schools were selected by vote
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {pool.schools.map((school: string) => (
+                  <Badge key={school} variant="outline" className="h-8 px-3">
+                    {school}
+                  </Badge>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
