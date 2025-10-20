@@ -4,12 +4,38 @@ import { ChevronLeft } from "lucide-react";
 import { BadgeGrid } from "@/components/profile/BadgeGrid";
 import { allBadges } from "@/data/badgesData";
 import { BottomNav } from "@/components/BottomNav";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Badges = () => {
   const navigate = useNavigate();
 
   const earnedCount = allBadges.filter(b => b.earned).length;
   const totalCount = allBadges.length;
+
+  // Group badges by category
+  const badgesByCategory = allBadges.reduce((acc, badge) => {
+    if (!acc[badge.category]) {
+      acc[badge.category] = [];
+    }
+    acc[badge.category].push(badge);
+    return acc;
+  }, {} as Record<string, typeof allBadges>);
+
+  // Define category order and emoji icons
+  const categoryConfig: Record<string, { icon: string; order: number }> = {
+    "Accuracy": { icon: "🎯", order: 1 },
+    "Streak": { icon: "🔥", order: 2 },
+    "Leaderboard": { icon: "🏆", order: 3 },
+    "Season": { icon: "📅", order: 4 },
+    "Rivalry": { icon: "⚔️", order: 5 },
+    "Social": { icon: "👥", order: 6 },
+    "Special": { icon: "⭐", order: 7 },
+  };
+
+  // Sort categories by defined order
+  const sortedCategories = Object.keys(badgesByCategory).sort(
+    (a, b) => (categoryConfig[a]?.order || 999) - (categoryConfig[b]?.order || 999)
+  );
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -43,8 +69,28 @@ const Badges = () => {
           </div>
         </div>
 
-        {/* Badge Grid */}
-        <BadgeGrid badges={allBadges} />
+        {/* Badges by Category */}
+        <div className="space-y-8">
+          {sortedCategories.map((category) => {
+            const categoryBadges = badgesByCategory[category];
+            const earnedInCategory = categoryBadges.filter(b => b.earned).length;
+            
+            return (
+              <div key={category} className="animate-fade-in">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <span>{categoryConfig[category]?.icon || "📌"}</span>
+                    {category}
+                  </h2>
+                  <span className="text-sm text-muted-foreground">
+                    {earnedInCategory} / {categoryBadges.length}
+                  </span>
+                </div>
+                <BadgeGrid badges={categoryBadges} />
+              </div>
+            );
+          })}
+        </div>
 
         {/* Info Section */}
         <div className="mt-8 p-6 bg-muted/10 rounded-lg border border-border/30 text-center">
