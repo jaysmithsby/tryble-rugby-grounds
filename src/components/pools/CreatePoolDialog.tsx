@@ -11,6 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizePoolName } from "@/lib/profanityFilter";
 
+interface PoolTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  schools: string[];
+}
+
 interface CreatePoolDialogProps {
   onPoolCreated: () => void;
 }
@@ -22,12 +29,14 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
   const [votingMode, setVotingMode] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [availableSchools, setAvailableSchools] = useState<string[]>([]);
+  const [poolTemplates, setPoolTemplates] = useState<PoolTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     loadSchools();
+    loadTemplates();
   }, []);
 
   const loadSchools = async () => {
@@ -43,6 +52,30 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
     } catch (error) {
       console.error("Error loading schools:", error);
     }
+  };
+
+  const loadTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pool_templates")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setPoolTemplates(data || []);
+    } catch (error) {
+      console.error("Error loading pool templates:", error);
+    }
+  };
+
+  const applyTemplate = (template: PoolTemplate) => {
+    setPoolName(template.name);
+    setSelectedSchools(template.schools);
+    setVotingMode(false);
+    toast({
+      title: "Template applied",
+      description: `${template.schools.length} schools selected`
+    });
   };
 
   const toggleSchool = (school: string) => {
@@ -68,10 +101,10 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
       return;
     }
 
-    if (!votingMode && selectedSchools.length === 0) {
+    if (!votingMode && selectedSchools.length < 5) {
       toast({
-        title: "Select schools",
-        description: "Please select at least one school to follow.",
+        title: "Minimum schools required",
+        description: "Please select at least 5 schools for your pool.",
         variant: "destructive"
       });
       return;
@@ -139,7 +172,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
     setStep("configure");
   };
 
-  const isConfigureValid = poolName.trim().length >= 3 && (votingMode || selectedSchools.length > 0);
+  const isConfigureValid = poolName.trim().length >= 3 && (votingMode || selectedSchools.length >= 5);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -202,11 +235,45 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
 
             {!votingMode && (
               <div className="space-y-4">
+                {/* Pool Templates Section */}
+                {poolTemplates.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Quick Start Templates</Label>
+                    <ScrollArea className="h-32 border rounded-lg bg-muted/30">
+                      <div className="p-3 space-y-2">
+                        {poolTemplates.map((template) => (
+                          <Button
+                            key={template.id}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => applyTemplate(template)}
+                            className="w-full justify-start h-auto py-2 px-3"
+                          >
+                            <div className="text-left w-full">
+                              <div className="font-medium text-sm">{template.name}</div>
+                              {template.description && (
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                  {template.description} · {template.schools.length} schools
+                                </div>
+                              )}
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label>Select Schools to Follow (up to 10)</Label>
+                  <Label>Select Schools to Follow (5-10 schools)</Label>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
                       {selectedSchools.length}/10 schools selected
+                      {selectedSchools.length < 5 && (
+                        <span className="text-destructive ml-1">
+                          (min. 5 required)
+                        </span>
+                      )}
                     </p>
                     {selectedSchools.length >= 10 && (
                       <p className="text-xs text-destructive font-medium">
@@ -269,7 +336,12 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
 
                 {selectedSchools.length >= 10 && (
                   <p className="text-xs text-muted-foreground text-center p-2 bg-muted/50 rounded">
-                    ℹ️ You can only follow up to 10 schools per pool
+                    ℹ️ Maximum of 10 schools per pool
+                  </p>
+                )}
+                {selectedSchools.length > 0 && selectedSchools.length < 5 && (
+                  <p className="text-xs text-warning text-center p-2 bg-warning/10 rounded border border-warning/20">
+                    ⚠️ Select at least {5 - selectedSchools.length} more school{5 - selectedSchools.length !== 1 ? 's' : ''} to continue
                   </p>
                 )}
               </div>
@@ -289,7 +361,12 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
                 className="w-full h-11" 
                 disabled={!isConfigureValid}
               >
-                {votingMode ? "Next →" : `Confirm ${selectedSchools.length} School${selectedSchools.length !== 1 ? 's' : ''} →`}
+                {votingMode 
+                  ? "Next →" 
+                  : selectedSchools.length < 5
+                    ? `Select ${5 - selectedSchools.length} More School${5 - selectedSchools.length !== 1 ? 's' : ''}`
+                    : `Confirm ${selectedSchools.length} School${selectedSchools.length !== 1 ? 's' : ''} →`
+                }
               </Button>
               {votingMode && (
                 <p className="text-xs text-muted-foreground text-center">

@@ -165,6 +165,30 @@ export type Database = {
           },
         ]
       }
+      pool_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          schools: string[]
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          schools: string[]
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          schools?: string[]
+        }
+        Relationships: []
+      }
       pools: {
         Row: {
           created_at: string | null
