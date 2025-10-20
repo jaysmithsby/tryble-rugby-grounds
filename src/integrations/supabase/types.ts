@@ -435,6 +435,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_pool_creator: {
+        Args: { _pool_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_pool_member: {
+        Args: { _pool_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
