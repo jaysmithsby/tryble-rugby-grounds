@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
-import { BadgeGrid } from "@/components/profile/BadgeGrid";
 import { allBadges } from "@/data/badgesData";
 
 interface ProfileData {
@@ -206,7 +205,49 @@ const Profile = () => {
         </div>
 
         {/* Achievements Section */}
-        <BadgeGrid badges={allBadges} />
+        <Card className="mb-6 bg-gradient-card border-border/40">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              🏅 Your Badges
+            </CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate("/badges")}
+              className="text-primary hover:text-primary/80"
+            >
+              View All
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {allBadges.slice(0, 6).map((badge) => (
+                <div
+                  key={badge.id}
+                  onClick={() => navigate("/badges")}
+                  className={`relative p-4 rounded-lg border transition-all duration-300 hover:scale-105 cursor-pointer ${
+                    badge.earned
+                      ? "bg-primary/10 border-primary/30 hover:bg-primary/20"
+                      : "bg-muted/5 border-muted/20 hover:bg-muted/10"
+                  }`}
+                >
+                  <div className={`flex flex-col items-center text-center ${!badge.earned ? "opacity-40" : ""}`}>
+                    <div className={`text-4xl mb-2 ${badge.earned ? "animate-fade-in" : ""}`}>
+                      {badge.icon}
+                    </div>
+                    <div className="font-semibold text-sm mb-1 line-clamp-2">
+                      {badge.name}
+                    </div>
+                    <div className="text-xs text-primary font-medium">
+                      {badge.points} pts
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Groups & Pools */}
         <Card className="mb-6 bg-gradient-card border-border/40">

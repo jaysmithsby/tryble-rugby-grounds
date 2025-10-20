@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
+import Badges from "./pages/Badges";
 import Leaderboard from "./pages/Leaderboard";
 import PoolLeaderboard from "./pages/PoolLeaderboard";
 import Admin from "./pages/Admin";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/badges" element={<Badges />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
           <Route path="/admin" element={<Admin />} />
