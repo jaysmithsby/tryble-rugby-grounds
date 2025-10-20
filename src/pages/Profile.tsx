@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import { 
   Trophy, 
   Target, 
-  Flame, 
-  Award,
+  Flame,
   Settings,
   LogOut,
   Shield,
@@ -18,13 +17,14 @@ import {
   Users,
   Bell,
   School,
-  Lock,
   CheckCircle2,
   ChevronRight,
   AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
+import { BadgeGrid } from "@/components/profile/BadgeGrid";
+import { allBadges } from "@/data/badgesData";
 
 interface ProfileData {
   firstName: string;
@@ -33,13 +33,6 @@ interface ProfileData {
   userType: string;
 }
 
-interface BadgeItem {
-  id: string;
-  name: string;
-  icon: typeof Trophy;
-  earned: boolean;
-  description: string;
-}
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -56,14 +49,6 @@ const Profile = () => {
     currentStreak: 3
   };
 
-  const badges: BadgeItem[] = [
-    { id: "1", name: "First Win", icon: Trophy, earned: true, description: "Won your first prediction" },
-    { id: "2", name: "Derby Master", icon: Target, earned: true, description: "Predicted 3 derbies correctly" },
-    { id: "3", name: "Hot Streak", icon: Flame, earned: true, description: "5 correct predictions in a row" },
-    { id: "4", name: "Perfect Weekend", icon: Award, earned: false, description: "All predictions correct in one round" },
-    { id: "5", name: "Season Champion", icon: Trophy, earned: false, description: "Top 10 in season leaderboard" },
-    { id: "6", name: "Loyal Fan", icon: Shield, earned: false, description: "Predict 20 matches" },
-  ];
 
   const pools = [
     { id: "1", name: "Michaelhouse vs Grey" },
@@ -221,43 +206,7 @@ const Profile = () => {
         </div>
 
         {/* Achievements Section */}
-        <Card className="mb-6 bg-gradient-card border-border/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              🏅 Your Badges
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {badges.map((badge) => {
-                const IconComponent = badge.icon;
-                return (
-                  <div
-                    key={badge.id}
-                    className={`relative p-4 rounded-lg border ${
-                      badge.earned
-                        ? "bg-primary/10 border-primary/30"
-                        : "bg-muted/5 border-muted/20 opacity-50"
-                    } transition-all hover:scale-105`}
-                  >
-                    {!badge.earned && (
-                      <Lock className="absolute top-2 right-2 w-4 h-4 text-muted-foreground" />
-                    )}
-                    <IconComponent
-                      className={`w-8 h-8 mb-2 ${
-                        badge.earned ? "text-accent" : "text-muted-foreground"
-                      }`}
-                    />
-                    <div className="font-medium text-sm">{badge.name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {badge.description}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+        <BadgeGrid badges={allBadges} />
 
         {/* Groups & Pools */}
         <Card className="mb-6 bg-gradient-card border-border/40">
