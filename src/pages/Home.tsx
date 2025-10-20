@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { BottomNav } from "@/components/BottomNav";
+import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -49,7 +50,7 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="border-b border-border/40">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -63,8 +64,8 @@ const Home = () => {
         </div>
       </header>
 
-      {/* Main Content - Placeholder for now */}
-      <main className="container mx-auto px-4 py-8">
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         <div className="text-center space-y-4">
           <h1 className="text-3xl font-bold">Welcome to Tryble</h1>
           <p className="text-muted-foreground">
@@ -76,6 +77,9 @@ const Home = () => {
             </p>
           )}
         </div>
+
+        {/* Score Submission Section */}
+        <ScoreSubmission />
       </main>
 
       {/* Bottom Navigation */}

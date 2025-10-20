@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
 import { allBadges } from "@/data/badgesData";
+import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 
 interface ProfileData {
   firstName: string;
@@ -203,6 +204,9 @@ const Profile = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Score Submission Section */}
+        <ScoreSubmission />
 
         {/* Achievements Section */}
         <Card className="mb-6 bg-gradient-card border-border/40">
