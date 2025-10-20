@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
+import { PredictionDialog } from "./PredictionDialog";
 
 interface FixtureCardProps {
   homeTeam: string;
@@ -9,6 +11,8 @@ interface FixtureCardProps {
   awayTeamShort: string;
   time: string;
   venue: string;
+  matchId?: string;
+  appliesTo?: string[]; // Pool names this fixture appears in
 }
 
 export const FixtureCard = ({ 
@@ -17,9 +21,24 @@ export const FixtureCard = ({
   homeTeamShort, 
   awayTeamShort, 
   time, 
-  venue 
+  venue,
+  matchId,
+  appliesTo = []
 }: FixtureCardProps) => {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
+    <>
+      <PredictionDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        homeTeam={homeTeam}
+        awayTeam={awayTeam}
+        homeTeamShort={homeTeamShort}
+        awayTeamShort={awayTeamShort}
+        matchId={matchId}
+        appliesTo={appliesTo}
+      />
     <Card className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300">
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -50,10 +69,14 @@ export const FixtureCard = ({
           </div>
         </div>
 
-        <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold shadow-lg">
+        <Button 
+          onClick={() => setDialogOpen(true)}
+          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold shadow-lg"
+        >
           Predict Now
         </Button>
       </div>
     </Card>
+    </>
   );
 };

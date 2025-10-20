@@ -60,6 +60,32 @@ const Home = () => {
   const userSchool = "Blackrock College";
   const userSchoolShort = "BC";
 
+  // Simulated followed teams
+  const followedTeams = ["Blackrock College", "Terenure College", "St. Mary's College"];
+
+  // Simulated pools the user belongs to
+  const userPools = [
+    { name: "School Friends", teams: ["Blackrock College", "Gonzaga College", "Belvedere College"] },
+    { name: "League A", teams: ["Terenure College", "St. Mary's", "Castleknock College"] },
+    { name: "Rugby Pros", teams: ["Clongowes Wood", "St. Michael's", "Newbridge College"] }
+  ];
+
+  // Get all teams from user's pools
+  const poolTeams = [...new Set(userPools.flatMap(pool => pool.teams))];
+
+  // Helper function to check if fixture should be shown
+  const shouldShowFixture = (homeTeam: string, awayTeam: string) => {
+    return followedTeams.includes(homeTeam) || followedTeams.includes(awayTeam) ||
+           poolTeams.includes(homeTeam) || poolTeams.includes(awayTeam);
+  };
+
+  // Helper function to get pools a fixture applies to
+  const getApplicablePools = (homeTeam: string, awayTeam: string) => {
+    return userPools
+      .filter(pool => pool.teams.includes(homeTeam) || pool.teams.includes(awayTeam))
+      .map(pool => pool.name);
+  };
+
   // User's school fixture (can be upcoming or completed)
   const schoolFixture = {
     userSchool: "Blackrock College",
@@ -72,7 +98,7 @@ const Home = () => {
     matchDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
   };
 
-  const dummyFixtures = [
+  const allFixtures = [
     {
       homeTeam: "Terenure College",
       awayTeam: "St. Mary's",
@@ -80,6 +106,7 @@ const Home = () => {
       awayTeamShort: "STM",
       time: "Sat 13:00",
       venue: "Donnybrook",
+      matchId: "match-1"
     },
     {
       homeTeam: "Gonzaga College",
@@ -88,6 +115,7 @@ const Home = () => {
       awayTeamShort: "CIS",
       time: "Sun 14:00",
       venue: "Energia Park",
+      matchId: "match-2"
     },
     {
       homeTeam: "Clongowes Wood",
@@ -96,10 +124,28 @@ const Home = () => {
       awayTeamShort: "STM",
       time: "Sun 16:00",
       venue: "Donnybrook",
+      matchId: "match-3"
     },
+    {
+      homeTeam: "Random School A",
+      awayTeam: "Random School B",
+      homeTeamShort: "RSA",
+      awayTeamShort: "RSB",
+      time: "Mon 15:00",
+      venue: "Unknown Field",
+      matchId: "match-4"
+    }
   ];
 
-  const recentFixtures = [
+  // Filter fixtures based on followed teams and pools
+  const dummyFixtures = allFixtures
+    .filter(f => shouldShowFixture(f.homeTeam, f.awayTeam))
+    .map(fixture => ({
+      ...fixture,
+      appliesTo: getApplicablePools(fixture.homeTeam, fixture.awayTeam)
+    }));
+
+  const allRecentFixtures = [
     {
       homeTeam: "St. Mary's College",
       awayTeam: "Newbridge College",
@@ -128,6 +174,11 @@ const Home = () => {
       matchDate: new Date(Date.now() - 60 * 60 * 60 * 1000), // 60 hours ago (outside window)
     },
   ];
+
+  // Filter recent fixtures based on followed teams and pools
+  const recentFixtures = allRecentFixtures.filter(f => 
+    shouldShowFixture(f.homeTeam, f.awayTeam)
+  );
 
   return (
     <div className="min-h-screen bg-background pb-20">
