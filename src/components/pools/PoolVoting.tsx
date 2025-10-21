@@ -8,6 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Clock, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
+interface School {
+  name: string;
+  icon_url: string | null;
+}
+
 interface PoolVotingProps {
   poolId: string;
   votingClosesAt: string;
@@ -16,7 +21,7 @@ interface PoolVotingProps {
 }
 
 export const PoolVoting = ({ poolId, votingClosesAt, isFinalized, onVotingComplete }: PoolVotingProps) => {
-  const [availableSchools, setAvailableSchools] = useState<string[]>([]);
+  const [availableSchools, setAvailableSchools] = useState<School[]>([]);
   const [userVotes, setUserVotes] = useState<string[]>([]);
   const [voteStats, setVoteStats] = useState<Record<string, number>>({});
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -53,12 +58,12 @@ export const PoolVoting = ({ poolId, votingClosesAt, isFinalized, onVotingComple
     try {
       const { data, error } = await supabase
         .from("schools")
-        .select("name")
+        .select("name, icon_url")
         .eq("status", "verified")
         .order("name");
 
       if (error) throw error;
-      setAvailableSchools(data?.map(s => s.name) || []);
+      setAvailableSchools(data || []);
     } catch (error) {
       console.error("Error loading schools:", error);
     }
@@ -221,24 +226,33 @@ export const PoolVoting = ({ poolId, votingClosesAt, isFinalized, onVotingComple
         <ScrollArea className="h-96 border rounded-lg bg-background">
           <div className="p-3 grid grid-cols-2 gap-2">
             {availableSchools.map((school) => {
-              const hasVoted = userVotes.includes(school);
-              const voteCount = voteStats[school] || 0;
+              const hasVoted = userVotes.includes(school.name);
+              const voteCount = voteStats[school.name] || 0;
 
               return (
                 <Button
-                  key={school}
+                  key={school.name}
                   variant={hasVoted ? "default" : "outline"}
                   size="sm"
-                  onClick={() => toggleVote(school)}
+                  onClick={() => toggleVote(school.name)}
                   disabled={loading || (!hasVoted && userVotes.length >= 10)}
-                  className="h-auto py-3 px-3 justify-between items-start text-left flex-col gap-1"
+                  className="h-auto py-3 px-3 justify-start items-center text-left flex-row gap-2"
                 >
-                  <span className="font-medium text-sm">{school}</span>
-                  {voteCount > 0 && (
-                    <span className="text-xs opacity-70">
-                      {voteCount} vote{voteCount !== 1 ? 's' : ''}
-                    </span>
+                  {school.icon_url && (
+                    <img 
+                      src={school.icon_url} 
+                      alt={`${school.name} jersey`}
+                      className="w-8 h-8 object-contain flex-shrink-0"
+                    />
                   )}
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-sm block truncate">{school.name}</span>
+                    {voteCount > 0 && (
+                      <span className="text-xs opacity-70">
+                        {voteCount} vote{voteCount !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                 </Button>
               );
             })}

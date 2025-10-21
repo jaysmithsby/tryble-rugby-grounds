@@ -11,6 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizePoolName } from "@/lib/profanityFilter";
 
+interface School {
+  name: string;
+  icon_url: string | null;
+}
+
 interface PoolTemplate {
   id: string;
   name: string;
@@ -28,7 +33,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
   const [poolName, setPoolName] = useState("");
   const [votingMode, setVotingMode] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [availableSchools, setAvailableSchools] = useState<string[]>([]);
+  const [availableSchools, setAvailableSchools] = useState<School[]>([]);
   const [poolTemplates, setPoolTemplates] = useState<PoolTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,12 +48,12 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
     try {
       const { data, error } = await supabase
         .from("schools")
-        .select("name")
+        .select("name, icon_url")
         .eq("status", "verified")
         .order("name");
 
       if (error) throw error;
-      setAvailableSchools(data?.map(s => s.name) || []);
+      setAvailableSchools(data || []);
     } catch (error) {
       console.error("Error loading schools:", error);
     }
@@ -77,16 +82,16 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
     });
   };
 
-  const toggleSchool = (school: string) => {
-    if (selectedSchools.includes(school)) {
-      setSelectedSchools(selectedSchools.filter(s => s !== school));
+  const toggleSchool = (schoolName: string) => {
+    if (selectedSchools.includes(schoolName)) {
+      setSelectedSchools(selectedSchools.filter(s => s !== schoolName));
     } else if (selectedSchools.length < 10) {
-      setSelectedSchools([...selectedSchools, school]);
+      setSelectedSchools([...selectedSchools, schoolName]);
     }
   };
 
   const filteredSchools = availableSchools.filter(school =>
-    school.toLowerCase().includes(searchQuery.toLowerCase())
+    school.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleConfirmSchools = () => {
@@ -326,14 +331,21 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
                       {filteredSchools.length > 0 ? (
                         filteredSchools.map((school) => (
                           <Button
-                            key={school}
-                            variant={selectedSchools.includes(school) ? "default" : "outline"}
+                            key={school.name}
+                            variant={selectedSchools.includes(school.name) ? "default" : "outline"}
                             size="sm"
-                            onClick={() => toggleSchool(school)}
-                            disabled={selectedSchools.length >= 10 && !selectedSchools.includes(school)}
-                            className="w-full justify-start h-10"
+                            onClick={() => toggleSchool(school.name)}
+                            disabled={selectedSchools.length >= 10 && !selectedSchools.includes(school.name)}
+                            className="w-full justify-start h-10 gap-2"
                           >
-                            {school}
+                            {school.icon_url && (
+                              <img 
+                                src={school.icon_url} 
+                                alt={`${school.name} jersey`}
+                                className="w-6 h-6 object-contain flex-shrink-0"
+                              />
+                            )}
+                            <span className="truncate">{school.name}</span>
                           </Button>
                         ))
                       ) : (
