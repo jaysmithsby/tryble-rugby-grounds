@@ -79,18 +79,18 @@ export const SchoolFixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-16 h-16 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border-2 border-primary overflow-hidden">
+            <div className="w-20 h-20 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border-2 border-primary overflow-hidden p-2">
               {userSchoolIcon ? (
                 <img 
                   src={userSchoolIcon} 
                   alt={`${userSchool} jersey`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <span className="text-xl font-bold text-primary">{userSchoolShort}</span>
               )}
             </div>
-            <span className="text-sm font-bold text-center">{userSchool}</span>
+            <span className="text-sm font-bold text-center line-clamp-2">{userSchool}</span>
           </div>
 
           <div className="flex flex-col items-center gap-2">
@@ -134,18 +134,18 @@ export const SchoolFixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-16 h-16 rounded-full bg-accent/20 backdrop-blur-sm flex items-center justify-center border-2 border-accent overflow-hidden">
+            <div className="w-20 h-20 rounded-full bg-accent/20 backdrop-blur-sm flex items-center justify-center border-2 border-accent overflow-hidden p-2">
               {opponentSchoolIcon ? (
                 <img 
                   src={opponentSchoolIcon} 
                   alt={`${opponentSchool} jersey`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <span className="text-xl font-bold text-accent">{opponentSchoolShort}</span>
               )}
             </div>
-            <span className="text-sm font-bold text-center">{opponentSchool}</span>
+            <span className="text-sm font-bold text-center line-clamp-2">{opponentSchool}</span>
           </div>
         </div>
 

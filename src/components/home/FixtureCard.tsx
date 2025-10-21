@@ -75,18 +75,18 @@ export const FixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden">
+            <div className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1">
               {homeTeamIcon ? (
                 <img 
                   src={homeTeamIcon} 
                   alt={`${homeTeam} jersey`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
               )}
             </div>
-            <span className="text-xs font-medium text-center">{homeTeam}</span>
+            <span className="text-xs font-medium text-center line-clamp-2">{homeTeam}</span>
           </div>
 
           <div className="flex flex-col items-center">
@@ -94,18 +94,18 @@ export const FixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden">
+            <div className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1">
               {awayTeamIcon ? (
                 <img 
                   src={awayTeamIcon} 
                   alt={`${awayTeam} jersey`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
               )}
             </div>
-            <span className="text-xs font-medium text-center">{awayTeam}</span>
+            <span className="text-xs font-medium text-center line-clamp-2">{awayTeam}</span>
           </div>
         </div>
 

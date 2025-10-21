@@ -11,6 +11,10 @@ import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { TriviaCarousel } from "@/components/home/TriviaCarousel";
 import { Trophy } from "lucide-react";
+import paarlGimJersey from "@/assets/jerseys/paarl_gim.png";
+import paulRoosJersey from "@/assets/jerseys/paul_roos.png";
+import glenwoodJersey from "@/assets/jerseys/glenwood.png";
+import maritzburgJersey from "@/assets/jerseys/maritzburg.png";
 
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -99,14 +103,14 @@ const Home = () => {
   const schoolFixture = {
     userSchool: "Paul Roos",
     userSchoolShort: "PR",
-    userSchoolIcon: "/src/assets/jerseys/paul_roos.png",
+    userSchoolIcon: paulRoosJersey,
     opponentSchool: "Paarl Gimnasium",
     opponentSchoolShort: "PG",
-    opponentSchoolIcon: "/src/assets/jerseys/paarl_gim.png",
+    opponentSchoolIcon: paarlGimJersey,
     time: "Completed - Sat 15:00",
     venue: "RDS",
-    isCompleted: true, // Toggle this to test upcoming vs completed
-    matchDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
+    isCompleted: true,
+    matchDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
   };
 
   const allFixtures = [
@@ -115,8 +119,8 @@ const Home = () => {
       awayTeam: "Maritzburg College",
       homeTeamShort: "GW",
       awayTeamShort: "MC",
-      homeTeamIcon: "/src/assets/jerseys/glenwood.png",
-      awayTeamIcon: "/src/assets/jerseys/maritzburg.png",
+      homeTeamIcon: glenwoodJersey,
+      awayTeamIcon: maritzburgJersey,
       time: "Sat 13:00",
       venue: "Goldstones",
       matchId: "match-1"
@@ -126,8 +130,8 @@ const Home = () => {
       awayTeam: "Paarl Gimnasium",
       homeTeamShort: "PR",
       awayTeamShort: "PG",
-      homeTeamIcon: "/src/assets/jerseys/paul_roos.png",
-      awayTeamIcon: "/src/assets/jerseys/paarl_gim.png",
+      homeTeamIcon: paulRoosJersey,
+      awayTeamIcon: paarlGimJersey,
       time: "Sun 14:00",
       venue: "Markötter",
       matchId: "match-2"
@@ -137,8 +141,8 @@ const Home = () => {
       awayTeam: "Paul Roos",
       homeTeamShort: "GW",
       awayTeamShort: "PR",
-      homeTeamIcon: "/src/assets/jerseys/glenwood.png",
-      awayTeamIcon: "/src/assets/jerseys/paul_roos.png",
+      homeTeamIcon: glenwoodJersey,
+      awayTeamIcon: paulRoosJersey,
       time: "Sun 16:00",
       venue: "Goldstones",
       matchId: "match-3"
@@ -148,8 +152,8 @@ const Home = () => {
       awayTeam: "Paarl Gimnasium",
       homeTeamShort: "MC",
       awayTeamShort: "PG",
-      homeTeamIcon: "/src/assets/jerseys/maritzburg.png",
-      awayTeamIcon: "/src/assets/jerseys/paarl_gim.png",
+      homeTeamIcon: maritzburgJersey,
+      awayTeamIcon: paarlGimJersey,
       time: "Mon 15:00",
       venue: "Goldstones",
       matchId: "match-4"
