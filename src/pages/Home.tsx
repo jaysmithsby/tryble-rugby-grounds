@@ -66,17 +66,17 @@ const Home = () => {
   }
 
   // User's school (simulated)
-  const userSchool = "Blackrock College";
-  const userSchoolShort = "BC";
+  const userSchool = "Paul Roos";
+  const userSchoolShort = "PR";
 
   // Simulated followed teams
-  const followedTeams = ["Blackrock College", "Terenure College", "St. Mary's College"];
+  const followedTeams = ["Paul Roos", "Paarl Gimnasium", "Glenwood", "Maritzburg College"];
 
   // Simulated pools the user belongs to
   const userPools = [
-    { name: "School Friends", teams: ["Blackrock College", "Gonzaga College", "Belvedere College"] },
-    { name: "League A", teams: ["Terenure College", "St. Mary's", "Castleknock College"] },
-    { name: "Rugby Pros", teams: ["Clongowes Wood", "St. Michael's", "Newbridge College"] }
+    { name: "School Friends", teams: ["Paul Roos", "Paarl Gimnasium", "Glenwood"] },
+    { name: "League A", teams: ["Maritzburg College", "Glenwood", "Paul Roos"] },
+    { name: "Rugby Pros", teams: ["Paul Roos", "Paarl Gimnasium", "Maritzburg College"] }
   ];
 
   // Get all teams from user's pools
@@ -97,10 +97,12 @@ const Home = () => {
 
   // User's school fixture (can be upcoming or completed)
   const schoolFixture = {
-    userSchool: "Blackrock College",
-    userSchoolShort: "BC",
-    opponentSchool: "Belvedere College",
-    opponentSchoolShort: "BEL",
+    userSchool: "Paul Roos",
+    userSchoolShort: "PR",
+    userSchoolIcon: "/src/assets/jerseys/paul_roos.png",
+    opponentSchool: "Paarl Gimnasium",
+    opponentSchoolShort: "PG",
+    opponentSchoolIcon: "/src/assets/jerseys/paarl_gim.png",
     time: "Completed - Sat 15:00",
     venue: "RDS",
     isCompleted: true, // Toggle this to test upcoming vs completed
@@ -109,39 +111,47 @@ const Home = () => {
 
   const allFixtures = [
     {
-      homeTeam: "Terenure College",
-      awayTeam: "St. Mary's",
-      homeTeamShort: "TC",
-      awayTeamShort: "STM",
+      homeTeam: "Glenwood",
+      awayTeam: "Maritzburg College",
+      homeTeamShort: "GW",
+      awayTeamShort: "MC",
+      homeTeamIcon: "/src/assets/jerseys/glenwood.png",
+      awayTeamIcon: "/src/assets/jerseys/maritzburg.png",
       time: "Sat 13:00",
-      venue: "Donnybrook",
+      venue: "Goldstones",
       matchId: "match-1"
     },
     {
-      homeTeam: "Gonzaga College",
-      awayTeam: "Cistercian",
-      homeTeamShort: "GC",
-      awayTeamShort: "CIS",
+      homeTeam: "Paul Roos",
+      awayTeam: "Paarl Gimnasium",
+      homeTeamShort: "PR",
+      awayTeamShort: "PG",
+      homeTeamIcon: "/src/assets/jerseys/paul_roos.png",
+      awayTeamIcon: "/src/assets/jerseys/paarl_gim.png",
       time: "Sun 14:00",
-      venue: "Energia Park",
+      venue: "Markötter",
       matchId: "match-2"
     },
     {
-      homeTeam: "Clongowes Wood",
-      awayTeam: "St. Michael's",
-      homeTeamShort: "CW",
-      awayTeamShort: "STM",
+      homeTeam: "Glenwood",
+      awayTeam: "Paul Roos",
+      homeTeamShort: "GW",
+      awayTeamShort: "PR",
+      homeTeamIcon: "/src/assets/jerseys/glenwood.png",
+      awayTeamIcon: "/src/assets/jerseys/paul_roos.png",
       time: "Sun 16:00",
-      venue: "Donnybrook",
+      venue: "Goldstones",
       matchId: "match-3"
     },
     {
-      homeTeam: "Random School A",
-      awayTeam: "Random School B",
-      homeTeamShort: "RSA",
-      awayTeamShort: "RSB",
+      homeTeam: "Maritzburg College",
+      awayTeam: "Paarl Gimnasium",
+      homeTeamShort: "MC",
+      awayTeamShort: "PG",
+      homeTeamIcon: "/src/assets/jerseys/maritzburg.png",
+      awayTeamIcon: "/src/assets/jerseys/paarl_gim.png",
       time: "Mon 15:00",
-      venue: "Unknown Field",
+      venue: "Goldstones",
       matchId: "match-4"
     }
   ];

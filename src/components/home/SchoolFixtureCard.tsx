@@ -8,8 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 interface SchoolFixtureCardProps {
   userSchool: string;
   userSchoolShort: string;
+  userSchoolIcon?: string | null;
   opponentSchool: string;
   opponentSchoolShort: string;
+  opponentSchoolIcon?: string | null;
   time: string;
   venue: string;
   isCompleted: boolean;
@@ -19,8 +21,10 @@ interface SchoolFixtureCardProps {
 export const SchoolFixtureCard = ({
   userSchool,
   userSchoolShort,
+  userSchoolIcon,
   opponentSchool,
   opponentSchoolShort,
+  opponentSchoolIcon,
   time,
   venue,
   isCompleted,
@@ -75,8 +79,16 @@ export const SchoolFixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-16 h-16 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border-2 border-primary">
-              <span className="text-xl font-bold text-primary">{userSchoolShort}</span>
+            <div className="w-16 h-16 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border-2 border-primary overflow-hidden">
+              {userSchoolIcon ? (
+                <img 
+                  src={userSchoolIcon} 
+                  alt={`${userSchool} jersey`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xl font-bold text-primary">{userSchoolShort}</span>
+              )}
             </div>
             <span className="text-sm font-bold text-center">{userSchool}</span>
           </div>
@@ -122,8 +134,16 @@ export const SchoolFixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-16 h-16 rounded-full bg-accent/20 backdrop-blur-sm flex items-center justify-center border-2 border-accent">
-              <span className="text-xl font-bold text-accent">{opponentSchoolShort}</span>
+            <div className="w-16 h-16 rounded-full bg-accent/20 backdrop-blur-sm flex items-center justify-center border-2 border-accent overflow-hidden">
+              {opponentSchoolIcon ? (
+                <img 
+                  src={opponentSchoolIcon} 
+                  alt={`${opponentSchool} jersey`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xl font-bold text-accent">{opponentSchoolShort}</span>
+              )}
             </div>
             <span className="text-sm font-bold text-center">{opponentSchool}</span>
           </div>

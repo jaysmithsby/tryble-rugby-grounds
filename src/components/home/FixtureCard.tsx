@@ -9,6 +9,8 @@ interface FixtureCardProps {
   awayTeam: string;
   homeTeamShort: string;
   awayTeamShort: string;
+  homeTeamIcon?: string | null;
+  awayTeamIcon?: string | null;
   time: string;
   venue: string;
   matchId?: string;
@@ -23,7 +25,9 @@ export const FixtureCard = ({
   homeTeam, 
   awayTeam, 
   homeTeamShort, 
-  awayTeamShort, 
+  awayTeamShort,
+  homeTeamIcon,
+  awayTeamIcon,
   time, 
   venue,
   matchId,
@@ -71,8 +75,16 @@ export const FixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border">
-              <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
+            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden">
+              {homeTeamIcon ? (
+                <img 
+                  src={homeTeamIcon} 
+                  alt={`${homeTeam} jersey`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
+              )}
             </div>
             <span className="text-xs font-medium text-center">{homeTeam}</span>
           </div>
@@ -82,8 +94,16 @@ export const FixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border">
-              <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
+            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden">
+              {awayTeamIcon ? (
+                <img 
+                  src={awayTeamIcon} 
+                  alt={`${awayTeam} jersey`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
+              )}
             </div>
             <span className="text-xs font-medium text-center">{awayTeam}</span>
           </div>
