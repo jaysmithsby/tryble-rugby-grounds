@@ -18,8 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Edit, Trash2, CheckCircle, Archive } from "lucide-react";
+import { Search, Edit, Trash2, CheckCircle, Archive, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { BulkImportPoolPacksDialog } from "./BulkImportPoolPacksDialog";
 
 interface PoolPack {
   id: string;
@@ -41,6 +42,7 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   useEffect(() => {
     loadPacks();
@@ -143,6 +145,14 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
             <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          onClick={() => setBulkImportOpen(true)}
+          className="gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Bulk Import CSV
+        </Button>
       </div>
 
       <div className="border rounded-lg">
@@ -224,6 +234,12 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
       <p className="text-sm text-muted-foreground">
         Showing {filteredPacks.length} of {packs.length} pool packs
       </p>
+
+      <BulkImportPoolPacksDialog
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        onSuccess={loadPacks}
+      />
     </div>
   );
 };
