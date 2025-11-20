@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -40,6 +41,7 @@ interface SchoolsTableProps {
 }
 
 export function SchoolsTable({ onEdit }: SchoolsTableProps) {
+  const navigate = useNavigate();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -126,15 +128,20 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
               </TableRow>
             ) : (
               schools.map((school) => (
-                <TableRow key={school.id}>
+                 <TableRow key={school.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       {school.icon_url && (
-                        <img
-                          src={school.icon_url}
-                          alt={school.name}
-                          className="h-8 w-8 object-contain"
-                        />
+                        <button
+                          onClick={() => navigate(`/school/${school.id}`)}
+                          className="h-8 w-8 rounded-full overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                        >
+                          <img
+                            src={school.icon_url}
+                            alt={school.name}
+                            className="h-full w-full object-contain"
+                          />
+                        </button>
                       )}
                       {school.name}
                     </div>

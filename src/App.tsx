@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Badges from "./pages/Badges";
 import Leaderboard from "./pages/Leaderboard";
 import PoolLeaderboard from "./pages/PoolLeaderboard";
+import SchoolProfile from "./pages/SchoolProfile";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/badges" element={<Badges />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
+          <Route path="/school/:schoolId" element={<SchoolProfile />} />
           <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
