@@ -104,9 +104,11 @@ const Home = () => {
     userSchool: "Paul Roos",
     userSchoolShort: "PR",
     userSchoolIcon: paulRoosJersey,
+    userSchoolSlug: "paul-roos",
     opponentSchool: "Paarl Gimnasium",
     opponentSchoolShort: "PG",
     opponentSchoolIcon: paarlGimJersey,
+    opponentSchoolSlug: "paarl-gim",
     time: "Completed - Sat 15:00",
     venue: "RDS",
     isCompleted: true,
@@ -121,6 +123,8 @@ const Home = () => {
       awayTeamShort: "MC",
       homeTeamIcon: glenwoodJersey,
       awayTeamIcon: maritzburgJersey,
+      homeSchoolSlug: "glenwood",
+      awaySchoolSlug: "maritzburg-college",
       time: "Sat 13:00",
       venue: "Goldstones",
       matchId: "match-1"
@@ -132,6 +136,8 @@ const Home = () => {
       awayTeamShort: "PG",
       homeTeamIcon: paulRoosJersey,
       awayTeamIcon: paarlGimJersey,
+      homeSchoolSlug: "paul-roos",
+      awaySchoolSlug: "paarl-gim",
       time: "Sun 14:00",
       venue: "Markötter",
       matchId: "match-2"
@@ -143,6 +149,8 @@ const Home = () => {
       awayTeamShort: "PR",
       homeTeamIcon: glenwoodJersey,
       awayTeamIcon: paulRoosJersey,
+      homeSchoolSlug: "glenwood",
+      awaySchoolSlug: "paul-roos",
       time: "Sun 16:00",
       venue: "Goldstones",
       matchId: "match-3"
@@ -154,6 +162,8 @@ const Home = () => {
       awayTeamShort: "PG",
       homeTeamIcon: maritzburgJersey,
       awayTeamIcon: paarlGimJersey,
+      homeSchoolSlug: "maritzburg-college",
+      awaySchoolSlug: "paarl-gim",
       time: "Mon 15:00",
       venue: "Goldstones",
       matchId: "match-4"
