@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       fixtures: {
         Row: {
           away_school_id: string
@@ -247,34 +274,58 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: string | null
+          age_band: string | null
+          consent_status: string | null
           contact_method: string
           contact_value: string
+          country: string | null
           created_at: string
+          display_name: string | null
           first_name: string
           id: string
+          parent_email: string | null
+          province: string | null
           school_name: string
           updated_at: string
           user_type: string
+          username: string | null
         }
         Insert: {
+          account_type?: string | null
+          age_band?: string | null
+          consent_status?: string | null
           contact_method: string
           contact_value: string
+          country?: string | null
           created_at?: string
+          display_name?: string | null
           first_name: string
           id: string
+          parent_email?: string | null
+          province?: string | null
           school_name: string
           updated_at?: string
           user_type: string
+          username?: string | null
         }
         Update: {
+          account_type?: string | null
+          age_band?: string | null
+          consent_status?: string | null
           contact_method?: string
           contact_value?: string
+          country?: string | null
           created_at?: string
+          display_name?: string | null
           first_name?: string
           id?: string
+          parent_email?: string | null
+          province?: string | null
           school_name?: string
           updated_at?: string
           user_type?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -440,6 +491,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          report_details: string | null
+          report_reason: string
+          reported_by_user_id: string | null
+          reported_user_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          report_details?: string | null
+          report_reason: string
+          reported_by_user_id?: string | null
+          reported_user_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          report_details?: string | null
+          report_reason?: string
+          reported_by_user_id?: string | null
+          reported_user_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -457,6 +544,45 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sanctions: {
+        Row: {
+          created_at: string | null
+          duration_days: number | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          reason: string
+          sanction_type: string
+          sanctioned_at: string | null
+          sanctioned_by: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_days?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reason: string
+          sanction_type: string
+          sanctioned_at?: string | null
+          sanctioned_by: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_days?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reason?: string
+          sanction_type?: string
+          sanctioned_at?: string | null
+          sanctioned_by?: string
           user_id?: string
         }
         Relationships: []
