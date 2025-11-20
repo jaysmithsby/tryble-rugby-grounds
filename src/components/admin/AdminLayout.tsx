@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SchoolsTable } from "./SchoolsTable";
 import { EditSchoolDialog } from "./EditSchoolDialog";
@@ -11,6 +11,9 @@ import { CreateTournamentDialog } from "./CreateTournamentDialog";
 import { UsersTable } from "./UsersTable";
 import { ReportsConsole } from "./ReportsConsole";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { PoolPacksTable } from "./PoolPacksTable";
+import { CreatePoolPackDialog } from "./CreatePoolPackDialog";
+import { EditPoolPackDialog } from "./EditPoolPackDialog";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -23,6 +26,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [tournamentEditDialogOpen, setTournamentEditDialogOpen] = useState(false);
   const [tournamentCreateDialogOpen, setTournamentCreateDialogOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<any>(null);
+  const [poolPackCreateDialogOpen, setPoolPackCreateDialogOpen] = useState(false);
+  const [poolPackEditDialogOpen, setPoolPackEditDialogOpen] = useState(false);
+  const [selectedPoolPack, setSelectedPoolPack] = useState<any>(null);
 
   const handleEditSchool = (school: any) => {
     setSelectedSchool(school);
@@ -34,6 +40,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     setTournamentEditDialogOpen(true);
   };
 
+  const handleEditPoolPack = (pack: any) => {
+    setSelectedPoolPack(pack);
+    setPoolPackEditDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -43,7 +54,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <Tabs defaultValue="fixtures" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto">
             <TabsTrigger value="fixtures" className="gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Fixtures</span>
@@ -59,6 +70,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <TabsTrigger value="tournaments" className="gap-2">
               <Trophy className="h-4 w-4" />
               <span className="hidden sm:inline">Tournaments</span>
+            </TabsTrigger>
+            <TabsTrigger value="pool-packs" className="gap-2">
+              <Layers className="h-4 w-4" />
+              <span className="hidden sm:inline">Pool Packs</span>
             </TabsTrigger>
             <TabsTrigger value="ads" className="gap-2">
               <Megaphone className="h-4 w-4" />
@@ -115,6 +130,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <TournamentsTable onEdit={handleEditTournament} />
           </TabsContent>
 
+          <TabsContent value="pool-packs" className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Pool Packs Manager</h2>
+                <p className="text-muted-foreground mt-1">Create and manage curated school collections for user pools</p>
+              </div>
+              <Button onClick={() => setPoolPackCreateDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Pool Pack
+              </Button>
+            </div>
+            <PoolPacksTable onEdit={handleEditPoolPack} />
+          </TabsContent>
+
           <TabsContent value="ads" className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-8 text-center">
               <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -152,6 +181,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <CreateTournamentDialog
         open={tournamentCreateDialogOpen}
         onOpenChange={setTournamentCreateDialogOpen}
+      />
+
+      <CreatePoolPackDialog
+        open={poolPackCreateDialogOpen}
+        onOpenChange={setPoolPackCreateDialogOpen}
+        onSuccess={() => {
+          setPoolPackCreateDialogOpen(false);
+        }}
+      />
+
+      <EditPoolPackDialog
+        open={poolPackEditDialogOpen}
+        onOpenChange={setPoolPackEditDialogOpen}
+        pack={selectedPoolPack}
+        onSuccess={() => {
+          setPoolPackEditDialogOpen(false);
+        }}
       />
     </div>
   );

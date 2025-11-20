@@ -208,22 +208,31 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          metadata: Json | null
           name: string
           schools: string[]
+          status: string
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           id?: string
+          metadata?: Json | null
           name: string
           schools: string[]
+          status?: string
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           id?: string
+          metadata?: Json | null
           name?: string
           schools?: string[]
+          status?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

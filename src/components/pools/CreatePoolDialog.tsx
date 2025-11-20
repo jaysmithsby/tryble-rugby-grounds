@@ -64,8 +64,9 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
       const { data, error } = await supabase
         .from("pool_templates")
         .select("*")
+        .eq("status", "approved")
         .order("name");
-
+      
       if (error) throw error;
       setPoolTemplates(data || []);
     } catch (error) {
@@ -254,7 +255,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
                 {/* Pool Templates Section */}
                 {poolTemplates.length > 0 && (
                   <div className="space-y-2">
-                    <Label>Quick Start Templates</Label>
+                    <Label>Pool Packs</Label>
                     <ScrollArea className="h-32 border rounded-lg bg-muted/30">
                       <div className="p-3 space-y-2">
                         {poolTemplates.map((template) => (
