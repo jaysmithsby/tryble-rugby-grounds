@@ -8,6 +8,8 @@ import { CreateSchoolDialog } from "./CreateSchoolDialog";
 import { TournamentsTable } from "./TournamentsTable";
 import { EditTournamentDialog } from "./EditTournamentDialog";
 import { CreateTournamentDialog } from "./CreateTournamentDialog";
+import { UsersTable } from "./UsersTable";
+import { ReportsConsole } from "./ReportsConsole";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -85,14 +87,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <SchoolsTable onEdit={handleEditSchool} />
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-8 text-center">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">User Management</h3>
-              <p className="text-muted-foreground">
-                View and manage user accounts, permissions, and activity.
-              </p>
-              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+          <TabsContent value="users" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">User Management</h2>
+              <p className="text-muted-foreground mt-1">View and manage user accounts, permissions, and activity</p>
+            </div>
+            
+            <UsersTable />
+            
+            <div className="pt-6 border-t">
+              <ReportsConsole />
             </div>
           </TabsContent>
 
