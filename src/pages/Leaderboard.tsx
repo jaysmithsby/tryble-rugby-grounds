@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,9 +32,11 @@ type SchoolLeaderboardEntry = {
 };
 
 const Leaderboard = () => {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<"weekly" | "season">("weekly");
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [schoolLeaderboard, setSchoolLeaderboard] = useState<SchoolLeaderboardEntry[]>([]);
+  const [schoolIdMap, setSchoolIdMap] = useState<Record<string, string>>({});
   const [userPools, setUserPools] = useState<any[]>([]);
   const [poolMemberCounts, setPoolMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -47,6 +50,18 @@ const Leaderboard = () => {
 
   const loadLeaderboardData = async () => {
     setLoading(true);
+    
+    // Load school IDs for navigation
+    const { data: schoolsData } = await supabase
+      .from("schools")
+      .select("id, name");
+    
+    const idMap: Record<string, string> = {};
+    schoolsData?.forEach(school => {
+      idMap[school.name] = school.id;
+    });
+    setSchoolIdMap(idMap);
+    
     // Mock data for now - will be replaced with real queries
     const mockGlobal: LeaderboardEntry[] = [
       { rank: 1, userId: "1", nickname: "James S", schoolCode: "MHS", points: 245, badges: ["top_dog", "climber"] },
@@ -193,25 +208,29 @@ const Leaderboard = () => {
 
   const SchoolLeaderboardTable = ({ entries }: { entries: SchoolLeaderboardEntry[] }) => (
     <div className="space-y-2">
-      {entries.map((entry) => (
-        <div
-          key={entry.schoolName}
-          className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50`}
-        >
-          <div className="flex items-center gap-4 flex-1">
-            <div className={`text-lg font-bold w-12 text-center ${entry.rank <= 3 ? "text-accent" : "text-muted-foreground"}`}>
-              #{entry.rank}
-            </div>
-            <div className="flex-1">
-              <div className="font-medium">{entry.schoolName}</div>
-              <div className="text-sm text-muted-foreground">{entry.totalUsers} users</div>
-            </div>
-            <div className="text-lg font-bold text-primary">
-              {entry.averagePoints.toFixed(1)} pts
+      {entries.map((entry) => {
+        const schoolId = schoolIdMap[entry.schoolName];
+        return (
+          <div
+            key={entry.schoolName}
+            onClick={() => schoolId && navigate(`/school/${schoolId}`)}
+            className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50 ${schoolId ? 'cursor-pointer' : ''}`}
+          >
+            <div className="flex items-center gap-4 flex-1">
+              <div className={`text-lg font-bold w-12 text-center ${entry.rank <= 3 ? "text-accent" : "text-muted-foreground"}`}>
+                #{entry.rank}
+              </div>
+              <div className="flex-1">
+                <div className="font-medium">{entry.schoolName}</div>
+                <div className="text-sm text-muted-foreground">{entry.totalUsers} users</div>
+              </div>
+              <div className="text-lg font-bold text-primary">
+                {entry.averagePoints.toFixed(1)} pts
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
