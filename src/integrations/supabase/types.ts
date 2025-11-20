@@ -281,6 +281,47 @@ export type Database = {
         }
         Relationships: []
       }
+      predictions: {
+        Row: {
+          created_at: string
+          fixture_id: string
+          id: string
+          points_earned: number | null
+          predicted_margin: number
+          predicted_team: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fixture_id: string
+          id?: string
+          points_earned?: number | null
+          predicted_margin: number
+          predicted_team: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fixture_id?: string
+          id?: string
+          points_earned?: number | null
+          predicted_margin?: number
+          predicted_team?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_fixture_id_fkey"
+            columns: ["fixture_id"]
+            isOneToOne: false
+            referencedRelation: "fixtures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_type: string | null
