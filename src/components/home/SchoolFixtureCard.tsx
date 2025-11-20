@@ -2,9 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Clock, Star, CheckCircle2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Clock, Star } from "lucide-react";
+import { PredictionDialog } from "./PredictionDialog";
 
 interface SchoolFixtureCardProps {
   userSchool: string;
@@ -17,8 +16,11 @@ interface SchoolFixtureCardProps {
   opponentSchoolId?: string;
   time: string;
   venue: string;
-  isCompleted: boolean;
-  matchDate?: Date;
+  matchId?: string;
+  isPredicted?: boolean;
+  predictedTeam?: "home" | "away";
+  predictedMargin?: number;
+  onPredictionMade?: (team: "home" | "away", margin: number) => void;
 }
 
 export const SchoolFixtureCard = ({
@@ -32,48 +34,43 @@ export const SchoolFixtureCard = ({
   opponentSchoolId,
   time,
   venue,
-  isCompleted,
-  matchDate,
+  matchId,
+  isPredicted = false,
+  predictedTeam,
+  predictedMargin,
+  onPredictionMade
 }: SchoolFixtureCardProps) => {
   const navigate = useNavigate();
-  const [homeScore, setHomeScore] = useState("");
-  const [awayScore, setAwayScore] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleScoreSubmit = () => {
-    if (!homeScore || !awayScore) {
-      toast({
-        title: "Invalid Score",
-        description: "Please enter scores for both teams",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSubmitted(true);
-    toast({
-      title: "Score Submitted!",
-      description: "Your score submission is pending review.",
-    });
+  const handlePredictionSubmit = (team: "home" | "away", margin: number) => {
+    onPredictionMade?.(team, margin);
   };
 
-  const handlePredict = () => {
-    toast({
-      title: "Prediction Mode",
-      description: "Prediction feature coming soon!",
-    });
-  };
+  const predictedTeamName = predictedTeam === "home" ? userSchool : opponentSchool;
 
   return (
-    <Card className="bg-gradient-to-br from-primary/10 via-accent/5 to-background border-2 border-primary/30 shadow-glow">
-      <div className="p-5 space-y-4">
-        {/* Your School Badge */}
-        <div className="flex items-center justify-center gap-2 pb-2 border-b border-border/40">
-          <Star className="w-4 h-4 text-primary fill-primary" />
-          <span className="text-sm font-bold text-primary">Your School</span>
-          <Star className="w-4 h-4 text-primary fill-primary" />
-        </div>
+    <>
+      <PredictionDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        homeTeam={userSchool}
+        awayTeam={opponentSchool}
+        homeTeamShort={userSchoolShort}
+        awayTeamShort={opponentSchoolShort}
+        homeTeamIcon={userSchoolIcon}
+        awayTeamIcon={opponentSchoolIcon}
+        matchId={matchId}
+        onPredictionSubmit={handlePredictionSubmit}
+      />
+      <Card className="bg-gradient-to-br from-primary/10 via-accent/5 to-background border-2 border-primary/30 shadow-glow">
+        <div className="p-5 space-y-4">
+          {/* Your School Badge */}
+          <div className="flex items-center justify-center gap-2 pb-2 border-b border-border/40">
+            <Star className="w-4 h-4 text-primary fill-primary" />
+            <span className="text-sm font-bold text-primary">Your School</span>
+            <Star className="w-4 h-4 text-primary fill-primary" />
+          </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -106,44 +103,8 @@ export const SchoolFixtureCard = ({
             <span className="text-sm font-bold text-center line-clamp-2">{userSchool}</span>
           </div>
 
-          <div className="flex flex-col items-center gap-2">
-            {!isCompleted && <span className="text-2xl font-bold text-muted-foreground">VS</span>}
-            {isCompleted && !submitted && (
-              <div className="flex flex-col gap-2 items-center">
-                <span className="text-xs font-medium text-muted-foreground">Final Score</span>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="999"
-                    value={homeScore}
-                    onChange={(e) => setHomeScore(e.target.value)}
-                    className="w-12 h-10 text-center text-lg font-bold"
-                    placeholder="0"
-                  />
-                  <span className="text-muted-foreground font-bold">-</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="999"
-                    value={awayScore}
-                    onChange={(e) => setAwayScore(e.target.value)}
-                    className="w-12 h-10 text-center text-lg font-bold"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            )}
-            {submitted && (
-              <div className="flex flex-col gap-2 items-center">
-                <span className="text-xs font-medium text-muted-foreground">Final Score</span>
-                <div className="flex gap-2 items-center text-xl font-bold">
-                  <span>{homeScore}</span>
-                  <span>-</span>
-                  <span>{awayScore}</span>
-                </div>
-              </div>
-            )}
+          <div className="flex flex-col items-center">
+            <span className="text-2xl font-bold text-muted-foreground">VS</span>
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
@@ -169,31 +130,27 @@ export const SchoolFixtureCard = ({
           </div>
         </div>
 
-        {!isCompleted && (
-          <Button
-            onClick={handlePredict}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base shadow-lg"
-          >
-            Predict Now
-          </Button>
-        )}
-
-        {isCompleted && !submitted && (
-          <Button
-            onClick={handleScoreSubmit}
-            className="w-full h-12 bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-base shadow-lg"
-          >
-            Submit Score
-          </Button>
-        )}
-
-        {submitted && (
-          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-primary/10 rounded-md">
-            <CheckCircle2 className="w-5 h-5 text-primary" />
-            <span className="text-base font-bold text-primary">Score Submitted - Pending Review</span>
+        {isPredicted && (
+          <div className="pt-2 border-t border-border/40">
+            <p className="text-xs text-primary font-medium text-center">
+              You picked: {predictedTeamName} to win by {predictedMargin}
+            </p>
           </div>
         )}
-      </div>
-    </Card>
+
+        <Button 
+          onClick={() => setDialogOpen(true)}
+          disabled={isPredicted}
+          className={`w-full h-12 font-bold text-base shadow-lg ${
+            isPredicted 
+              ? "bg-muted text-muted-foreground cursor-not-allowed" 
+              : "bg-primary hover:bg-primary/90 text-primary-foreground"
+          }`}
+        >
+          {isPredicted ? "Prediction Made" : "Predict Now"}
+        </Button>
+        </div>
+      </Card>
+    </>
   );
 };
