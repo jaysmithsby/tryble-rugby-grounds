@@ -422,6 +422,7 @@ export type Database = {
           icon_url: string | null
           id: string
           main_rival: string | null
+          motto: string | null
           name: string
           province: string | null
           slug: string
@@ -437,6 +438,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           main_rival?: string | null
+          motto?: string | null
           name: string
           province?: string | null
           slug: string
@@ -452,6 +454,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           main_rival?: string | null
+          motto?: string | null
           name?: string
           province?: string | null
           slug?: string

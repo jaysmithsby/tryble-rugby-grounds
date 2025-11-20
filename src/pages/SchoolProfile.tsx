@@ -196,9 +196,9 @@ export default function SchoolProfile() {
           </div>
           
           <h1 className="text-4xl font-bold text-center mb-2 tracking-tight">{school.name}</h1>
-          {school.trivia_fact && (
+          {school.motto && (
             <p className="text-sm text-accent italic text-center max-w-md px-4">
-              "{school.trivia_fact}"
+              "{school.motto}"
             </p>
           )}
         </div>
