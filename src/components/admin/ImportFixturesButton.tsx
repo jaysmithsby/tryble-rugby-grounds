@@ -19,17 +19,30 @@ export function ImportFixturesButton() {
       header: true,
       complete: async (results) => {
         try {
-          // First, fetch all schools to create name-to-ID mapping
+          // Fetch all schools to create name-to-ID mapping
           const { data: schools, error: schoolsError } = await supabase
             .from('schools')
             .select('id, name');
 
           if (schoolsError) throw schoolsError;
 
+          // Fetch all tournaments to create name-to-ID mapping
+          const { data: tournaments, error: tournamentsError } = await supabase
+            .from('tournaments')
+            .select('id, name');
+
+          if (tournamentsError) throw tournamentsError;
+
           // Create a case-insensitive mapping of school names to IDs
           const schoolNameToId = new Map<string, string>();
           schools?.forEach(school => {
             schoolNameToId.set(school.name.toLowerCase().trim(), school.id);
+          });
+
+          // Create a case-insensitive mapping of tournament names to IDs
+          const tournamentNameToId = new Map<string, string>();
+          tournaments?.forEach(tournament => {
+            tournamentNameToId.set(tournament.name.toLowerCase().trim(), tournament.id);
           });
 
           const fixtures = results.data
@@ -53,6 +66,22 @@ export function ImportFixturesButton() {
                 return null;
               }
 
+              // Map tournament/festival name to ID if provided
+              let tournamentId = null;
+              if (row.festival_id) {
+                const isTournamentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.festival_id);
+                
+                if (isTournamentUuid) {
+                  tournamentId = row.festival_id;
+                } else {
+                  // Try to map tournament name to ID
+                  tournamentId = tournamentNameToId.get(row.festival_id.toLowerCase().trim());
+                  if (!tournamentId) {
+                    console.warn(`Tournament not found: ${row.festival_id} for fixture ${row.id}`);
+                  }
+                }
+              }
+
               return {
                 id: row.id,
                 home_school_id: homeSchoolId,
@@ -65,7 +94,8 @@ export function ImportFixturesButton() {
                 away_score: row.away_score ? parseInt(row.away_score) : null,
                 season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
                 year: row.year ? parseInt(row.year) : new Date().getFullYear(),
-                festival_id: row.festival_id || null,
+                tournament_id: tournamentId,
+                festival_id: null,
                 round_name: row.round_name || null,
                 is_derby: row.is_derby === 'true' || row.is_derby === true || false,
                 is_visible: true,
