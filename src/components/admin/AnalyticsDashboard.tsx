@@ -8,6 +8,7 @@ import { UserGrowthChart } from "./analytics/UserGrowthChart";
 import { SanctionsChart } from "./analytics/SanctionsChart";
 import { ReportsChart } from "./analytics/ReportsChart";
 import { ModerationWorkloadChart } from "./analytics/ModerationWorkloadChart";
+import { SchoolAnalytics } from "./SchoolAnalytics";
 
 interface AnalyticsData {
   totalUsers: number;
@@ -342,6 +343,7 @@ export function AnalyticsDashboard() {
           <TabsTrigger value="sanctions">Sanctions</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="moderation">Moderation Activity</TabsTrigger>
+          <TabsTrigger value="schools">School Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="growth" className="space-y-4">
@@ -390,6 +392,10 @@ export function AnalyticsDashboard() {
               <ModerationWorkloadChart data={data.moderationActivity} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="schools" className="space-y-4">
+          <SchoolAnalytics />
         </TabsContent>
       </Tabs>
     </div>
