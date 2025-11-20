@@ -445,10 +445,7 @@ export type Database = {
         Args: { pool_id_param: string }
         Returns: undefined
       }
-      get_next_friday_8pm: {
-        Args: { from_time: string }
-        Returns: string
-      }
+      get_next_friday_8pm: { Args: { from_time: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
