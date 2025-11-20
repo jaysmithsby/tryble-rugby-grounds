@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,10 @@ interface RecentFixtureCardProps {
   awayTeam: string;
   homeTeamShort: string;
   awayTeamShort: string;
+  homeTeamIcon?: string | null;
+  awayTeamIcon?: string | null;
+  homeSchoolSlug?: string;
+  awaySchoolSlug?: string;
   completedTime: string;
   venue: string;
   matchDate: Date;
@@ -20,10 +25,15 @@ export const RecentFixtureCard = ({
   awayTeam,
   homeTeamShort,
   awayTeamShort,
+  homeTeamIcon,
+  awayTeamIcon,
+  homeSchoolSlug,
+  awaySchoolSlug,
   completedTime,
   venue,
   matchDate,
 }: RecentFixtureCardProps) => {
+  const navigate = useNavigate();
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -65,10 +75,25 @@ export const RecentFixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border">
-              <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
-            </div>
-            <span className="text-xs font-medium text-center">{homeTeam}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (homeSchoolSlug) navigate(`/school/${homeSchoolSlug}`);
+              }}
+              className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+              disabled={!homeSchoolSlug}
+            >
+              {homeTeamIcon ? (
+                <img 
+                  src={homeTeamIcon} 
+                  alt={`${homeTeam} crest`}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
+              )}
+            </button>
+            <span className="text-xs font-medium text-center line-clamp-2">{homeTeam}</span>
           </div>
 
           <div className="flex flex-col items-center gap-2">
@@ -106,10 +131,25 @@ export const RecentFixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border">
-              <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
-            </div>
-            <span className="text-xs font-medium text-center">{awayTeam}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (awaySchoolSlug) navigate(`/school/${awaySchoolSlug}`);
+              }}
+              className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+              disabled={!awaySchoolSlug}
+            >
+              {awayTeamIcon ? (
+                <img 
+                  src={awayTeamIcon} 
+                  alt={`${awayTeam} crest`}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
+              )}
+            </button>
+            <span className="text-xs font-medium text-center line-clamp-2">{awayTeam}</span>
           </div>
         </div>
 
