@@ -30,6 +30,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const { toast } = useToast();
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [schools, setSchools] = useState<Map<string, string>>(new Map());
+  const [tournaments, setTournaments] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -37,6 +38,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   useEffect(() => {
     fetchSchools();
+    fetchTournaments();
     fetchFixtures();
   }, []);
 
@@ -52,6 +54,21 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       setSchools(schoolMap);
     } catch (error) {
       console.error('Error fetching schools:', error);
+    }
+  };
+
+  const fetchTournaments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select('id, name');
+
+      if (error) throw error;
+
+      const tournamentMap = new Map(data?.map(t => [t.id, t.name]) || []);
+      setTournaments(tournamentMap);
+    } catch (error) {
+      console.error('Error fetching tournaments:', error);
     }
   };
 
@@ -189,6 +206,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
               <TableHead>Home</TableHead>
               <TableHead>Away</TableHead>
               <TableHead>Venue</TableHead>
+              <TableHead>Tournament</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Score</TableHead>
               <TableHead>Visible</TableHead>
@@ -198,7 +216,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           <TableBody>
             {filteredFixtures.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   {fixtures.length === 0 
                     ? "No fixtures loaded. Import CSV data to get started."
                     : "No matches found for that school. Try another search."}
@@ -208,6 +226,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
               filteredFixtures.map((fixture) => {
                 const homeSchool = schools.get(fixture.home_school_id) || 'Unknown School';
                 const awaySchool = schools.get(fixture.away_school_id) || 'Unknown School';
+                const tournamentName = fixture.tournament_id 
+                  ? tournaments.get(fixture.tournament_id) 
+                  : null;
                 
                 return (
                 <TableRow key={fixture.id}>
@@ -217,6 +238,15 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                   <TableCell className="text-sm">{homeSchool}</TableCell>
                   <TableCell className="text-sm">{awaySchool}</TableCell>
                   <TableCell className="text-sm">{fixture.venue}</TableCell>
+                  <TableCell className="text-sm">
+                    {tournamentName ? (
+                      <Badge variant="outline" className="text-xs">
+                        {tournamentName}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={getStatusColor(fixture.status)}>
                       {fixture.status}

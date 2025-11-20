@@ -28,15 +28,20 @@ interface EditFixtureDialogProps {
 export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [tournaments, setTournaments] = useState<Array<{ id: string; name: string }>>([]);
   const [formData, setFormData] = useState({
     venue: "",
     status: "upcoming",
     home_score: null as number | null,
     away_score: null as number | null,
     match_date: "",
+    tournament_id: "",
   });
 
   useEffect(() => {
+    if (open) {
+      fetchTournaments();
+    }
     if (fixture) {
       setFormData({
         venue: fixture.venue,
@@ -44,18 +49,38 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
         home_score: fixture.home_score,
         away_score: fixture.away_score,
         match_date: fixture.match_date?.substring(0, 16) || "",
+        tournament_id: fixture.tournament_id || "",
       });
     }
-  }, [fixture]);
+  }, [fixture, open]);
+
+  const fetchTournaments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("start_date", { ascending: false });
+
+      if (error) throw error;
+      setTournaments(data || []);
+    } catch (error) {
+      console.error("Error fetching tournaments:", error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const updateData = {
+        ...formData,
+        tournament_id: formData.tournament_id || null,
+      };
       const { error } = await supabase
         .from('fixtures')
-        .update(formData)
+        .update(updateData)
         .eq('id', fixture.id);
 
       if (error) throw error;
@@ -157,6 +182,26 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
                 }
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tournament">Tournament (Optional)</Label>
+            <Select
+              value={formData.tournament_id}
+              onValueChange={(value) => setFormData({ ...formData, tournament_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select tournament (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {tournaments.map((tournament) => (
+                  <SelectItem key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2">
