@@ -10,6 +10,7 @@ import { EditTournamentDialog } from "./EditTournamentDialog";
 import { CreateTournamentDialog } from "./CreateTournamentDialog";
 import { UsersTable } from "./UsersTable";
 import { ReportsConsole } from "./ReportsConsole";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -126,14 +127,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-8 text-center">
-              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">Analytics Dashboard</h3>
-              <p className="text-muted-foreground">
-                View user traffic, engagement metrics, and prediction trends.
-              </p>
-              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
-            </div>
+            <AnalyticsDashboard />
           </TabsContent>
         </Tabs>
       </div>
