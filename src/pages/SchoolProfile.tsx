@@ -41,7 +41,7 @@ export default function SchoolProfile() {
 
       const schoolId = schoolData.id;
 
-      // Load upcoming fixtures
+      // Load upcoming fixtures (status: upcoming, holding, or future dates)
       const { data: upcomingData } = await supabase
         .from("fixtures")
         .select(`
@@ -50,13 +50,14 @@ export default function SchoolProfile() {
           away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, main_rival)
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
-        .eq("status", "upcoming")
+        .in("status", ["upcoming", "holding"])
+        .gte("match_date", new Date().toISOString())
         .order("match_date", { ascending: true })
         .limit(5);
 
       setUpcomingFixtures(upcomingData || []);
 
-      // Load recent results
+      // Load recent results (completed matches or past dates with scores)
       const { data: resultsData } = await supabase
         .from("fixtures")
         .select(`
@@ -66,6 +67,8 @@ export default function SchoolProfile() {
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "completed")
+        .not("home_score", "is", null)
+        .not("away_score", "is", null)
         .order("match_date", { ascending: false })
         .limit(5);
 
@@ -256,7 +259,14 @@ export default function SchoolProfile() {
                     </div>
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2 flex-1">
-                        <div className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (fixture.home_school?.slug) navigate(`/school/${fixture.home_school.slug}`);
+                          }}
+                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          disabled={!fixture.home_school?.slug}
+                        >
                           {fixture.home_school?.icon_url ? (
                             <img 
                               src={fixture.home_school.icon_url} 
@@ -268,13 +278,20 @@ export default function SchoolProfile() {
                               {fixture.home_school?.name.substring(0, 3)}
                             </span>
                           )}
-                        </div>
+                        </button>
                         <span className="text-sm font-medium">{fixture.home_school?.name}</span>
                       </div>
                       <span className="text-sm font-bold text-muted-foreground">VS</span>
                       <div className="flex items-center gap-2 flex-1 justify-end">
                         <span className="text-sm font-medium">{fixture.away_school?.name}</span>
-                        <div className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (fixture.away_school?.slug) navigate(`/school/${fixture.away_school.slug}`);
+                          }}
+                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          disabled={!fixture.away_school?.slug}
+                        >
                           {fixture.away_school?.icon_url ? (
                             <img 
                               src={fixture.away_school.icon_url} 
@@ -286,7 +303,7 @@ export default function SchoolProfile() {
                               {fixture.away_school?.name.substring(0, 3)}
                             </span>
                           )}
-                        </div>
+                        </button>
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground mt-2">
@@ -320,7 +337,14 @@ export default function SchoolProfile() {
                     </div>
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2 flex-1">
-                        <div className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (fixture.home_school?.slug) navigate(`/school/${fixture.home_school.slug}`);
+                          }}
+                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          disabled={!fixture.home_school?.slug}
+                        >
                           {fixture.home_school?.icon_url ? (
                             <img 
                               src={fixture.home_school.icon_url} 
@@ -332,7 +356,7 @@ export default function SchoolProfile() {
                               {fixture.home_school?.name.substring(0, 3)}
                             </span>
                           )}
-                        </div>
+                        </button>
                         <span className="text-sm font-medium">{fixture.home_school?.name}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -342,7 +366,14 @@ export default function SchoolProfile() {
                       </div>
                       <div className="flex items-center gap-2 flex-1 justify-end">
                         <span className="text-sm font-medium">{fixture.away_school?.name}</span>
-                        <div className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (fixture.away_school?.slug) navigate(`/school/${fixture.away_school.slug}`);
+                          }}
+                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          disabled={!fixture.away_school?.slug}
+                        >
                           {fixture.away_school?.icon_url ? (
                             <img 
                               src={fixture.away_school.icon_url} 
@@ -354,7 +385,7 @@ export default function SchoolProfile() {
                               {fixture.away_school?.name.substring(0, 3)}
                             </span>
                           )}
-                        </div>
+                        </button>
                       </div>
                     </div>
                   </div>
