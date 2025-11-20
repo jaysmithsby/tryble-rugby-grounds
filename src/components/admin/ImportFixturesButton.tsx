@@ -103,7 +103,7 @@ export function ImportFixturesButton() {
             })
             .filter((fixture: any) => fixture !== null);
 
-          console.log(`Importing ${fixtures.length} fixtures...`);
+          console.log(`Parsed ${fixtures.length} fixtures from CSV...`);
 
           if (fixtures.length === 0) {
             toast({
@@ -115,13 +115,41 @@ export function ImportFixturesButton() {
             return;
           }
 
+          // Fetch existing fixture IDs to detect duplicates
+          const fixtureIds = fixtures.map((f: any) => f.id);
+          const { data: existingFixtures, error: fetchError } = await supabase
+            .from('fixtures')
+            .select('id')
+            .in('id', fixtureIds);
+
+          if (fetchError) throw fetchError;
+
+          // Create a set of existing IDs for quick lookup
+          const existingIds = new Set(existingFixtures?.map(f => f.id) || []);
+          
+          // Filter out duplicates
+          const newFixtures = fixtures.filter((fixture: any) => !existingIds.has(fixture.id));
+          const duplicateCount = fixtures.length - newFixtures.length;
+
+          if (newFixtures.length === 0) {
+            toast({
+              title: "No New Fixtures",
+              description: `All ${duplicateCount} fixture(s) already exist in the database.`,
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+
+          console.log(`Importing ${newFixtures.length} new fixtures (${duplicateCount} duplicates skipped)...`);
+
           // Insert in batches of 50 to avoid overwhelming the database
           const batchSize = 50;
-          for (let i = 0; i < fixtures.length; i += batchSize) {
-            const batch = fixtures.slice(i, i + batchSize);
+          for (let i = 0; i < newFixtures.length; i += batchSize) {
+            const batch = newFixtures.slice(i, i + batchSize);
             const { error } = await supabase
               .from('fixtures')
-              .upsert(batch, { onConflict: 'id' });
+              .insert(batch);
 
             if (error) {
               console.error(`Error importing batch ${i / batchSize + 1}:`, error);
@@ -129,9 +157,13 @@ export function ImportFixturesButton() {
             }
           }
 
+          const successMessage = duplicateCount > 0 
+            ? `Imported ${newFixtures.length} new fixture(s). ${duplicateCount} duplicate(s) skipped.`
+            : `Imported ${newFixtures.length} fixture(s) successfully.`;
+
           toast({
             title: "Success!",
-            description: `Imported ${fixtures.length} fixtures successfully`,
+            description: successMessage,
           });
 
           window.location.reload();
