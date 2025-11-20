@@ -32,18 +32,20 @@ export default function SchoolProfile() {
         .from("schools")
         .select("*")
         .eq("id", schoolId)
-        .single();
+        .maybeSingle();
 
       if (schoolError) throw schoolError;
       setSchool(schoolData);
+
+      if (!schoolData) return;
 
       // Load upcoming fixtures
       const { data: upcomingData } = await supabase
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, icon_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, icon_url)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, icon_url, main_rival),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, icon_url, main_rival)
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "upcoming")
@@ -67,15 +69,26 @@ export default function SchoolProfile() {
 
       setRecentResults(resultsData || []);
 
-      // Load top users from this school (mock for now)
-      const mockTopUsers = [
-        { rank: 1, name: "James S", points: 245 },
-        { rank: 2, name: "Sarah M", points: 238 },
-        { rank: 3, name: "Thabo K", points: 234 },
-        { rank: 4, name: "Emma L", points: 228 },
-        { rank: 5, name: "Mike R", points: 221 },
-      ];
-      setTopUsers(mockTopUsers);
+      // Load top 5 users from this school
+      const { data: topUsersData } = await supabase
+        .from("user_scores")
+        .select(`
+          season_points,
+          user_id,
+          profiles!inner(display_name, first_name, school_name)
+        `)
+        .eq("profiles.school_name", schoolData.name)
+        .order("season_points", { ascending: false })
+        .limit(5);
+
+      if (topUsersData) {
+        const formattedUsers = topUsersData.map((item: any, index) => ({
+          rank: index + 1,
+          name: item.profiles?.display_name || item.profiles?.first_name || "Anonymous",
+          points: item.season_points || 0
+        }));
+        setTopUsers(formattedUsers);
+      }
 
     } catch (error: any) {
       toast({
@@ -130,76 +143,85 @@ export default function SchoolProfile() {
       </header>
 
       {/* Hero Section with School Crest */}
-      <div className="relative h-64 bg-gradient-to-br from-primary/20 via-accent/10 to-background border-b border-border/40 overflow-hidden">
-        {/* Rugby field pattern background */}
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: `repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 20px,
-            hsl(var(--primary)) 20px,
-            hsl(var(--primary)) 22px
-          )`
-        }}></div>
+      <div className="relative h-72 overflow-hidden border-b border-border/40">
+        {/* Rugby field background with dark overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-background/90">
+          <div className="absolute inset-0 opacity-5" style={{
+            backgroundImage: `repeating-linear-gradient(
+              0deg,
+              transparent,
+              transparent 18px,
+              hsl(var(--primary)) 18px,
+              hsl(var(--primary)) 20px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              transparent,
+              transparent 80px,
+              hsl(var(--primary)) 80px,
+              hsl(var(--primary)) 82px
+            )`
+          }}></div>
+        </div>
         
-        <div className="container mx-auto px-4 h-full flex flex-col items-center justify-center relative z-10">
-          {/* Large School Crest */}
-          <div className="w-32 h-32 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center border-4 border-primary shadow-glow overflow-hidden p-4 mb-4">
-            {school.icon_url ? (
-              <img 
-                src={school.icon_url} 
-                alt={`${school.name} crest`}
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <span className="text-4xl font-bold text-primary">
-                {school.name.substring(0, 3).toUpperCase()}
-              </span>
+        <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
+          {/* Shield-style School Crest Container */}
+          <div className="relative mb-6">
+            <div className="w-36 h-36 rounded-2xl bg-card/90 backdrop-blur-md flex items-center justify-center border-2 border-primary shadow-[0_0_50px_rgba(34,197,94,0.2)] overflow-hidden p-5 rotate-45 transform">
+              <div className="-rotate-45 w-full h-full flex items-center justify-center">
+                {school.icon_url ? (
+                  <img 
+                    src={school.icon_url} 
+                    alt={`${school.name} crest`}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-5xl font-bold text-primary">
+                    {school.name.substring(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Derby Flame if rivalry match upcoming */}
+            {upcomingFixtures.some(f => isDerby(f)) && (
+              <div className="absolute -top-2 -right-2 w-10 h-10 bg-destructive rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                <Flame className="w-6 h-6 text-destructive-foreground" />
+              </div>
             )}
           </div>
           
-          <h1 className="text-3xl font-bold text-center mb-2">{school.name}</h1>
-          {school.motto && (
-            <p className="text-sm text-muted-foreground italic">"{school.motto}"</p>
+          <h1 className="text-4xl font-bold text-center mb-2 tracking-tight">{school.name}</h1>
+          {school.trivia_fact && (
+            <p className="text-sm text-accent italic text-center max-w-md px-4">
+              "{school.trivia_fact}"
+            </p>
           )}
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="px-4 py-6 space-y-6 max-w-7xl mx-auto">
         {/* Quick Facts Chips */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-3 justify-center">
-              {school.established_year && (
-                <Badge variant="outline" className="h-10 px-4 text-sm">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Founded {school.established_year}
-                </Badge>
-              )}
-              {school.province && (
-                <Badge variant="outline" className="h-10 px-4 text-sm">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  {school.province}
-                </Badge>
-              )}
-              {school.springboks_count !== null && (
-                <Badge variant="outline" className="h-10 px-4 text-sm">
-                  <Trophy className="w-4 h-4 mr-2" />
-                  {school.springboks_count} Springboks
-                </Badge>
-              )}
+        <div className="flex flex-wrap gap-3 justify-center">
+          {school.established_year && (
+            <div className="h-12 px-5 rounded-full bg-card border border-primary/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transition-shadow">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Established {school.established_year}</span>
             </div>
-            
-            {school.trivia_fact && (
-              <div className="mt-4 p-4 bg-muted/50 rounded-lg border border-border/40">
-                <p className="text-sm text-center">
-                  <span className="font-bold text-primary">Did you know?</span> {school.trivia_fact}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+          {school.province && (
+            <div className="h-12 px-5 rounded-full bg-card border border-accent/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(251,191,36,0.15)] transition-shadow">
+              <MapPin className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium">{school.province}</span>
+            </div>
+          )}
+          {school.springboks_count !== null && (
+            <div className="h-12 px-5 rounded-full bg-card border border-primary/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transition-shadow">
+              <Trophy className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium">{school.springboks_count} Springboks</span>
+            </div>
+          )}
+        </div>
 
         {/* Upcoming Fixtures */}
         <Card>
@@ -371,19 +393,77 @@ export default function SchoolProfile() {
           </CardContent>
         </Card>
 
-        {/* Main Rival Info */}
-        {school.main_rival && (
+        {/* Rivalry Match Highlight */}
+        {school.main_rival && upcomingFixtures.some(f => isDerby(f)) && (
+          <Card className="border-destructive/40 bg-gradient-to-br from-destructive/10 to-destructive/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-destructive/5 rounded-full blur-3xl"></div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 relative z-10">
+                <div className="w-10 h-10 bg-destructive/20 rounded-full flex items-center justify-center animate-pulse">
+                  <Flame className="w-6 h-6 text-destructive" />
+                </div>
+                Derby Match Alert!
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              {upcomingFixtures.filter(f => isDerby(f)).map(derbyMatch => (
+                <div key={derbyMatch.id} className="space-y-3">
+                  <p className="text-center font-medium">
+                    The historic rivalry with <span className="font-bold text-destructive">{school.main_rival}</span> continues!
+                  </p>
+                  <div className="p-4 bg-card/60 rounded-lg border border-destructive/20">
+                    <div className="flex items-center justify-between gap-4 mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-primary overflow-hidden p-1">
+                          {derbyMatch.home_school?.icon_url && (
+                            <img src={derbyMatch.home_school.icon_url} alt="" className="w-full h-full object-contain" />
+                          )}
+                        </div>
+                        <span className="font-bold text-sm">{derbyMatch.home_school?.name}</span>
+                      </div>
+                      <Flame className="w-6 h-6 text-destructive animate-pulse" />
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{derbyMatch.away_school?.name}</span>
+                        <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-primary overflow-hidden p-1">
+                          {derbyMatch.away_school?.icon_url && (
+                            <img src={derbyMatch.away_school.icon_url} alt="" className="w-full h-full object-contain" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(derbyMatch.match_date).toLocaleDateString('en-ZA', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{derbyMatch.venue}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Main Rival Info (when no upcoming derby) */}
+        {school.main_rival && !upcomingFixtures.some(f => isDerby(f)) && (
           <Card className="border-destructive/30 bg-destructive/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Flame className="w-5 h-5 text-destructive" />
-                Main Rivalry
+                Historic Rivalry
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-center text-sm">
-                The historic rivalry with <span className="font-bold">{school.main_rival}</span> fuels 
-                the most anticipated matches of the season. These derby fixtures are must-watch events!
+                The historic rivalry with <span className="font-bold text-destructive">{school.main_rival}</span> fuels 
+                the most anticipated matches of the season. Derby fixtures are must-watch events!
               </p>
             </CardContent>
           </Card>
