@@ -15,6 +15,8 @@ interface PredictionDialogProps {
   awayTeam: string;
   homeTeamShort: string;
   awayTeamShort: string;
+  homeTeamIcon?: string | null;
+  awayTeamIcon?: string | null;
   matchId?: string;
   appliesTo?: string[]; // List of pool names this prediction applies to
   onPredictionSubmit?: (team: "home" | "away", margin: number) => void;
@@ -27,6 +29,8 @@ export const PredictionDialog = ({
   awayTeam,
   homeTeamShort,
   awayTeamShort,
+  homeTeamIcon,
+  awayTeamIcon,
   appliesTo = [],
   onPredictionSubmit
 }: PredictionDialogProps) => {
@@ -93,10 +97,18 @@ export const PredictionDialog = ({
                 }`}
               >
                 <RadioGroupItem value="home" id="home" className="sr-only" />
-                <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border">
-                  <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
+                <div className="w-16 h-16 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-2">
+                  {homeTeamIcon ? (
+                    <img 
+                      src={homeTeamIcon} 
+                      alt={`${homeTeam} jersey`}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
+                  )}
                 </div>
-                <span className="text-xs font-medium text-center">{homeTeam}</span>
+                <span className="text-sm font-medium text-center">{homeTeam}</span>
               </label>
 
               <label
@@ -108,10 +120,18 @@ export const PredictionDialog = ({
                 }`}
               >
                 <RadioGroupItem value="away" id="away" className="sr-only" />
-                <div className="w-12 h-12 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border">
-                  <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
+                <div className="w-16 h-16 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-2">
+                  {awayTeamIcon ? (
+                    <img 
+                      src={awayTeamIcon} 
+                      alt={`${awayTeam} jersey`}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
+                  )}
                 </div>
-                <span className="text-xs font-medium text-center">{awayTeam}</span>
+                <span className="text-sm font-medium text-center">{awayTeam}</span>
               </label>
             </RadioGroup>
           </div>
