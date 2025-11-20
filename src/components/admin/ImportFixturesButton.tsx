@@ -19,27 +19,71 @@ export function ImportFixturesButton() {
       header: true,
       complete: async (results) => {
         try {
+          // First, fetch all schools to create name-to-ID mapping
+          const { data: schools, error: schoolsError } = await supabase
+            .from('schools')
+            .select('id, name');
+
+          if (schoolsError) throw schoolsError;
+
+          // Create a case-insensitive mapping of school names to IDs
+          const schoolNameToId = new Map<string, string>();
+          schools?.forEach(school => {
+            schoolNameToId.set(school.name.toLowerCase().trim(), school.id);
+          });
+
           const fixtures = results.data
             .filter((row: any) => row.id && row.home_school_id && row.away_school_id)
-            .map((row: any) => ({
-              id: row.id,
-              home_school_id: row.home_school_id,
-              away_school_id: row.away_school_id,
-              sport: row.sport || 'Rugby',
-              match_date: row.match_date,
-              venue: row.venue || 'TBD',
-              status: row.status || 'upcoming',
-              home_score: row.home_score ? parseInt(row.home_score) : null,
-              away_score: row.away_score ? parseInt(row.away_score) : null,
-              season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
-              year: row.year ? parseInt(row.year) : new Date().getFullYear(),
-              festival_id: row.festival_id || null,
-              round_name: row.round_name || null,
-              is_derby: row.is_derby === 'true' || row.is_derby === true || false,
-              is_visible: true,
-            }));
+            .map((row: any) => {
+              // Check if home_school_id and away_school_id are UUIDs or names
+              const isHomeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.home_school_id);
+              const isAwayUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.away_school_id);
+
+              // Map school names to IDs if they're not already UUIDs
+              const homeSchoolId = isHomeUuid 
+                ? row.home_school_id 
+                : schoolNameToId.get(row.home_school_id.toLowerCase().trim());
+              
+              const awaySchoolId = isAwayUuid 
+                ? row.away_school_id 
+                : schoolNameToId.get(row.away_school_id.toLowerCase().trim());
+
+              if (!homeSchoolId || !awaySchoolId) {
+                console.warn(`Skipping fixture: Could not find school IDs for ${row.home_school_id} vs ${row.away_school_id}`);
+                return null;
+              }
+
+              return {
+                id: row.id,
+                home_school_id: homeSchoolId,
+                away_school_id: awaySchoolId,
+                sport: row.sport || 'Rugby',
+                match_date: row.match_date,
+                venue: row.venue || 'TBD',
+                status: row.status || 'upcoming',
+                home_score: row.home_score ? parseInt(row.home_score) : null,
+                away_score: row.away_score ? parseInt(row.away_score) : null,
+                season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
+                year: row.year ? parseInt(row.year) : new Date().getFullYear(),
+                festival_id: row.festival_id || null,
+                round_name: row.round_name || null,
+                is_derby: row.is_derby === 'true' || row.is_derby === true || false,
+                is_visible: true,
+              };
+            })
+            .filter((fixture: any) => fixture !== null);
 
           console.log(`Importing ${fixtures.length} fixtures...`);
+
+          if (fixtures.length === 0) {
+            toast({
+              title: "No Fixtures to Import",
+              description: "No valid fixtures found in the CSV file. Check that school names match your database.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
 
           // Insert in batches of 50 to avoid overwhelming the database
           const batchSize = 50;
