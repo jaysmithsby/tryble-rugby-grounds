@@ -18,6 +18,16 @@ export default function SchoolProfile() {
   const [topUsers, setTopUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Helper to convert hex to RGB for styling
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 34, g: 197, b: 94 }; // Default green
+  };
+
   useEffect(() => {
     loadSchoolData();
   }, [schoolSlug]);
@@ -130,6 +140,12 @@ export default function SchoolProfile() {
            awaySchool === school.main_rival;
   };
 
+  // Get school colors with fallback
+  const primaryColor = school.primary_color || '#22C55E';
+  const secondaryColor = school.secondary_color || '#FFD700';
+  const primaryRgb = hexToRgb(primaryColor);
+  const secondaryRgb = hexToRgb(secondaryColor);
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -147,32 +163,47 @@ export default function SchoolProfile() {
         </div>
       </header>
 
-      {/* Hero Section with School Crest */}
+      {/* Hero Section with Dynamic School Colors */}
       <div className="relative h-72 overflow-hidden border-b border-border/40">
-        {/* Rugby field background with dark overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-background/90">
-          <div className="absolute inset-0 opacity-5" style={{
-            backgroundImage: `repeating-linear-gradient(
-              0deg,
-              transparent,
-              transparent 18px,
-              hsl(var(--primary)) 18px,
-              hsl(var(--primary)) 20px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 80px,
-              hsl(var(--primary)) 80px,
-              hsl(var(--primary)) 82px
-            )`
-          }}></div>
+        {/* Dynamic gradient background based on school colors */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(135deg, rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.15) 0%, rgba(${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}, 0.15) 100%)`
+          }}
+        >
+          <div className="absolute inset-0 bg-background/85"></div>
+          <div 
+            className="absolute inset-0 opacity-5" 
+            style={{
+              backgroundImage: `repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 18px,
+                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 18px,
+                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 20px
+              ),
+              repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 80px,
+                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 80px,
+                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 82px
+              )`
+            }}
+          ></div>
         </div>
         
         <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
           {/* Shield-style School Crest Container */}
           <div className="relative mb-6">
-            <div className="w-36 h-36 rounded-2xl bg-card/90 backdrop-blur-md flex items-center justify-center border-2 border-primary shadow-[0_0_50px_rgba(34,197,94,0.2)] overflow-hidden p-5 rotate-45 transform">
+            <div 
+              className="w-36 h-36 rounded-2xl bg-card/90 backdrop-blur-md flex items-center justify-center border-2 overflow-hidden p-5 rotate-45 transform"
+              style={{
+                borderColor: primaryColor,
+                boxShadow: `0 0 50px rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.3)`
+              }}
+            >
               <div className="-rotate-45 w-full h-full flex items-center justify-center">
                 {school.icon_url ? (
                   <img 
@@ -181,7 +212,10 @@ export default function SchoolProfile() {
                     className="w-full h-full object-contain"
                   />
                 ) : (
-                  <span className="text-5xl font-bold text-primary">
+                  <span 
+                    className="text-5xl font-bold"
+                    style={{ color: primaryColor }}
+                  >
                     {school.name.substring(0, 2).toUpperCase()}
                   </span>
                 )}
@@ -197,7 +231,10 @@ export default function SchoolProfile() {
           
           <h1 className="text-4xl font-bold text-center mb-2 tracking-tight">{school.name}</h1>
           {school.motto && (
-            <p className="text-sm text-accent italic text-center max-w-md px-4">
+            <p 
+              className="text-sm italic text-center max-w-md px-4 font-medium"
+              style={{ color: secondaryColor }}
+            >
               "{school.motto}"
             </p>
           )}
