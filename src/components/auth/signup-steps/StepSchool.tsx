@@ -61,9 +61,20 @@ const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolPro
   const handleAddNewSchool = async () => {
     if (!schoolName.trim()) return;
 
+    // Generate slug from school name
+    const slug = schoolName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-');
+
     const { error } = await supabase
       .from("schools")
-      .insert({ name: schoolName.trim(), status: "pending" });
+      .insert({ 
+        name: schoolName.trim(), 
+        slug: slug,
+        status: "pending" 
+      });
 
     if (error) {
       toast({

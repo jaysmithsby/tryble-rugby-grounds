@@ -12,8 +12,8 @@ interface FixtureCardProps {
   awayTeamShort: string;
   homeTeamIcon?: string | null;
   awayTeamIcon?: string | null;
-  homeSchoolId?: string;
-  awaySchoolId?: string;
+  homeSchoolSlug?: string;
+  awaySchoolSlug?: string;
   time: string;
   venue: string;
   matchId?: string;
@@ -31,9 +31,9 @@ export const FixtureCard = ({
   awayTeamShort,
   homeTeamIcon,
   awayTeamIcon,
-  homeSchoolId,
-  awaySchoolId,
-  time, 
+  homeSchoolSlug,
+  awaySchoolSlug,
+  time,
   venue,
   matchId,
   appliesTo = [],
@@ -86,10 +86,10 @@ export const FixtureCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (homeSchoolId) navigate(`/school/${homeSchoolId}`);
+                if (homeSchoolSlug) navigate(`/school/${homeSchoolSlug}`);
               }}
               className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!homeSchoolId}
+              disabled={!homeSchoolSlug}
             >
               {homeTeamIcon ? (
                 <img 
@@ -112,10 +112,10 @@ export const FixtureCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (awaySchoolId) navigate(`/school/${awaySchoolId}`);
+                if (awaySchoolSlug) navigate(`/school/${awaySchoolSlug}`);
               }}
               className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!awaySchoolId}
+              disabled={!awaySchoolSlug}
             >
               {awayTeamIcon ? (
                 <img 

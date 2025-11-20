@@ -51,16 +51,16 @@ const Leaderboard = () => {
   const loadLeaderboardData = async () => {
     setLoading(true);
     
-    // Load school IDs for navigation
+    // Load school slugs for navigation
     const { data: schoolsData } = await supabase
       .from("schools")
-      .select("id, name");
+      .select("slug, name");
     
-    const idMap: Record<string, string> = {};
+    const slugMap: Record<string, string> = {};
     schoolsData?.forEach(school => {
-      idMap[school.name] = school.id;
+      slugMap[school.name] = school.slug;
     });
-    setSchoolIdMap(idMap);
+    setSchoolIdMap(slugMap);
     
     // Mock data for now - will be replaced with real queries
     const mockGlobal: LeaderboardEntry[] = [
@@ -209,12 +209,12 @@ const Leaderboard = () => {
   const SchoolLeaderboardTable = ({ entries }: { entries: SchoolLeaderboardEntry[] }) => (
     <div className="space-y-2">
       {entries.map((entry) => {
-        const schoolId = schoolIdMap[entry.schoolName];
+        const schoolSlug = schoolIdMap[entry.schoolName];
         return (
           <div
             key={entry.schoolName}
-            onClick={() => schoolId && navigate(`/school/${schoolId}`)}
-            className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50 ${schoolId ? 'cursor-pointer' : ''}`}
+            onClick={() => schoolSlug && navigate(`/school/${schoolSlug}`)}
+            className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50 ${schoolSlug ? 'cursor-pointer' : ''}`}
           >
             <div className="flex items-center gap-4 flex-1">
               <div className={`text-lg font-bold w-12 text-center ${entry.rank <= 3 ? "text-accent" : "text-muted-foreground"}`}>

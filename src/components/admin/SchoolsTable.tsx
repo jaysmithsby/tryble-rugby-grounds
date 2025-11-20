@@ -26,6 +26,7 @@ import {
 interface School {
   id: string;
   name: string;
+  slug: string;
   province: string | null;
   website: string | null;
   icon_url: string | null;
@@ -133,7 +134,7 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
                     <div className="flex items-center gap-2">
                       {school.icon_url && (
                         <button
-                          onClick={() => navigate(`/school/${school.id}`)}
+                          onClick={() => navigate(`/school/${school.slug}`)}
                           className="h-8 w-8 rounded-full overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
                         >
                           <img

@@ -12,8 +12,8 @@ interface SchoolFixtureCardProps {
   opponentSchool: string;
   opponentSchoolShort: string;
   opponentSchoolIcon?: string | null;
-  userSchoolId?: string;
-  opponentSchoolId?: string;
+  userSchoolSlug?: string;
+  opponentSchoolSlug?: string;
   time: string;
   venue: string;
   matchId?: string;
@@ -30,8 +30,8 @@ export const SchoolFixtureCard = ({
   opponentSchool,
   opponentSchoolShort,
   opponentSchoolIcon,
-  userSchoolId,
-  opponentSchoolId,
+  userSchoolSlug,
+  opponentSchoolSlug,
   time,
   venue,
   matchId,
@@ -85,10 +85,10 @@ export const SchoolFixtureCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (userSchoolId) navigate(`/school/${userSchoolId}`);
+                if (userSchoolSlug) navigate(`/school/${userSchoolSlug}`);
               }}
               className="w-20 h-20 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border-2 border-primary overflow-hidden p-2 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!userSchoolId}
+              disabled={!userSchoolSlug}
             >
               {userSchoolIcon ? (
                 <img 
@@ -111,10 +111,10 @@ export const SchoolFixtureCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (opponentSchoolId) navigate(`/school/${opponentSchoolId}`);
+                if (opponentSchoolSlug) navigate(`/school/${opponentSchoolSlug}`);
               }}
               className="w-20 h-20 rounded-full bg-accent/20 backdrop-blur-sm flex items-center justify-center border-2 border-accent overflow-hidden p-2 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!opponentSchoolId}
+              disabled={!opponentSchoolSlug}
             >
               {opponentSchoolIcon ? (
                 <img 

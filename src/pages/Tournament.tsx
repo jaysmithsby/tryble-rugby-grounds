@@ -67,8 +67,8 @@ export default function Tournament() {
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, icon_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, icon_url)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url)
         `)
         .eq("tournament_id", tournamentId)
         .order("match_date", { ascending: true });
@@ -220,8 +220,8 @@ export default function Tournament() {
                     awayTeamShort={fixture.away_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
                     homeTeamIcon={fixture.home_school?.icon_url}
                     awayTeamIcon={fixture.away_school?.icon_url}
-                    homeSchoolId={fixture.home_school?.id}
-                    awaySchoolId={fixture.away_school?.id}
+                    homeSchoolSlug={fixture.home_school?.slug}
+                    awaySchoolSlug={fixture.away_school?.slug}
                     time={format(new Date(fixture.match_date), "MMM d, h:mm a")}
                     venue={fixture.venue}
                     matchId={fixture.id}
