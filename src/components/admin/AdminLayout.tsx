@@ -1,12 +1,25 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3 } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SchoolsTable } from "./SchoolsTable";
+import { EditSchoolDialog } from "./EditSchoolDialog";
+import { CreateSchoolDialog } from "./CreateSchoolDialog";
 
 interface AdminLayoutProps {
   children?: ReactNode;
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<any>(null);
+
+  const handleEditSchool = (school: any) => {
+    setSelectedSchool(school);
+    setEditDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -48,14 +61,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </TabsContent>
 
           <TabsContent value="schools" className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-8 text-center">
-              <School className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">Schools Manager</h3>
-              <p className="text-muted-foreground">
-                Manage school profiles, crests, regions, and visibility settings.
-              </p>
-              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Schools Manager</h2>
+                <p className="text-muted-foreground mt-1">Manage school profiles, crests, regions, and visibility settings</p>
+              </div>
+              <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New School
+              </Button>
             </div>
+            <SchoolsTable onEdit={handleEditSchool} />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
@@ -103,6 +119,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <EditSchoolDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        school={selectedSchool}
+      />
+
+      <CreateSchoolDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </div>
   );
 }
