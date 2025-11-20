@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, MapPin, Users, Trophy, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Trophy, Loader2, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { FixtureCard } from "@/components/home/FixtureCard";
 
 interface Tournament {
   id: string;
@@ -27,11 +28,13 @@ export default function Tournament() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (tournamentId) {
       fetchTournament();
+      fetchFixtures();
     }
   }, [tournamentId]);
 
@@ -55,6 +58,25 @@ export default function Tournament() {
       navigate("/home");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFixtures = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("fixtures")
+        .select(`
+          *,
+          home_school:schools!fixtures_home_school_id_fkey(id, name, icon_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, icon_url)
+        `)
+        .eq("tournament_id", tournamentId)
+        .order("match_date", { ascending: true });
+
+      if (error) throw error;
+      setFixtures(data || []);
+    } catch (error) {
+      console.error("Error fetching fixtures:", error);
     }
   };
 
@@ -180,6 +202,34 @@ export default function Tournament() {
               ))}
             </div>
           </div>
+
+          {/* Tournament Fixtures */}
+          {fixtures.length > 0 && (
+            <div className="bg-card border border-border rounded-lg p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Flag className="h-5 w-5 text-primary" />
+                Tournament Fixtures ({fixtures.length})
+              </h2>
+              <div className="space-y-3">
+                {fixtures.map((fixture) => (
+                  <FixtureCard
+                    key={fixture.id}
+                    homeTeam={fixture.home_school?.name || "TBD"}
+                    awayTeam={fixture.away_school?.name || "TBD"}
+                    homeTeamShort={fixture.home_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
+                    awayTeamShort={fixture.away_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
+                    homeTeamIcon={fixture.home_school?.icon_url}
+                    awayTeamIcon={fixture.away_school?.icon_url}
+                    homeSchoolId={fixture.home_school?.id}
+                    awaySchoolId={fixture.away_school?.id}
+                    time={format(new Date(fixture.match_date), "MMM d, h:mm a")}
+                    venue={fixture.venue}
+                    matchId={fixture.id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Bottom Sponsor Banner */}
           {tournament.sponsor_logo_url && (

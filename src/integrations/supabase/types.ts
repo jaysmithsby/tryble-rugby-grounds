@@ -30,6 +30,7 @@ export type Database = {
           season: string
           sport: string
           status: string
+          tournament_id: string | null
           updated_at: string
           venue: string
           year: number
@@ -49,6 +50,7 @@ export type Database = {
           season: string
           sport?: string
           status?: string
+          tournament_id?: string | null
           updated_at?: string
           venue: string
           year: number
@@ -68,11 +70,20 @@ export type Database = {
           season?: string
           sport?: string
           status?: string
+          tournament_id?: string | null
           updated_at?: string
           venue?: string
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fixtures_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       game_scores: {
         Row: {

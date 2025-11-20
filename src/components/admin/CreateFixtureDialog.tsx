@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ interface CreateFixtureDialogProps {
 export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [tournaments, setTournaments] = useState<Array<{ id: string; name: string }>>([]);
   const [formData, setFormData] = useState({
     home_school_id: "",
     away_school_id: "",
@@ -37,14 +38,40 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
     year: new Date().getFullYear(),
     sport: "Rugby",
     is_visible: true,
+    tournament_id: "",
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchTournaments();
+    }
+  }, [open]);
+
+  const fetchTournaments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("start_date", { ascending: false });
+
+      if (error) throw error;
+      setTournaments(data || []);
+    } catch (error) {
+      console.error("Error fetching tournaments:", error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('fixtures').insert([formData]);
+      const fixtureData = {
+        ...formData,
+        tournament_id: formData.tournament_id || null,
+      };
+      const { error } = await supabase.from('fixtures').insert([fixtureData]);
 
       if (error) throw error;
 
@@ -64,6 +91,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
         year: new Date().getFullYear(),
         sport: "Rugby",
         is_visible: true,
+        tournament_id: "",
       });
       window.location.reload();
     } catch (error: any) {
@@ -140,6 +168,26 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="final">Final</SelectItem>
                 <SelectItem value="holding">Holding</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tournament">Tournament (Optional)</Label>
+            <Select
+              value={formData.tournament_id}
+              onValueChange={(value) => setFormData({ ...formData, tournament_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select tournament (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {tournaments.map((tournament) => (
+                  <SelectItem key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
