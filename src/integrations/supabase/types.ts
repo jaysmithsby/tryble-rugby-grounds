@@ -306,30 +306,45 @@ export type Database = {
       schools: {
         Row: {
           created_at: string
+          established_year: number | null
           icon_url: string | null
           id: string
+          main_rival: string | null
           name: string
           province: string | null
+          springboks_count: number | null
           status: string
+          trivia_fact: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
           created_at?: string
+          established_year?: number | null
           icon_url?: string | null
           id?: string
+          main_rival?: string | null
           name: string
           province?: string | null
+          springboks_count?: number | null
           status?: string
+          trivia_fact?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
           created_at?: string
+          established_year?: number | null
           icon_url?: string | null
           id?: string
+          main_rival?: string | null
           name?: string
           province?: string | null
+          springboks_count?: number | null
           status?: string
+          trivia_fact?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
