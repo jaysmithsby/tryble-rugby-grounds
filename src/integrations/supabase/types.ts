@@ -424,6 +424,7 @@ export type Database = {
           main_rival: string | null
           name: string
           province: string | null
+          slug: string
           springboks_count: number | null
           status: string
           trivia_fact: string | null
@@ -438,6 +439,7 @@ export type Database = {
           main_rival?: string | null
           name: string
           province?: string | null
+          slug: string
           springboks_count?: number | null
           status?: string
           trivia_fact?: string | null
@@ -452,6 +454,7 @@ export type Database = {
           main_rival?: string | null
           name?: string
           province?: string | null
+          slug?: string
           springboks_count?: number | null
           status?: string
           trivia_fact?: string | null

@@ -61,8 +61,15 @@ export function CreateSchoolDialog({
     setLoading(true);
 
     try {
+      // Generate slug from school name
+      const slug = formData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+
       const { error } = await supabase.from("schools").insert({
         name: formData.name,
+        slug: slug,
         province: formData.province || null,
         website: formData.website || null,
         icon_url: formData.icon_url || null,

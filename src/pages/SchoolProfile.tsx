@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
 
 export default function SchoolProfile() {
-  const { schoolId } = useParams();
+  const { schoolSlug } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [school, setSchool] = useState<any>(null);
@@ -20,18 +20,18 @@ export default function SchoolProfile() {
 
   useEffect(() => {
     loadSchoolData();
-  }, [schoolId]);
+  }, [schoolSlug]);
 
   const loadSchoolData = async () => {
-    if (!schoolId) return;
+    if (!schoolSlug) return;
     
     setLoading(true);
     try {
-      // Load school details
+      // Load school details by slug
       const { data: schoolData, error: schoolError } = await supabase
         .from("schools")
         .select("*")
-        .eq("id", schoolId)
+        .eq("slug", schoolSlug)
         .maybeSingle();
 
       if (schoolError) throw schoolError;
@@ -39,13 +39,15 @@ export default function SchoolProfile() {
 
       if (!schoolData) return;
 
+      const schoolId = schoolData.id;
+
       // Load upcoming fixtures
       const { data: upcomingData } = await supabase
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, icon_url, main_rival),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, icon_url, main_rival)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, main_rival),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, main_rival)
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "upcoming")
@@ -59,8 +61,8 @@ export default function SchoolProfile() {
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, icon_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, icon_url)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url)
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "completed")
