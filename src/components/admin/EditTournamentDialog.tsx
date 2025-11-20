@@ -35,6 +35,7 @@ const formSchema = z.object({
   format_notes: z.string().optional(),
   participating_schools: z.array(z.string()).default([]),
   is_active: z.boolean().default(true),
+  sponsor_name: z.string().optional(),
 });
 
 interface EditTournamentDialogProps {
@@ -50,6 +51,8 @@ export function EditTournamentDialog({
 }: EditTournamentDialogProps) {
   const [schools, setSchools] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [sponsorLogoUrl, setSponsorLogoUrl] = useState<string>("");
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -64,12 +67,14 @@ export function EditTournamentDialog({
       format_notes: "",
       participating_schools: [],
       is_active: true,
+      sponsor_name: "",
     },
   });
 
   useEffect(() => {
     if (open && tournament) {
       fetchSchools();
+      setSponsorLogoUrl(tournament.sponsor_logo_url || "");
       form.reset({
         name: tournament.name || "",
         host_school: tournament.host_school || "",
@@ -84,6 +89,7 @@ export function EditTournamentDialog({
         format_notes: tournament.format_notes || "",
         participating_schools: tournament.participating_schools || [],
         is_active: tournament.is_active ?? true,
+        sponsor_name: tournament.sponsor_name || "",
       });
     }
   }, [open, tournament, form]);
@@ -99,6 +105,52 @@ export function EditTournamentDialog({
       setSchools(data?.map((s) => s.name) || []);
     } catch (error) {
       console.error("Error fetching schools:", error);
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("tournament-sponsors")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("tournament-sponsors")
+        .getPublicUrl(filePath);
+
+      setSponsorLogoUrl(publicUrl);
+      toast({
+        title: "Success",
+        description: "Sponsor logo uploaded successfully",
+      });
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload sponsor logo",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -119,6 +171,8 @@ export function EditTournamentDialog({
           format_notes: values.format_notes || null,
           participating_schools: values.participating_schools,
           is_active: values.is_active,
+          sponsor_name: values.sponsor_name || null,
+          sponsor_logo_url: sponsorLogoUrl || null,
         })
         .eq("id", tournament.id);
 
@@ -292,6 +346,48 @@ export function EditTournamentDialog({
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-4 border-t border-border pt-4">
+                <h3 className="text-sm font-medium">Sponsorship Information</h3>
+                
+                <FormField
+                  control={form.control}
+                  name="sponsor_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sponsor Name (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., FNB, Investec" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-2">
+                  <FormLabel>Sponsor Logo (Optional)</FormLabel>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={uploading}
+                    />
+                    {uploading && (
+                      <span className="text-sm text-muted-foreground">Uploading...</span>
+                    )}
+                  </div>
+                  {sponsorLogoUrl && (
+                    <div className="mt-2">
+                      <img
+                        src={sponsorLogoUrl}
+                        alt="Sponsor logo preview"
+                        className="h-16 object-contain rounded border border-border p-2"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <FormField
                 control={form.control}

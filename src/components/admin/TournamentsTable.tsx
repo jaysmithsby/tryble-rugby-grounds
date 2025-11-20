@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -34,6 +35,8 @@ interface Tournament {
   format_notes: string | null;
   participating_schools: string[];
   is_active: boolean;
+  sponsor_name: string | null;
+  sponsor_logo_url: string | null;
 }
 
 interface TournamentsTableProps {
@@ -44,6 +47,7 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -119,6 +123,7 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
               <TableHead>Venue</TableHead>
               <TableHead>Date Range</TableHead>
               <TableHead>Schools</TableHead>
+              <TableHead>Sponsor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -126,14 +131,21 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
           <TableBody>
             {tournaments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   No tournaments found
                 </TableCell>
               </TableRow>
             ) : (
               tournaments.map((tournament) => (
                 <TableRow key={tournament.id}>
-                  <TableCell className="font-medium">{tournament.name}</TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => navigate(`/tournament/${tournament.id}`)}
+                      className="font-medium hover:text-primary transition-colors text-left"
+                    >
+                      {tournament.name}
+                    </button>
+                  </TableCell>
                   <TableCell>{tournament.host_school}</TableCell>
                   <TableCell>
                     {tournament.venue}
@@ -144,6 +156,21 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
                     {format(new Date(tournament.end_date), "MMM d, yyyy")}
                   </TableCell>
                   <TableCell>{tournament.participating_schools.length} schools</TableCell>
+                  <TableCell>
+                    {tournament.sponsor_logo_url ? (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={tournament.sponsor_logo_url}
+                          alt={tournament.sponsor_name || "Sponsor"}
+                          className="h-8 object-contain"
+                        />
+                      </div>
+                    ) : tournament.sponsor_name ? (
+                      <span className="text-sm">{tournament.sponsor_name}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">None</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
