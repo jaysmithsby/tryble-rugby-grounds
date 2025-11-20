@@ -1,0 +1,308 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search } from "lucide-react";
+import { toast } from "sonner";
+
+interface School {
+  id: string;
+  name: string;
+  province: string | null;
+  icon_url: string | null;
+}
+
+interface PoolPack {
+  id: string;
+  name: string;
+  description: string | null;
+  schools: string[];
+  status: string;
+  metadata: any;
+}
+
+interface EditPoolPackDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  pack: PoolPack | null;
+  onSuccess: () => void;
+}
+
+export const EditPoolPackDialog = ({
+  open,
+  onOpenChange,
+  pack,
+  onSuccess,
+}: EditPoolPackDialogProps) => {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<string>("draft");
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [metadata, setMetadata] = useState({
+    province: "",
+    competitive_level: "",
+    tags: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open && pack) {
+      setName(pack.name);
+      setDescription(pack.description || "");
+      setStatus(pack.status);
+      setSelectedSchools(pack.schools || []);
+      setMetadata({
+        province: pack.metadata?.province || "",
+        competitive_level: pack.metadata?.competitive_level || "",
+        tags: Array.isArray(pack.metadata?.tags)
+          ? pack.metadata.tags.join(", ")
+          : "",
+      });
+      loadSchools();
+    }
+  }, [open, pack]);
+
+  const loadSchools = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("schools")
+        .select("id, name, province, icon_url")
+        .eq("status", "verified")
+        .order("name");
+
+      if (error) throw error;
+      setSchools(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load schools");
+      console.error("Error loading schools:", error);
+    }
+  };
+
+  const toggleSchool = (schoolName: string) => {
+    if (selectedSchools.includes(schoolName)) {
+      setSelectedSchools(selectedSchools.filter((s) => s !== schoolName));
+    } else if (selectedSchools.length < 10) {
+      setSelectedSchools([...selectedSchools, schoolName]);
+    } else {
+      toast.error("Maximum 10 schools allowed per Pack");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!pack) return;
+
+    if (!name.trim()) {
+      toast.error("Please enter a pack name");
+      return;
+    }
+
+    if (selectedSchools.length < 5) {
+      toast.error("Please select at least 5 schools");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("pool_templates")
+        .update({
+          name: name.trim(),
+          description: description.trim() || null,
+          schools: selectedSchools,
+          status,
+          metadata: {
+            province: metadata.province || null,
+            competitive_level: metadata.competitive_level || null,
+            tags: metadata.tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean),
+          },
+        })
+        .eq("id", pack.id);
+
+      if (error) throw error;
+
+      toast.success("Pool Pack updated successfully");
+      onOpenChange(false);
+      onSuccess();
+    } catch (error: any) {
+      toast.error("Failed to update Pool Pack");
+      console.error("Error updating pack:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredSchools = schools.filter((school) =>
+    school.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (!pack) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Edit Pool Pack</DialogTitle>
+          <DialogDescription>
+            Update the pool pack details and school selection
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+          <div className="space-y-2">
+            <Label htmlFor="name">Pack Name *</Label>
+            <Input
+              id="name"
+              placeholder="e.g., KZN Top, Western Cape Elite"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Brief description of this pack..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Visibility Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="province">Province (Optional)</Label>
+              <Input
+                id="province"
+                placeholder="e.g., KwaZulu-Natal"
+                value={metadata.province}
+                onChange={(e) =>
+                  setMetadata({ ...metadata, province: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="level">Competitive Level (Optional)</Label>
+              <Input
+                id="level"
+                placeholder="e.g., Elite, Emerging"
+                value={metadata.competitive_level}
+                onChange={(e) =>
+                  setMetadata({ ...metadata, competitive_level: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (comma-separated)</Label>
+              <Input
+                id="tags"
+                placeholder="e.g., derby, regional"
+                value={metadata.tags}
+                onChange={(e) =>
+                  setMetadata({ ...metadata, tags: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Select Schools * ({selectedSchools.length}/10, min 5 required)
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search schools..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <ScrollArea className="h-[200px] border rounded-lg p-4">
+              <div className="space-y-2">
+                {filteredSchools.map((school) => (
+                  <div
+                    key={school.id}
+                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded-lg"
+                  >
+                    <Checkbox
+                      id={school.id}
+                      checked={selectedSchools.includes(school.name)}
+                      onCheckedChange={() => toggleSchool(school.name)}
+                      disabled={
+                        selectedSchools.length >= 10 &&
+                        !selectedSchools.includes(school.name)
+                      }
+                    />
+                    <label
+                      htmlFor={school.id}
+                      className="flex-1 cursor-pointer text-sm"
+                    >
+                      {school.name}
+                      {school.province && (
+                        <span className="text-muted-foreground ml-2">
+                          ({school.province})
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpdate} disabled={loading}>
+            {loading ? "Updating..." : "Update Pool Pack"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
