@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { SchoolsTable } from "./SchoolsTable";
 import { EditSchoolDialog } from "./EditSchoolDialog";
 import { CreateSchoolDialog } from "./CreateSchoolDialog";
+import { TournamentsTable } from "./TournamentsTable";
+import { EditTournamentDialog } from "./EditTournamentDialog";
+import { CreateTournamentDialog } from "./CreateTournamentDialog";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -14,10 +17,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
+  const [tournamentEditDialogOpen, setTournamentEditDialogOpen] = useState(false);
+  const [tournamentCreateDialogOpen, setTournamentCreateDialogOpen] = useState(false);
+  const [selectedTournament, setSelectedTournament] = useState<any>(null);
 
   const handleEditSchool = (school: any) => {
     setSelectedSchool(school);
     setEditDialogOpen(true);
+  };
+
+  const handleEditTournament = (tournament: any) => {
+    setSelectedTournament(tournament);
+    setTournamentEditDialogOpen(true);
   };
 
   return (
@@ -86,14 +97,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </TabsContent>
 
           <TabsContent value="tournaments" className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-8 text-center">
-              <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">Tournaments Manager</h3>
-              <p className="text-muted-foreground">
-                Create and manage rugby tournaments and festival fixtures.
-              </p>
-              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Tournaments Manager</h2>
+                <p className="text-muted-foreground mt-1">Create and manage rugby tournaments and festival fixtures</p>
+              </div>
+              <Button onClick={() => setTournamentCreateDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Tournament
+              </Button>
             </div>
+            <TournamentsTable onEdit={handleEditTournament} />
           </TabsContent>
 
           <TabsContent value="ads" className="space-y-4">
@@ -129,6 +143,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <CreateSchoolDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+      />
+
+      <EditTournamentDialog
+        open={tournamentEditDialogOpen}
+        onOpenChange={setTournamentEditDialogOpen}
+        tournament={selectedTournament}
+      />
+
+      <CreateTournamentDialog
+        open={tournamentCreateDialogOpen}
+        onOpenChange={setTournamentCreateDialogOpen}
       />
     </div>
   );

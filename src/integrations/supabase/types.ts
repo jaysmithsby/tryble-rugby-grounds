@@ -348,6 +348,60 @@ export type Database = {
         }
         Relationships: []
       }
+      tournaments: {
+        Row: {
+          created_at: string
+          end_date: string
+          format_notes: string | null
+          host_school: string
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          participating_schools: string[] | null
+          province: string | null
+          sponsor_logo_url: string | null
+          sponsor_name: string | null
+          start_date: string
+          updated_at: string
+          venue: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          format_notes?: string | null
+          host_school: string
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          participating_schools?: string[] | null
+          province?: string | null
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
+          start_date: string
+          updated_at?: string
+          venue: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          format_notes?: string | null
+          host_school?: string
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          participating_schools?: string[] | null
+          province?: string | null
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
+          start_date?: string
+          updated_at?: string
+          venue?: string
+        }
+        Relationships: []
+      }
       user_badges: {
         Row: {
           badge_type: Database["public"]["Enums"]["badge_type"]
