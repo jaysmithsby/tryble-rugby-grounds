@@ -418,12 +418,16 @@ export type Database = {
       schools: {
         Row: {
           created_at: string
+          emblem_url: string | null
           established_year: number | null
           icon_url: string | null
           id: string
+          is_visible: boolean | null
+          jersey_url: string | null
           main_rival: string | null
           motto: string | null
           name: string
+          nickname: string | null
           primary_color: string | null
           province: string | null
           secondary_color: string | null
@@ -436,12 +440,16 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          emblem_url?: string | null
           established_year?: number | null
           icon_url?: string | null
           id?: string
+          is_visible?: boolean | null
+          jersey_url?: string | null
           main_rival?: string | null
           motto?: string | null
           name: string
+          nickname?: string | null
           primary_color?: string | null
           province?: string | null
           secondary_color?: string | null
@@ -454,12 +462,16 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          emblem_url?: string | null
           established_year?: number | null
           icon_url?: string | null
           id?: string
+          is_visible?: boolean | null
+          jersey_url?: string | null
           main_rival?: string | null
           motto?: string | null
           name?: string
+          nickname?: string | null
           primary_color?: string | null
           province?: string | null
           secondary_color?: string | null
