@@ -29,6 +29,9 @@ interface School {
   established_year: number | null;
   springboks_count: number | null;
   trivia_fact: string | null;
+  motto: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
   status: string;
 }
 
@@ -54,6 +57,9 @@ export function EditSchoolDialog({
     established_year: "",
     springboks_count: "",
     trivia_fact: "",
+    motto: "",
+    primary_color: "#1e3a5f",
+    secondary_color: "#c9a227",
     status: "verified",
   });
 
@@ -68,6 +74,9 @@ export function EditSchoolDialog({
         established_year: school.established_year?.toString() || "",
         springboks_count: school.springboks_count?.toString() || "",
         trivia_fact: school.trivia_fact || "",
+        motto: school.motto || "",
+        primary_color: school.primary_color || "#1e3a5f",
+        secondary_color: school.secondary_color || "#c9a227",
         status: school.status || "verified",
       });
     }
@@ -94,6 +103,9 @@ export function EditSchoolDialog({
             ? parseInt(formData.springboks_count)
             : null,
           trivia_fact: formData.trivia_fact || null,
+          motto: formData.motto || null,
+          primary_color: formData.primary_color || null,
+          secondary_color: formData.secondary_color || null,
           status: formData.status,
         })
         .eq("id", school.id);
@@ -228,6 +240,85 @@ export function EditSchoolDialog({
                   <SelectItem value="pending">Pending</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* School Branding Section */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-semibold mb-3 text-foreground">School Branding</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="motto">School Motto</Label>
+                <Input
+                  id="motto"
+                  value={formData.motto}
+                  onChange={(e) =>
+                    setFormData({ ...formData, motto: e.target.value })
+                  }
+                  placeholder="e.g., Per Aspera Ad Astra"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="primary_color">Primary Color</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    id="primary_color"
+                    value={formData.primary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, primary_color: e.target.value })
+                    }
+                    className="h-10 w-14 rounded-md border border-input cursor-pointer"
+                  />
+                  <Input
+                    value={formData.primary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, primary_color: e.target.value })
+                    }
+                    placeholder="#1e3a5f"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="secondary_color">Secondary Color</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    id="secondary_color"
+                    value={formData.secondary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, secondary_color: e.target.value })
+                    }
+                    className="h-10 w-14 rounded-md border border-input cursor-pointer"
+                  />
+                  <Input
+                    value={formData.secondary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, secondary_color: e.target.value })
+                    }
+                    placeholder="#c9a227"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              {/* Color Preview */}
+              <div className="space-y-2">
+                <Label>Color Preview</Label>
+                <div 
+                  className="h-10 rounded-md flex items-center justify-center text-sm font-medium"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${formData.primary_color} 0%, ${formData.secondary_color} 100%)`,
+                    color: '#fff',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                  }}
+                >
+                  {formData.name || "School Name"}
+                </div>
+              </div>
             </div>
           </div>
 
