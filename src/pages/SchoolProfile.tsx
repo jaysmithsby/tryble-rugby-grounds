@@ -51,30 +51,35 @@ export default function SchoolProfile() {
 
       const schoolId = schoolData.id;
 
+      // Load all schools for joining with fixtures
+      const { data: allSchools } = await supabase
+        .from("schools")
+        .select("id, name, slug, icon_url, emblem_url, jersey_url, main_rival");
+      
+      const schoolsMap = new Map(allSchools?.map(s => [s.id, s]) || []);
+
       // Load upcoming fixtures (status: upcoming, holding, or future dates)
-      const { data: upcomingData } = await supabase
+      const { data: upcomingData, error: upcomingError } = await supabase
         .from("fixtures")
-        .select(`
-          *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url, main_rival),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url, main_rival)
-        `)
+        .select("*")
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .in("status", ["upcoming", "holding"])
         .gte("match_date", new Date().toISOString())
         .order("match_date", { ascending: true })
         .limit(5);
 
-      setUpcomingFixtures(upcomingData || []);
+      // Join school data to upcoming fixtures
+      const upcomingWithSchools = (upcomingData || []).map(fixture => ({
+        ...fixture,
+        home_school: schoolsMap.get(fixture.home_school_id),
+        away_school: schoolsMap.get(fixture.away_school_id)
+      }));
+      setUpcomingFixtures(upcomingWithSchools);
 
       // Load recent results (completed matches or past dates with scores)
-      const { data: resultsData } = await supabase
+      const { data: resultsData, error: resultsError } = await supabase
         .from("fixtures")
-        .select(`
-          *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url)
-        `)
+        .select("*")
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "completed")
         .not("home_score", "is", null)
@@ -82,7 +87,13 @@ export default function SchoolProfile() {
         .order("match_date", { ascending: false })
         .limit(5);
 
-      setRecentResults(resultsData || []);
+      // Join school data to recent results
+      const resultsWithSchools = (resultsData || []).map(fixture => ({
+        ...fixture,
+        home_school: schoolsMap.get(fixture.home_school_id),
+        away_school: schoolsMap.get(fixture.away_school_id)
+      }));
+      setRecentResults(resultsWithSchools);
 
       // Load top 5 users from this school
       const { data: topUsersData } = await supabase
