@@ -11,6 +11,8 @@ import { formatDistanceToNow } from "date-fns";
 interface School {
   name: string;
   icon_url: string | null;
+  emblem_url?: string | null;
+  jersey_url?: string | null;
 }
 
 interface PoolVotingProps {
@@ -58,7 +60,7 @@ export const PoolVoting = ({ poolId, votingClosesAt, isFinalized, onVotingComple
     try {
       const { data, error } = await supabase
         .from("schools")
-        .select("name, icon_url")
+        .select("name, icon_url, emblem_url, jersey_url")
         .eq("status", "verified")
         .order("name");
 
@@ -67,6 +69,11 @@ export const PoolVoting = ({ poolId, votingClosesAt, isFinalized, onVotingComple
     } catch (error) {
       console.error("Error loading schools:", error);
     }
+  };
+
+  // Helper to get school display image
+  const getSchoolImage = (school: School) => {
+    return school.emblem_url || school.jersey_url || school.icon_url;
   };
 
   const loadUserVotes = async () => {
@@ -238,10 +245,10 @@ export const PoolVoting = ({ poolId, votingClosesAt, isFinalized, onVotingComple
                   disabled={loading || (!hasVoted && userVotes.length >= 10)}
                   className="h-auto py-3 px-3 justify-start items-center text-left flex-row gap-2"
                 >
-                  {school.icon_url && (
+                  {getSchoolImage(school) && (
                     <img 
-                      src={school.icon_url} 
-                      alt={`${school.name} jersey`}
+                      src={getSchoolImage(school)!} 
+                      alt={`${school.name} crest`}
                       className="w-8 h-8 object-contain flex-shrink-0"
                     />
                   )}

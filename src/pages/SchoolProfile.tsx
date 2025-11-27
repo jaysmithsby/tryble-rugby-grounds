@@ -56,8 +56,8 @@ export default function SchoolProfile() {
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, main_rival),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, main_rival)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url, main_rival),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url, main_rival)
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .in("status", ["upcoming", "holding"])
@@ -72,8 +72,8 @@ export default function SchoolProfile() {
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url)
         `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "completed")
@@ -205,9 +205,9 @@ export default function SchoolProfile() {
               }}
             >
               <div className="-rotate-45 w-full h-full flex items-center justify-center">
-                {school.icon_url ? (
+                {(school.emblem_url || school.jersey_url || school.icon_url) ? (
                   <img 
-                    src={school.icon_url} 
+                    src={school.emblem_url || school.jersey_url || school.icon_url} 
                     alt={`${school.name} crest`}
                     className="w-full h-full object-contain"
                   />
@@ -304,9 +304,9 @@ export default function SchoolProfile() {
                           className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                           disabled={!fixture.home_school?.slug}
                         >
-                          {fixture.home_school?.icon_url ? (
+                          {(fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url) ? (
                             <img 
-                              src={fixture.home_school.icon_url} 
+                              src={fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url} 
                               alt={fixture.home_school.name}
                               className="w-full h-full object-contain p-1"
                             />
@@ -329,9 +329,9 @@ export default function SchoolProfile() {
                           className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                           disabled={!fixture.away_school?.slug}
                         >
-                          {fixture.away_school?.icon_url ? (
+                          {(fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url) ? (
                             <img 
-                              src={fixture.away_school.icon_url} 
+                              src={fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url} 
                               alt={fixture.away_school.name}
                               className="w-full h-full object-contain p-1"
                             />
@@ -382,9 +382,9 @@ export default function SchoolProfile() {
                           className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                           disabled={!fixture.home_school?.slug}
                         >
-                          {fixture.home_school?.icon_url ? (
+                          {(fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url) ? (
                             <img 
-                              src={fixture.home_school.icon_url} 
+                              src={fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url} 
                               alt={fixture.home_school.name}
                               className="w-full h-full object-contain p-1"
                             />
@@ -411,9 +411,9 @@ export default function SchoolProfile() {
                           className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                           disabled={!fixture.away_school?.slug}
                         >
-                          {fixture.away_school?.icon_url ? (
+                          {(fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url) ? (
                             <img 
-                              src={fixture.away_school.icon_url} 
+                              src={fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url} 
                               alt={fixture.away_school.name}
                               className="w-full h-full object-contain p-1"
                             />

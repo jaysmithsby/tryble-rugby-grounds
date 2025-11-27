@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const PROVINCES = [
+  "Eastern Cape",
+  "Free State",
+  "Gauteng",
+  "KwaZulu-Natal",
+  "Limpopo",
+  "Mpumalanga",
+  "North West",
+  "Northern Cape",
+  "Western Cape",
+];
 
 interface CreateSchoolDialogProps {
   open: boolean;
@@ -32,27 +45,39 @@ export function CreateSchoolDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    nickname: "",
     province: "",
     website: "",
-    icon_url: "",
+    emblem_url: "",
+    jersey_url: "",
     main_rival: "",
     established_year: "",
     springboks_count: "",
     trivia_fact: "",
+    motto: "",
+    primary_color: "#1e3a5f",
+    secondary_color: "#c9a227",
     status: "verified",
+    is_visible: true,
   });
 
   const resetForm = () => {
     setFormData({
       name: "",
+      nickname: "",
       province: "",
       website: "",
-      icon_url: "",
+      emblem_url: "",
+      jersey_url: "",
       main_rival: "",
       established_year: "",
       springboks_count: "",
       trivia_fact: "",
+      motto: "",
+      primary_color: "#1e3a5f",
+      secondary_color: "#c9a227",
       status: "verified",
+      is_visible: true,
     });
   };
 
@@ -70,9 +95,12 @@ export function CreateSchoolDialog({
       const { error } = await supabase.from("schools").insert({
         name: formData.name,
         slug: slug,
+        nickname: formData.nickname || null,
         province: formData.province || null,
         website: formData.website || null,
-        icon_url: formData.icon_url || null,
+        emblem_url: formData.emblem_url || null,
+        jersey_url: formData.jersey_url || null,
+        icon_url: formData.emblem_url || formData.jersey_url || null, // Set icon_url for backwards compat
         main_rival: formData.main_rival || null,
         established_year: formData.established_year
           ? parseInt(formData.established_year)
@@ -81,7 +109,11 @@ export function CreateSchoolDialog({
           ? parseInt(formData.springboks_count)
           : null,
         trivia_fact: formData.trivia_fact || null,
+        motto: formData.motto || null,
+        primary_color: formData.primary_color || null,
+        secondary_color: formData.secondary_color || null,
         status: formData.status,
+        is_visible: formData.is_visible,
       });
 
       if (error) throw error;
@@ -106,6 +138,9 @@ export function CreateSchoolDialog({
     }
   };
 
+  // Get display image for preview (emblem > jersey)
+  const displayImage = formData.emblem_url || formData.jersey_url;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -113,6 +148,7 @@ export function CreateSchoolDialog({
           <DialogTitle>Add New School</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">School Name *</Label>
@@ -127,12 +163,45 @@ export function CreateSchoolDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="province">Province</Label>
+              <Label htmlFor="nickname">Nickname</Label>
               <Input
-                id="province"
-                value={formData.province}
+                id="nickname"
+                value={formData.nickname}
                 onChange={(e) =>
-                  setFormData({ ...formData, province: e.target.value })
+                  setFormData({ ...formData, nickname: e.target.value })
+                }
+                placeholder="e.g., The Maroon Machine"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="province">Province</Label>
+              <Select
+                value={formData.province}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, province: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select province" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVINCES.map((province) => (
+                    <SelectItem key={province} value={province}>
+                      {province}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="main_rival">Main Rival (Derby)</Label>
+              <Input
+                id="main_rival"
+                value={formData.main_rival}
+                onChange={(e) =>
+                  setFormData({ ...formData, main_rival: e.target.value })
                 }
               />
             </div>
@@ -147,29 +216,6 @@ export function CreateSchoolDialog({
                   setFormData({ ...formData, website: e.target.value })
                 }
                 placeholder="https://..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="icon_url">Crest/Logo URL</Label>
-              <Input
-                id="icon_url"
-                value={formData.icon_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, icon_url: e.target.value })
-                }
-                placeholder="URL or storage path"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="main_rival">Main Rival (Derby)</Label>
-              <Input
-                id="main_rival"
-                value={formData.main_rival}
-                onChange={(e) =>
-                  setFormData({ ...formData, main_rival: e.target.value })
-                }
               />
             </div>
 
@@ -200,24 +246,174 @@ export function CreateSchoolDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
+              <Label htmlFor="motto">School Motto</Label>
+              <Input
+                id="motto"
+                value={formData.motto}
+                onChange={(e) =>
+                  setFormData({ ...formData, motto: e.target.value })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="verified">Verified</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
+                placeholder="e.g., Per Aspera Ad Astra"
+              />
             </div>
           </div>
 
+          {/* Images Section */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-semibold mb-3 text-foreground">School Images</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="emblem_url">Emblem/Crest URL</Label>
+                <Input
+                  id="emblem_url"
+                  value={formData.emblem_url}
+                  onChange={(e) =>
+                    setFormData({ ...formData, emblem_url: e.target.value })
+                  }
+                  placeholder="Primary display image URL"
+                />
+                <p className="text-xs text-muted-foreground">Primary image shown on profile and fixtures</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="jersey_url">Jersey Image URL</Label>
+                <Input
+                  id="jersey_url"
+                  value={formData.jersey_url}
+                  onChange={(e) =>
+                    setFormData({ ...formData, jersey_url: e.target.value })
+                  }
+                  placeholder="Fallback jersey image URL"
+                />
+                <p className="text-xs text-muted-foreground">Fallback if no emblem uploaded</p>
+              </div>
+
+              {/* Image Preview */}
+              <div className="col-span-2 space-y-2">
+                <Label>Image Preview</Label>
+                <div className="h-20 w-20 rounded-lg border border-border bg-muted/50 flex items-center justify-center overflow-hidden">
+                  {displayImage ? (
+                    <img 
+                      src={displayImage} 
+                      alt="School preview"
+                      className="w-full h-full object-contain p-1"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No image</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* School Branding Section */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-semibold mb-3 text-foreground">School Branding</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="primary_color">Primary Color</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    id="primary_color"
+                    value={formData.primary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, primary_color: e.target.value })
+                    }
+                    className="h-10 w-14 rounded-md border border-input cursor-pointer"
+                  />
+                  <Input
+                    value={formData.primary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, primary_color: e.target.value })
+                    }
+                    placeholder="#1e3a5f"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="secondary_color">Secondary Color</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    id="secondary_color"
+                    value={formData.secondary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, secondary_color: e.target.value })
+                    }
+                    className="h-10 w-14 rounded-md border border-input cursor-pointer"
+                  />
+                  <Input
+                    value={formData.secondary_color}
+                    onChange={(e) =>
+                      setFormData({ ...formData, secondary_color: e.target.value })
+                    }
+                    placeholder="#c9a227"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              {/* Color Preview */}
+              <div className="col-span-2 space-y-2">
+                <Label>Color Preview</Label>
+                <div 
+                  className="h-12 rounded-md flex items-center justify-center text-sm font-medium"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${formData.primary_color} 0%, ${formData.secondary_color} 100%)`,
+                    color: '#fff',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                  }}
+                >
+                  {formData.name || "School Name"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Status and Visibility */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-semibold mb-3 text-foreground">Status & Visibility</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="is_visible">Visibility</Label>
+                <div className="flex items-center gap-3 h-10">
+                  <Switch
+                    id="is_visible"
+                    checked={formData.is_visible}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, is_visible: checked })
+                    }
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {formData.is_visible ? "Visible" : "Hidden"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trivia */}
           <div className="space-y-2">
             <Label htmlFor="trivia_fact">Trivia Fact</Label>
             <Textarea

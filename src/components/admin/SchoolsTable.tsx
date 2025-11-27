@@ -36,14 +36,21 @@ interface School {
   id: string;
   name: string;
   slug: string;
+  nickname?: string | null;
   province: string | null;
   website: string | null;
   icon_url: string | null;
+  emblem_url?: string | null;
+  jersey_url?: string | null;
   main_rival: string | null;
   established_year: number | null;
   springboks_count: number | null;
   trivia_fact: string | null;
+  motto?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
   status: string;
+  is_visible?: boolean;
 }
 
 interface SchoolsTableProps {
@@ -233,19 +240,24 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
                  <TableRow key={school.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      {school.icon_url && (
+                      {(school.emblem_url || school.jersey_url || school.icon_url) && (
                         <button
                           onClick={() => navigate(`/school/${school.slug}`)}
                           className="h-8 w-8 rounded-full overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
                         >
                           <img
-                            src={school.icon_url}
+                            src={school.emblem_url || school.jersey_url || school.icon_url || ''}
                             alt={school.name}
                             className="h-full w-full object-contain"
                           />
                         </button>
                       )}
-                      {school.name}
+                      <div className="flex flex-col">
+                        <span>{school.name}</span>
+                        {school.nickname && (
+                          <span className="text-xs text-muted-foreground">{school.nickname}</span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>{school.province || "-"}</TableCell>

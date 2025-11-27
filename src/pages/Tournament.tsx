@@ -67,8 +67,8 @@ export default function Tournament() {
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url)
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url)
         `)
         .eq("tournament_id", tournamentId)
         .order("match_date", { ascending: true });
@@ -78,6 +78,11 @@ export default function Tournament() {
     } catch (error) {
       console.error("Error fetching fixtures:", error);
     }
+  };
+
+  // Helper to get school display image (emblem > jersey > icon)
+  const getSchoolImage = (school: any) => {
+    return school?.emblem_url || school?.jersey_url || school?.icon_url;
   };
 
   if (loading) {
@@ -218,8 +223,8 @@ export default function Tournament() {
                     awayTeam={fixture.away_school?.name || "TBD"}
                     homeTeamShort={fixture.home_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
                     awayTeamShort={fixture.away_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
-                    homeTeamIcon={fixture.home_school?.icon_url}
-                    awayTeamIcon={fixture.away_school?.icon_url}
+                    homeTeamIcon={getSchoolImage(fixture.home_school)}
+                    awayTeamIcon={getSchoolImage(fixture.away_school)}
                     homeSchoolSlug={fixture.home_school?.slug}
                     awaySchoolSlug={fixture.away_school?.slug}
                     time={format(new Date(fixture.match_date), "MMM d, h:mm a")}
