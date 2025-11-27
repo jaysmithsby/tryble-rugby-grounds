@@ -1,7 +1,9 @@
 import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SchoolsTable } from "./SchoolsTable";
 import { EditSchoolDialog } from "./EditSchoolDialog";
 import { CreateSchoolDialog } from "./CreateSchoolDialog";
@@ -145,13 +147,40 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </TabsContent>
 
           <TabsContent value="ads" className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-8 text-center">
-              <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">Ads & Sponsors</h3>
-              <p className="text-muted-foreground">
-                Manage sponsor banners, ad placements, and campaign analytics.
-              </p>
-              <p className="text-sm text-muted-foreground mt-4">Coming soon...</p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Ads & Sponsors Manager</h2>
+                <p className="text-muted-foreground mt-1">Manage sponsor banners, ad placements, and campaign analytics</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by campaign name, sponsor, or tournament..."
+                    disabled
+                    className="pl-10"
+                  />
+                </div>
+                <Select disabled>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-12 text-center">
+                <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-semibold mb-2">No Ad Campaigns Yet</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Manage sponsor banners, ad placements, and campaign analytics. This feature is coming soon.
+                </p>
+              </div>
             </div>
           </TabsContent>
 

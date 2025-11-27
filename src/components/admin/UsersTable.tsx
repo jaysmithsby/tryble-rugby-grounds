@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, RefreshCw } from "lucide-react";
 import { UserActionsDropdown } from "./UserActionsDropdown";
 import { format } from "date-fns";
 
@@ -136,12 +137,29 @@ export function UsersTable() {
     return active.sanction_type;
   };
 
+  // Get active sanction helper
+  const getActiveSanctionType = (sanctions: UserData['sanctions']) => {
+    const active = sanctions.find(s => s.is_active);
+    return active?.sanction_type || null;
+  };
+
   const filteredUsers = users.filter(user => {
+    const query = searchTerm.toLowerCase();
+    const activeSanctionType = getActiveSanctionType(user.sanctions);
+    
     const matchesSearch = 
-      user.profile?.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.profile?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.profile?.school_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      searchTerm === '' ||
+      user.profile?.display_name?.toLowerCase().includes(query) ||
+      user.profile?.username?.toLowerCase().includes(query) ||
+      user.profile?.first_name?.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      user.profile?.school_name?.toLowerCase().includes(query) ||
+      user.profile?.account_type?.toLowerCase().includes(query) ||
+      // Search within sanctions
+      (activeSanctionType && activeSanctionType.toLowerCase().includes(query)) ||
+      // Search "banned" or "suspended"
+      (query.includes('ban') && activeSanctionType === 'ban') ||
+      (query.includes('suspend') && activeSanctionType === 'suspension');
 
     const matchesSchool = schoolFilter === 'all' || user.profile?.school_name === schoolFilter;
     const matchesAgeBand = ageBandFilter === 'all' || user.profile?.age_band === ageBandFilter;
@@ -230,8 +248,30 @@ export function UsersTable() {
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                  No users found
+                <TableCell colSpan={11} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <p>
+                      {users.length === 0
+                        ? "No users found"
+                        : "No matches found for your search"}
+                    </p>
+                    {(searchTerm || schoolFilter !== 'all' || ageBandFilter !== 'all' || consentFilter !== 'all') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSchoolFilter('all');
+                          setAgeBandFilter('all');
+                          setConsentFilter('all');
+                        }}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
