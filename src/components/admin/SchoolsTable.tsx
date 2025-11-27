@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableBody,
@@ -11,7 +12,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Pencil, Trash2, Loader2, Search, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +55,10 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -97,6 +110,39 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
     }
   };
 
+  // Get unique provinces for filter dropdown
+  const provinces = useMemo(() => {
+    const uniqueProvinces = [...new Set(schools.map(s => s.province).filter(Boolean))];
+    return uniqueProvinces.sort() as string[];
+  }, [schools]);
+
+  // Filter schools based on search and filters
+  const filteredSchools = useMemo(() => {
+    return schools.filter((school) => {
+      const query = debouncedSearch.toLowerCase();
+      const matchesSearch =
+        debouncedSearch === "" ||
+        school.name.toLowerCase().includes(query) ||
+        school.province?.toLowerCase().includes(query) ||
+        school.main_rival?.toLowerCase().includes(query) ||
+        school.established_year?.toString().includes(query);
+
+      const matchesProvince =
+        provinceFilter === "all" || school.province === provinceFilter;
+
+      const matchesStatus =
+        statusFilter === "all" || school.status === statusFilter;
+
+      return matchesSearch && matchesProvince && matchesStatus;
+    });
+  }, [schools, debouncedSearch, provinceFilter, statusFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setProvinceFilter("all");
+    setStatusFilter("all");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -107,6 +153,44 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
 
   return (
     <>
+      {/* Search and Filters */}
+      <div className="space-y-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, province, rival, or year..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={provinceFilter} onValueChange={setProvinceFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Province" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Provinces</SelectItem>
+              {provinces.map((province) => (
+                <SelectItem key={province} value={province}>
+                  {province}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -121,14 +205,31 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {schools.length === 0 ? (
+            {filteredSchools.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
-                  No schools found
+                <TableCell colSpan={7} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <p>
+                      {schools.length === 0
+                        ? "No schools found"
+                        : "No matches found for your search"}
+                    </p>
+                    {(searchQuery || provinceFilter !== "all" || statusFilter !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
-              schools.map((school) => (
+              filteredSchools.map((school) => (
                  <TableRow key={school.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -185,6 +286,11 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground mt-4">
+        Showing {filteredSchools.length} of {schools.length} schools
       </div>
 
       <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>

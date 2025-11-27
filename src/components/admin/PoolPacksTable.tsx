@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Edit, Trash2, CheckCircle, Archive, Upload } from "lucide-react";
+import { Search, Edit, Trash2, CheckCircle, Archive, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { BulkImportPoolPacksDialog } from "./BulkImportPoolPacksDialog";
 
@@ -42,7 +43,9 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [schoolFilter, setSchoolFilter] = useState<string>("all");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     loadPacks();
@@ -99,14 +102,43 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
     }
   };
 
-  const filteredPacks = packs.filter((pack) => {
-    const matchesSearch =
-      pack.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pack.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || pack.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Get all unique schools across all packs for reverse lookup filter
+  const allSchools = useMemo(() => {
+    const schoolSet = new Set<string>();
+    packs.forEach(pack => {
+      pack.schools.forEach(school => schoolSet.add(school));
+    });
+    return Array.from(schoolSet).sort();
+  }, [packs]);
+
+  // Filter packs based on search, status, and school (reverse lookup)
+  const filteredPacks = useMemo(() => {
+    return packs.filter((pack) => {
+      const query = debouncedSearch.toLowerCase();
+      
+      // Search by name, description, or any school in the pack
+      const matchesSearch =
+        debouncedSearch === "" ||
+        pack.name.toLowerCase().includes(query) ||
+        pack.description?.toLowerCase().includes(query) ||
+        pack.schools.some(school => school.toLowerCase().includes(query));
+
+      const matchesStatus =
+        statusFilter === "all" || pack.status === statusFilter;
+
+      // Reverse lookup: filter packs that contain a specific school
+      const matchesSchool =
+        schoolFilter === "all" || pack.schools.includes(schoolFilter);
+
+      return matchesSearch && matchesStatus && matchesSchool;
+    });
+  }, [packs, debouncedSearch, statusFilter, schoolFilter]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setSchoolFilter("all");
+  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -124,18 +156,18 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name or description..."
+            placeholder="Search by name, description, or school..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[150px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -143,6 +175,19 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={schoolFilter} onValueChange={setSchoolFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Filter by school" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Schools</SelectItem>
+            {allSchools.map((school) => (
+              <SelectItem key={school} value={school}>
+                {school}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button
@@ -170,8 +215,25 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
           <TableBody>
             {filteredPacks.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No pool packs found
+                <TableCell colSpan={6} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <p>
+                      {packs.length === 0
+                        ? "No pool packs found"
+                        : "No matches found for your search"}
+                    </p>
+                    {(searchTerm || statusFilter !== "all" || schoolFilter !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -181,7 +243,14 @@ export const PoolPacksTable = ({ onEdit }: PoolPacksTableProps) => {
                   <TableCell className="max-w-xs truncate">
                     {pack.description || "—"}
                   </TableCell>
-                  <TableCell>{pack.schools.length} schools</TableCell>
+                  <TableCell>
+                    <span className="text-sm">{pack.schools.length} schools</span>
+                    {schoolFilter !== "all" && pack.schools.includes(schoolFilter) && (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        includes {schoolFilter}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(pack.status)}</TableCell>
                   <TableCell>
                     {new Date(pack.created_at).toLocaleDateString()}

@@ -269,6 +269,8 @@ export function AnalyticsDashboard() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="7">Last 7 Days</SelectItem>
+            <SelectItem value="14">Last 14 Days</SelectItem>
             <SelectItem value="30">Last 30 Days</SelectItem>
             <SelectItem value="90">Last 90 Days</SelectItem>
             <SelectItem value="180">Last 6 Months</SelectItem>

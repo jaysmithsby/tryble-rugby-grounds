@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableBody,
@@ -11,7 +12,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Edit, Trash2, Loader2, Search, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -47,6 +56,10 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [provinceFilter, setProvinceFilter] = useState("all");
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -104,6 +117,45 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
     }
   };
 
+  // Get unique provinces for filter
+  const provinces = useMemo(() => {
+    const uniqueProvinces = [...new Set(tournaments.map(t => t.province).filter(Boolean))];
+    return uniqueProvinces.sort() as string[];
+  }, [tournaments]);
+
+  // Filter tournaments based on search and filters
+  const filteredTournaments = useMemo(() => {
+    return tournaments.filter((tournament) => {
+      const query = debouncedSearch.toLowerCase();
+      const matchesSearch =
+        debouncedSearch === "" ||
+        tournament.name.toLowerCase().includes(query) ||
+        tournament.host_school.toLowerCase().includes(query) ||
+        tournament.venue.toLowerCase().includes(query) ||
+        tournament.province?.toLowerCase().includes(query) ||
+        tournament.sponsor_name?.toLowerCase().includes(query) ||
+        tournament.participating_schools.some(school => 
+          school.toLowerCase().includes(query)
+        );
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && tournament.is_active) ||
+        (statusFilter === "inactive" && !tournament.is_active);
+
+      const matchesProvince =
+        provinceFilter === "all" || tournament.province === provinceFilter;
+
+      return matchesSearch && matchesStatus && matchesProvince;
+    });
+  }, [tournaments, debouncedSearch, statusFilter, provinceFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setProvinceFilter("all");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -114,6 +166,44 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
 
   return (
     <>
+      {/* Search and Filters */}
+      <div className="space-y-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, host, venue, or participating school..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={provinceFilter} onValueChange={setProvinceFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Province" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Provinces</SelectItem>
+              {provinces.map((province) => (
+                <SelectItem key={province} value={province}>
+                  {province}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="rounded-lg border border-border bg-card">
         <Table>
           <TableHeader>
@@ -129,14 +219,31 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tournaments.length === 0 ? (
+            {filteredTournaments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
-                  No tournaments found
+                <TableCell colSpan={8} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <p>
+                      {tournaments.length === 0
+                        ? "No tournaments found"
+                        : "No matches found for your search"}
+                    </p>
+                    {(searchQuery || statusFilter !== "all" || provinceFilter !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
-              tournaments.map((tournament) => (
+              filteredTournaments.map((tournament) => (
                 <TableRow key={tournament.id}>
                   <TableCell>
                     <button
@@ -205,6 +312,11 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground mt-4">
+        Showing {filteredTournaments.length} of {tournaments.length} tournaments
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

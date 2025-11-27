@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableBody,
@@ -12,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Search, Loader2, Eye, EyeOff } from "lucide-react";
+import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -35,6 +36,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     fetchSchools();
@@ -120,24 +122,37 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   };
 
-  const filteredFixtures = fixtures.filter((fixture) => {
-    const homeSchool = schools.get(fixture.home_school_id) || '';
-    const awaySchool = schools.get(fixture.away_school_id) || '';
-    
-    const matchesSearch =
-      searchQuery === "" ||
-      fixture.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      homeSchool.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      awaySchool.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredFixtures = useMemo(() => {
+    return fixtures.filter((fixture) => {
+      const homeSchool = schools.get(fixture.home_school_id) || '';
+      const awaySchool = schools.get(fixture.away_school_id) || '';
+      const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
+      const query = debouncedSearch.toLowerCase();
+      const matchDate = format(new Date(fixture.match_date), 'MMM dd yyyy').toLowerCase();
+      
+      const matchesSearch =
+        debouncedSearch === "" ||
+        fixture.venue.toLowerCase().includes(query) ||
+        homeSchool.toLowerCase().includes(query) ||
+        awaySchool.toLowerCase().includes(query) ||
+        tournamentName.toLowerCase().includes(query) ||
+        matchDate.includes(query);
 
-    const matchesStatus =
-      statusFilter === "all" || fixture.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || fixture.status === statusFilter;
 
-    const matchesYear =
-      yearFilter === "all" || fixture.year.toString() === yearFilter;
+      const matchesYear =
+        yearFilter === "all" || fixture.year.toString() === yearFilter;
 
-    return matchesSearch && matchesStatus && matchesYear;
-  });
+      return matchesSearch && matchesStatus && matchesYear;
+    });
+  }, [fixtures, schools, tournaments, debouncedSearch, statusFilter, yearFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setYearFilter("all");
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -198,6 +213,11 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         </Select>
       </div>
 
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground">
+        Showing {filteredFixtures.length} of {fixtures.length} fixtures
+      </div>
+
       <div className="rounded-lg border border-border bg-card">
         <Table>
           <TableHeader>
@@ -216,10 +236,25 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           <TableBody>
             {filteredFixtures.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  {fixtures.length === 0 
-                    ? "No fixtures loaded. Import CSV data to get started."
-                    : "No matches found for that school. Try another search."}
+                <TableCell colSpan={9} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <p>
+                      {fixtures.length === 0 
+                        ? "No fixtures loaded. Import CSV data to get started."
+                        : "No matches found for your search"}
+                    </p>
+                    {(searchQuery || statusFilter !== "all" || yearFilter !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

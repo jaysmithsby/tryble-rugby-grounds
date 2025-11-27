@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, TrendingUp, AlertTriangle, Shield } from "lucide-react";
+import { Loader2, Search, TrendingUp, AlertTriangle, Shield, RefreshCw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface SchoolAnalytics {
   school_name: string;
@@ -26,6 +28,8 @@ export function SchoolAnalytics() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<string>("users");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [riskFilter, setRiskFilter] = useState<string>("all");
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     fetchSchoolAnalytics();
@@ -138,11 +142,22 @@ export function SchoolAnalytics() {
     }
   };
 
+  const getRiskLevel = (school: SchoolAnalytics): "high" | "medium" | "low" => {
+    if (school.active_sanctions > 0 || school.pending_reports > 2) return "high";
+    if (school.sanction_rate > 5 || school.report_rate > 10) return "medium";
+    return "low";
+  };
+
   const filteredAndSortedData = schoolData
-    .filter(school => 
-      school.school_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      school.province?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(school => {
+      const matchesSearch = debouncedSearch === "" ||
+        school.school_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        school.province?.toLowerCase().includes(debouncedSearch.toLowerCase());
+      
+      const matchesRisk = riskFilter === "all" || getRiskLevel(school) === riskFilter;
+      
+      return matchesSearch && matchesRisk;
+    })
     .sort((a, b) => {
       let aValue: number, bValue: number;
 
@@ -174,10 +189,9 @@ export function SchoolAnalytics() {
       return sortOrder === "desc" ? bValue - aValue : aValue - bValue;
     });
 
-  const getRiskLevel = (school: SchoolAnalytics): "high" | "medium" | "low" => {
-    if (school.active_sanctions > 0 || school.pending_reports > 2) return "high";
-    if (school.sanction_rate > 5 || school.report_rate > 10) return "medium";
-    return "low";
+  const clearFilters = () => {
+    setSearchTerm("");
+    setRiskFilter("all");
   };
 
   const getRiskBadge = (level: "high" | "medium" | "low") => {
@@ -277,19 +291,31 @@ export function SchoolAnalytics() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search schools..."
+                placeholder="Search by school or province..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
 
+            <Select value={riskFilter} onValueChange={setRiskFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Risk Level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Risk Levels</SelectItem>
+                <SelectItem value="high">High Risk</SelectItem>
+                <SelectItem value="medium">Medium Risk</SelectItem>
+                <SelectItem value="low">Low Risk</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -302,7 +328,7 @@ export function SchoolAnalytics() {
             </Select>
 
             <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -332,8 +358,25 @@ export function SchoolAnalytics() {
               <TableBody>
                 {filteredAndSortedData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                      No schools found
+                    <TableCell colSpan={11} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <p>
+                          {schoolData.length === 0
+                            ? "No school data available"
+                            : "No matches found for your search"}
+                        </p>
+                        {(searchTerm || riskFilter !== "all") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearFilters}
+                            className="gap-2"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Clear filters
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
