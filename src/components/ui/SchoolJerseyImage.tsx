@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { fetchAndCacheImage } from "@/lib/jerseyImageCache";
+import { JerseyFallbackIcon } from "./JerseyFallbackIcon";
 
 interface SchoolJerseyImageProps {
   src?: string | null;
@@ -25,12 +26,6 @@ const paddingClasses = {
   sm: "p-1",
   md: "p-1",
   lg: "p-2",
-};
-
-const textSizeClasses = {
-  sm: "text-base",
-  md: "text-lg",
-  lg: "text-xl",
 };
 
 export const SchoolJerseyImage = ({
@@ -165,11 +160,9 @@ export const SchoolJerseyImage = ({
         />
       )}
 
-      {/* Fallback text */}
+      {/* Jersey silhouette fallback */}
       {imageState === "error" && (
-        <span className={cn("font-bold", textSizeClasses[size], colors.text)}>
-          {fallbackText}
-        </span>
+        <JerseyFallbackIcon size={size} className={colors.text} />
       )}
     </Component>
   );
