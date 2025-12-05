@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Lock } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
+import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
 interface FixtureCardProps {
   homeTeam: string;
@@ -17,11 +18,12 @@ interface FixtureCardProps {
   time: string;
   venue: string;
   matchId?: string;
-  appliesTo?: string[]; // Pool names this fixture appears in
+  appliesTo?: string[];
   isPredicted?: boolean;
   predictedTeam?: "home" | "away";
   predictedMargin?: number;
   onPredictionMade?: (team: "home" | "away", margin: number) => void;
+  priority?: boolean;
 }
 
 export const FixtureCard = ({ 
@@ -40,7 +42,8 @@ export const FixtureCard = ({
   isPredicted = false,
   predictedTeam,
   predictedMargin,
-  onPredictionMade
+  onPredictionMade,
+  priority = false
 }: FixtureCardProps) => {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -83,24 +86,19 @@ export const FixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <button
-              onClick={(e) => {
+            <SchoolJerseyImage
+              src={homeTeamIcon}
+              alt={`${homeTeam} crest`}
+              fallbackText={homeTeamShort}
+              size="md"
+              variant="primary"
+              priority={priority}
+              onClick={homeSchoolSlug ? (e) => {
                 e.stopPropagation();
-                if (homeSchoolSlug) navigate(`/school/${homeSchoolSlug}`);
-              }}
-              className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!homeSchoolSlug}
-            >
-              {homeTeamIcon ? (
-                <img 
-                  src={homeTeamIcon} 
-                  alt={`${homeTeam} crest`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
-              )}
-            </button>
+                navigate(`/school/${homeSchoolSlug}`);
+              } : undefined}
+              containerClassName="border-border"
+            />
             <span className="text-xs font-medium text-center line-clamp-2">{homeTeam}</span>
           </div>
 
@@ -109,24 +107,19 @@ export const FixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <button
-              onClick={(e) => {
+            <SchoolJerseyImage
+              src={awayTeamIcon}
+              alt={`${awayTeam} crest`}
+              fallbackText={awayTeamShort}
+              size="md"
+              variant="accent"
+              priority={priority}
+              onClick={awaySchoolSlug ? (e) => {
                 e.stopPropagation();
-                if (awaySchoolSlug) navigate(`/school/${awaySchoolSlug}`);
-              }}
-              className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!awaySchoolSlug}
-            >
-              {awayTeamIcon ? (
-                <img 
-                  src={awayTeamIcon} 
-                  alt={`${awayTeam} crest`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
-              )}
-            </button>
+                navigate(`/school/${awaySchoolSlug}`);
+              } : undefined}
+              containerClassName="border-border"
+            />
             <span className="text-xs font-medium text-center line-clamp-2">{awayTeam}</span>
           </div>
         </div>

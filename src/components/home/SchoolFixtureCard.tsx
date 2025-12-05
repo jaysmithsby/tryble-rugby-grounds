@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Star } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
+import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
 interface SchoolFixtureCardProps {
   userSchool: string;
@@ -21,6 +22,7 @@ interface SchoolFixtureCardProps {
   predictedTeam?: "home" | "away";
   predictedMargin?: number;
   onPredictionMade?: (team: "home" | "away", margin: number) => void;
+  priority?: boolean;
 }
 
 export const SchoolFixtureCard = ({
@@ -38,7 +40,8 @@ export const SchoolFixtureCard = ({
   isPredicted = false,
   predictedTeam,
   predictedMargin,
-  onPredictionMade
+  onPredictionMade,
+  priority = false
 }: SchoolFixtureCardProps) => {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -82,24 +85,18 @@ export const SchoolFixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <button
-              onClick={(e) => {
+            <SchoolJerseyImage
+              src={userSchoolIcon}
+              alt={`${userSchool} crest`}
+              fallbackText={userSchoolShort}
+              size="lg"
+              variant="primary"
+              priority={priority}
+              onClick={userSchoolSlug ? (e) => {
                 e.stopPropagation();
-                if (userSchoolSlug) navigate(`/school/${userSchoolSlug}`);
-              }}
-              className="w-20 h-20 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border-2 border-primary overflow-hidden p-2 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!userSchoolSlug}
-            >
-              {userSchoolIcon ? (
-                <img 
-                  src={userSchoolIcon} 
-                  alt={`${userSchool} crest`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-xl font-bold text-primary">{userSchoolShort}</span>
-              )}
-            </button>
+                navigate(`/school/${userSchoolSlug}`);
+              } : undefined}
+            />
             <span className="text-sm font-bold text-center line-clamp-2">{userSchool}</span>
           </div>
 
@@ -108,24 +105,18 @@ export const SchoolFixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <button
-              onClick={(e) => {
+            <SchoolJerseyImage
+              src={opponentSchoolIcon}
+              alt={`${opponentSchool} crest`}
+              fallbackText={opponentSchoolShort}
+              size="lg"
+              variant="accent"
+              priority={priority}
+              onClick={opponentSchoolSlug ? (e) => {
                 e.stopPropagation();
-                if (opponentSchoolSlug) navigate(`/school/${opponentSchoolSlug}`);
-              }}
-              className="w-20 h-20 rounded-full bg-accent/20 backdrop-blur-sm flex items-center justify-center border-2 border-accent overflow-hidden p-2 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!opponentSchoolSlug}
-            >
-              {opponentSchoolIcon ? (
-                <img 
-                  src={opponentSchoolIcon} 
-                  alt={`${opponentSchool} crest`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-xl font-bold text-accent">{opponentSchoolShort}</span>
-              )}
-            </button>
+                navigate(`/school/${opponentSchoolSlug}`);
+              } : undefined}
+            />
             <span className="text-sm font-bold text-center line-clamp-2">{opponentSchool}</span>
           </div>
         </div>

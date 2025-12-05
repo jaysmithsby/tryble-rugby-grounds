@@ -241,7 +241,7 @@ const Home = () => {
 
         {/* Your School's Fixture - Special Highlight */}
         <div className="space-y-3">
-          <SchoolFixtureCard {...schoolFixture} />
+          <SchoolFixtureCard {...schoolFixture} priority />
         </div>
 
         {/* Upcoming Fixtures */}
@@ -253,6 +253,7 @@ const Home = () => {
                 <FixtureCard 
                   key={index} 
                   {...fixture}
+                  priority={index < 2}
                   isPredicted={!!predictions[fixture.matchId]}
                   predictedTeam={predictions[fixture.matchId]?.team}
                   predictedMargin={predictions[fixture.matchId]?.margin}
@@ -273,7 +274,7 @@ const Home = () => {
           {recentFixtures.length > 0 ? (
             <div className="space-y-3">
               {recentFixtures.map((fixture, index) => (
-                <RecentFixtureCard key={index} {...fixture} />
+                <RecentFixtureCard key={index} {...fixture} priority={index === 0} />
               ))}
             </div>
           ) : (

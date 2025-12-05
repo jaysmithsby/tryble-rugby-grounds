@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
 interface PredictionDialogProps {
   open: boolean;
@@ -18,7 +19,7 @@ interface PredictionDialogProps {
   homeTeamIcon?: string | null;
   awayTeamIcon?: string | null;
   matchId?: string;
-  appliesTo?: string[]; // List of pool names this prediction applies to
+  appliesTo?: string[];
   onPredictionSubmit?: (team: "home" | "away", margin: number) => void;
 }
 
@@ -39,7 +40,6 @@ export const PredictionDialog = ({
   const { toast } = useToast();
 
   const handleSubmit = () => {
-    // Simulate prediction submission
     const winner = selectedTeam === "home" ? homeTeam : awayTeam;
     
     onPredictionSubmit?.(selectedTeam, margin);
@@ -50,7 +50,6 @@ export const PredictionDialog = ({
       duration: 2000,
     });
 
-    // Auto-close after 500ms
     setTimeout(() => {
       onOpenChange(false);
     }, 500);
@@ -97,17 +96,15 @@ export const PredictionDialog = ({
                 }`}
               >
                 <RadioGroupItem value="home" id="home" className="sr-only" />
-                <div className="w-16 h-16 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-2">
-                  {homeTeamIcon ? (
-                    <img 
-                      src={homeTeamIcon} 
-                      alt={`${homeTeam} jersey`}
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
-                  )}
-                </div>
+                <SchoolJerseyImage
+                  src={homeTeamIcon}
+                  alt={`${homeTeam} jersey`}
+                  fallbackText={homeTeamShort}
+                  size="lg"
+                  variant="primary"
+                  priority
+                  containerClassName="border-border"
+                />
                 <span className="text-sm font-medium text-center">{homeTeam}</span>
               </label>
 
@@ -120,17 +117,15 @@ export const PredictionDialog = ({
                 }`}
               >
                 <RadioGroupItem value="away" id="away" className="sr-only" />
-                <div className="w-16 h-16 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-2">
-                  {awayTeamIcon ? (
-                    <img 
-                      src={awayTeamIcon} 
-                      alt={`${awayTeam} jersey`}
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
-                  )}
-                </div>
+                <SchoolJerseyImage
+                  src={awayTeamIcon}
+                  alt={`${awayTeam} jersey`}
+                  fallbackText={awayTeamShort}
+                  size="lg"
+                  variant="accent"
+                  priority
+                  containerClassName="border-border"
+                />
                 <span className="text-sm font-medium text-center">{awayTeam}</span>
               </label>
             </RadioGroup>

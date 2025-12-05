@@ -216,7 +216,7 @@ export default function Tournament() {
                 Tournament Fixtures ({fixtures.length})
               </h2>
               <div className="space-y-3">
-                {fixtures.map((fixture) => (
+                {fixtures.map((fixture, index) => (
                   <FixtureCard
                     key={fixture.id}
                     homeTeam={fixture.home_school?.name || "TBD"}
@@ -230,6 +230,7 @@ export default function Tournament() {
                     time={format(new Date(fixture.match_date), "MMM d, h:mm a")}
                     venue={fixture.venue}
                     matchId={fixture.id}
+                    priority={index < 3}
                   />
                 ))}
               </div>
