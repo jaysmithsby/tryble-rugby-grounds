@@ -80,6 +80,7 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [completenessFilter, setCompletenessFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"name" | "completeness-asc" | "completeness-desc">("name");
   const debouncedSearch = useDebounce(searchQuery, 300);
   const { toast } = useToast();
 
@@ -158,9 +159,9 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     return uniqueProvinces.sort() as string[];
   }, [schools]);
 
-  // Filter schools based on search and filters
+  // Filter and sort schools
   const filteredSchools = useMemo(() => {
-    return schoolsWithCompleteness.filter((school) => {
+    const filtered = schoolsWithCompleteness.filter((school) => {
       const query = debouncedSearch.toLowerCase();
       const matchesSearch =
         debouncedSearch === "" ||
@@ -182,13 +183,24 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
 
       return matchesSearch && matchesProvince && matchesStatus && matchesCompleteness;
     });
-  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter]);
+
+    // Sort results
+    return filtered.sort((a, b) => {
+      if (sortBy === "completeness-asc") {
+        return a.completeness.percentage - b.completeness.percentage;
+      } else if (sortBy === "completeness-desc") {
+        return b.completeness.percentage - a.completeness.percentage;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter, sortBy]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setProvinceFilter("all");
     setStatusFilter("all");
     setCompletenessFilter("all");
+    setSortBy("name");
   };
 
   if (loading) {
@@ -244,6 +256,16 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
               <SelectItem value="all">All Schools</SelectItem>
               <SelectItem value="incomplete">Incomplete (&lt;100%)</SelectItem>
               <SelectItem value="complete">Complete (100%)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Sort: Name (A-Z)</SelectItem>
+              <SelectItem value="completeness-asc">Sort: Completeness ↑</SelectItem>
+              <SelectItem value="completeness-desc">Sort: Completeness ↓</SelectItem>
             </SelectContent>
           </Select>
         </div>
