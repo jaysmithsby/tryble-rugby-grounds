@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Clock, CheckCircle2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
 interface RecentFixtureCardProps {
   homeTeam: string;
@@ -18,6 +19,7 @@ interface RecentFixtureCardProps {
   completedTime: string;
   venue: string;
   matchDate: Date;
+  priority?: boolean;
 }
 
 export const RecentFixtureCard = ({
@@ -32,6 +34,7 @@ export const RecentFixtureCard = ({
   completedTime,
   venue,
   matchDate,
+  priority = false,
 }: RecentFixtureCardProps) => {
   const navigate = useNavigate();
   const [homeScore, setHomeScore] = useState("");
@@ -39,7 +42,6 @@ export const RecentFixtureCard = ({
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
 
-  // Check if within 48-hour submission window
   const now = new Date();
   const hoursSinceMatch = (now.getTime() - matchDate.getTime()) / (1000 * 60 * 60);
   const canSubmit = hoursSinceMatch <= 48 && !submitted;
@@ -54,7 +56,6 @@ export const RecentFixtureCard = ({
       return;
     }
 
-    // Simulate submission
     setSubmitted(true);
     toast({
       title: "Score Submitted!",
@@ -75,24 +76,19 @@ export const RecentFixtureCard = ({
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
-            <button
-              onClick={(e) => {
+            <SchoolJerseyImage
+              src={homeTeamIcon}
+              alt={`${homeTeam} crest`}
+              fallbackText={homeTeamShort}
+              size="md"
+              variant="primary"
+              priority={priority}
+              onClick={homeSchoolSlug ? (e) => {
                 e.stopPropagation();
-                if (homeSchoolSlug) navigate(`/school/${homeSchoolSlug}`);
-              }}
-              className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!homeSchoolSlug}
-            >
-              {homeTeamIcon ? (
-                <img 
-                  src={homeTeamIcon} 
-                  alt={`${homeTeam} crest`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold text-primary">{homeTeamShort}</span>
-              )}
-            </button>
+                navigate(`/school/${homeSchoolSlug}`);
+              } : undefined}
+              containerClassName="border-border"
+            />
             <span className="text-xs font-medium text-center line-clamp-2">{homeTeam}</span>
           </div>
 
@@ -131,24 +127,19 @@ export const RecentFixtureCard = ({
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
-            <button
-              onClick={(e) => {
+            <SchoolJerseyImage
+              src={awayTeamIcon}
+              alt={`${awayTeam} crest`}
+              fallbackText={awayTeamShort}
+              size="md"
+              variant="accent"
+              priority={priority}
+              onClick={awaySchoolSlug ? (e) => {
                 e.stopPropagation();
-                if (awaySchoolSlug) navigate(`/school/${awaySchoolSlug}`);
-              }}
-              className="w-14 h-14 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border overflow-hidden p-1 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              disabled={!awaySchoolSlug}
-            >
-              {awayTeamIcon ? (
-                <img 
-                  src={awayTeamIcon} 
-                  alt={`${awayTeam} crest`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold text-accent">{awayTeamShort}</span>
-              )}
-            </button>
+                navigate(`/school/${awaySchoolSlug}`);
+              } : undefined}
+              containerClassName="border-border"
+            />
             <span className="text-xs font-medium text-center line-clamp-2">{awayTeam}</span>
           </div>
         </div>
