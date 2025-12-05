@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { fetchAndCacheImage } from "@/lib/jerseyImageCache";
 
 interface SchoolJerseyImageProps {
   src?: string | null;
@@ -49,7 +50,7 @@ export const SchoolJerseyImage = ({
   );
   const [imageSrc, setImageSrc] = useState<string | null>(null);
 
-  // Preload image when src changes
+  // Preload image with caching when src changes
   useEffect(() => {
     if (!src) {
       setImageState("error");
@@ -57,30 +58,50 @@ export const SchoolJerseyImage = ({
       return;
     }
 
+    let isMounted = true;
     setImageState("loading");
-    
-    const img = new Image();
-    
-    // Set priority hint for above-the-fold images
-    if (priority) {
-      img.fetchPriority = "high";
-    }
-    
-    img.onload = () => {
-      setImageSrc(src);
-      setImageState("loaded");
+
+    const loadImage = async () => {
+      try {
+        // Fetch from cache or network
+        const cachedUrl = await fetchAndCacheImage(src);
+        
+        if (!isMounted) {
+          URL.revokeObjectURL(cachedUrl);
+          return;
+        }
+
+        // Preload into browser
+        const img = new Image();
+        if (priority) img.fetchPriority = "high";
+
+        img.onload = () => {
+          if (isMounted) {
+            setImageSrc(cachedUrl);
+            setImageState("loaded");
+          }
+        };
+
+        img.onerror = () => {
+          if (isMounted) {
+            setImageState("error");
+            setImageSrc(null);
+          }
+        };
+
+        img.src = cachedUrl;
+      } catch {
+        if (isMounted) {
+          setImageState("error");
+          setImageSrc(null);
+        }
+      }
     };
-    
-    img.onerror = () => {
-      setImageState("error");
-      setImageSrc(null);
-    };
-    
-    img.src = src;
-    
+
+    loadImage();
+
     return () => {
-      img.onload = null;
-      img.onerror = null;
+      isMounted = false;
     };
   }, [src, priority]);
 
@@ -154,15 +175,14 @@ export const SchoolJerseyImage = ({
   );
 };
 
-// Image preloader hook for batch preloading
+// Image preloader hook for batch preloading with caching
 export const usePreloadJerseyImages = (urls: (string | null | undefined)[]) => {
   useEffect(() => {
     const validUrls = urls.filter((url): url is string => !!url);
     
     validUrls.forEach((url) => {
-      const img = new Image();
-      img.fetchPriority = "high";
-      img.src = url;
+      // Pre-cache in IndexedDB
+      fetchAndCacheImage(url).catch(() => {});
     });
   }, [urls]);
 };
