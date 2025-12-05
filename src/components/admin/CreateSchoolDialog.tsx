@@ -38,6 +38,38 @@ import {
 } from "@/lib/schoolCompleteness";
 import { cn } from "@/lib/utils";
 
+// Moved outside component to prevent recreation on every render
+interface FieldWrapperProps {
+  field: keyof SchoolFieldWeights;
+  children: React.ReactNode;
+  label: string;
+  isIncomplete: boolean;
+}
+
+const FieldWrapper = ({ field, children, label, isIncomplete }: FieldWrapperProps) => (
+  <div className="space-y-2">
+    <div className="flex items-center gap-2">
+      <Label htmlFor={field}>{label}</Label>
+      {isIncomplete && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">This field is optional but improves profile completeness (+{FIELD_WEIGHTS[field]} pts)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      {!isIncomplete && (
+        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+      )}
+    </div>
+    {children}
+  </div>
+);
+
 const PROVINCES = [
   "Eastern Cape",
   "Free State",
@@ -226,38 +258,6 @@ export function CreateSchoolDialog({
 
   const displayImage = formData.emblem_url || formData.jersey_url;
 
-  const FieldWrapper = ({ 
-    field, 
-    children, 
-    label 
-  }: { 
-    field: keyof SchoolFieldWeights; 
-    children: React.ReactNode; 
-    label: string;
-  }) => (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Label htmlFor={field}>{label}</Label>
-        {isFieldIncomplete(field) && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <AlertCircle className="h-3.5 w-3.5 text-red-500" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">This field is optional but improves profile completeness (+{FIELD_WEIGHTS[field]} pts)</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {!isFieldIncomplete(field) && (
-          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-        )}
-      </div>
-      {children}
-    </div>
-  );
-
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) resetForm();
@@ -314,7 +314,7 @@ export function CreateSchoolDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
-            <FieldWrapper field="name" label="School Name *">
+            <FieldWrapper field="name" label="School Name *" isIncomplete={isFieldIncomplete("name")}>
               <Input
                 id="name"
                 value={formData.name}
@@ -324,7 +324,7 @@ export function CreateSchoolDialog({
               />
             </FieldWrapper>
 
-            <FieldWrapper field="nickname" label="Nickname">
+            <FieldWrapper field="nickname" label="Nickname" isIncomplete={isFieldIncomplete("nickname")}>
               <Input
                 id="nickname"
                 value={formData.nickname}
@@ -334,7 +334,7 @@ export function CreateSchoolDialog({
               />
             </FieldWrapper>
 
-            <FieldWrapper field="province" label="Province">
+            <FieldWrapper field="province" label="Province" isIncomplete={isFieldIncomplete("province")}>
               <Select
                 value={formData.province}
                 onValueChange={(value) => setFormData({ ...formData, province: value })}
@@ -352,7 +352,7 @@ export function CreateSchoolDialog({
               </Select>
             </FieldWrapper>
 
-            <FieldWrapper field="school_type" label="School Type">
+            <FieldWrapper field="school_type" label="School Type" isIncomplete={isFieldIncomplete("school_type")}>
               <RadioGroup 
                 value={formData.school_type} 
                 onValueChange={(value) => setFormData({ ...formData, school_type: value })}
@@ -373,7 +373,7 @@ export function CreateSchoolDialog({
               </RadioGroup>
             </FieldWrapper>
 
-            <FieldWrapper field="main_rival" label="Main Rival (Derby)">
+            <FieldWrapper field="main_rival" label="Main Rival (Derby)" isIncomplete={isFieldIncomplete("main_rival")}>
               <Input
                 id="main_rival"
                 value={formData.main_rival}
@@ -382,7 +382,7 @@ export function CreateSchoolDialog({
               />
             </FieldWrapper>
 
-            <FieldWrapper field="website" label="Website">
+            <FieldWrapper field="website" label="Website" isIncomplete={isFieldIncomplete("website")}>
               <Input
                 id="website"
                 type="url"
@@ -393,7 +393,7 @@ export function CreateSchoolDialog({
               />
             </FieldWrapper>
 
-            <FieldWrapper field="established_year" label="Established Year">
+            <FieldWrapper field="established_year" label="Established Year" isIncomplete={isFieldIncomplete("established_year")}>
               <Input
                 id="established_year"
                 type="number"
@@ -404,7 +404,7 @@ export function CreateSchoolDialog({
               />
             </FieldWrapper>
 
-            <FieldWrapper field="springboks_count" label="Number of Springboks">
+            <FieldWrapper field="springboks_count" label="Number of Springboks" isIncomplete={isFieldIncomplete("springboks_count")}>
               <Input
                 id="springboks_count"
                 type="number"
@@ -415,7 +415,7 @@ export function CreateSchoolDialog({
               />
             </FieldWrapper>
 
-            <FieldWrapper field="motto" label="School Motto">
+            <FieldWrapper field="motto" label="School Motto" isIncomplete={isFieldIncomplete("motto")}>
               <Input
                 id="motto"
                 value={formData.motto}
@@ -430,7 +430,7 @@ export function CreateSchoolDialog({
           <div className="border-t pt-4 mt-4">
             <h3 className="text-sm font-semibold mb-3 text-foreground">School Images</h3>
             <div className="grid grid-cols-2 gap-4">
-              <FieldWrapper field="emblem_url" label="Emblem/Crest URL">
+              <FieldWrapper field="emblem_url" label="Emblem/Crest URL" isIncomplete={isFieldIncomplete("emblem_url")}>
                 <Input
                   id="emblem_url"
                   value={formData.emblem_url}
@@ -441,7 +441,7 @@ export function CreateSchoolDialog({
                 <p className="text-xs text-muted-foreground">Primary image shown on profile and fixtures</p>
               </FieldWrapper>
 
-              <FieldWrapper field="jersey_url" label="Jersey Image URL">
+              <FieldWrapper field="jersey_url" label="Jersey Image URL" isIncomplete={isFieldIncomplete("jersey_url")}>
                 <Input
                   id="jersey_url"
                   value={formData.jersey_url}
