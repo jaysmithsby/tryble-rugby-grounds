@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -19,6 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { 
+  calculateCompleteness, 
+  getCompletenessColor, 
+  FIELD_WEIGHTS,
+  FIELD_LABELS,
+  type SchoolFieldWeights 
+} from "@/lib/schoolCompleteness";
+import { cn } from "@/lib/utils";
 
 const PROVINCES = [
   "Eastern Cape",
@@ -56,12 +72,14 @@ interface EditSchoolDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   school: School | null;
+  onSuccess?: () => void;
 }
 
 export function EditSchoolDialog({
   open,
   onOpenChange,
   school,
+  onSuccess,
 }: EditSchoolDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -107,6 +125,31 @@ export function EditSchoolDialog({
     }
   }, [school]);
 
+  // Calculate completeness score
+  const completeness = useMemo(() => {
+    return calculateCompleteness({
+      name: formData.name,
+      province: formData.province,
+      nickname: formData.nickname,
+      main_rival: formData.main_rival,
+      motto: formData.motto,
+      website: formData.website,
+      established_year: formData.established_year,
+      springboks_count: formData.springboks_count,
+      emblem_url: formData.emblem_url || formData.icon_url,
+      jersey_url: formData.jersey_url,
+      logo_url: formData.emblem_url || formData.icon_url,
+    });
+  }, [formData]);
+
+  const isFieldIncomplete = (field: keyof SchoolFieldWeights): boolean => {
+    return completeness.missingFields.includes(field);
+  };
+
+  const getFieldClasses = (field: keyof SchoolFieldWeights): string => {
+    return isFieldIncomplete(field) ? "border-red-500/50 focus-visible:ring-red-500" : "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!school) return;
@@ -143,11 +186,11 @@ export function EditSchoolDialog({
 
       toast({
         title: "Success",
-        description: "School updated successfully",
+        description: `School updated successfully (${completeness.percentage}% complete)`,
       });
 
       onOpenChange(false);
-      window.location.reload();
+      onSuccess?.();
     } catch (error) {
       console.error("Error updating school:", error);
       toast({
@@ -160,51 +203,110 @@ export function EditSchoolDialog({
     }
   };
 
-  // Get display image for preview (emblem > jersey > icon)
   const displayImage = formData.emblem_url || formData.jersey_url || formData.icon_url;
+
+  const FieldWrapper = ({ 
+    field, 
+    children, 
+    label 
+  }: { 
+    field: keyof SchoolFieldWeights; 
+    children: React.ReactNode; 
+    label: string;
+  }) => (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Label htmlFor={field}>{label}</Label>
+        {isFieldIncomplete(field) && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">This field is optional but improves profile completeness (+{FIELD_WEIGHTS[field]} pts)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {!isFieldIncomplete(field) && (
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+        )}
+      </div>
+      {children}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit School</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Edit School</DialogTitle>
+            <Badge 
+              variant={completeness.percentage >= 100 ? "default" : completeness.percentage >= 70 ? "secondary" : "destructive"}
+              className="ml-4 text-sm"
+            >
+              {completeness.score}/{completeness.maxScore}
+            </Badge>
+          </div>
+          
+          {/* Completeness Progress Bar */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-muted-foreground">Profile Completeness</span>
+              <span className={getCompletenessColor(completeness.percentage)}>
+                {completeness.percentage}%
+              </span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full transition-all duration-300",
+                  completeness.percentage >= 100 ? "bg-green-500" :
+                  completeness.percentage >= 70 ? "bg-yellow-500" :
+                  completeness.percentage >= 40 ? "bg-orange-500" : "bg-red-500"
+                )}
+                style={{ width: `${completeness.percentage}%` }}
+              />
+            </div>
+            {completeness.missingFields.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Missing: {completeness.missingFields.map(f => FIELD_LABELS[f]).join(", ")}
+              </p>
+            )}
+          </div>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">School Name *</Label>
+            <FieldWrapper field="name" label="School Name *">
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className={getFieldClasses("name")}
                 required
               />
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="nickname">Nickname</Label>
+            <FieldWrapper field="nickname" label="Nickname">
               <Input
                 id="nickname"
                 value={formData.nickname}
-                onChange={(e) =>
-                  setFormData({ ...formData, nickname: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                className={getFieldClasses("nickname")}
                 placeholder="e.g., The Maroon Machine"
               />
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="province">Province</Label>
+            <FieldWrapper field="province" label="Province">
               <Select
                 value={formData.province}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, province: value })
-                }
+                onValueChange={(value) => setFormData({ ...formData, province: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className={getFieldClasses("province")}>
                   <SelectValue placeholder="Select province" />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,109 +317,93 @@ export function EditSchoolDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="main_rival">Main Rival (Derby)</Label>
+            <FieldWrapper field="main_rival" label="Main Rival (Derby)">
               <Input
                 id="main_rival"
                 value={formData.main_rival}
-                onChange={(e) =>
-                  setFormData({ ...formData, main_rival: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, main_rival: e.target.value })}
+                className={getFieldClasses("main_rival")}
               />
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
+            <FieldWrapper field="website" label="Website">
               <Input
                 id="website"
                 type="url"
                 value={formData.website}
-                onChange={(e) =>
-                  setFormData({ ...formData, website: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                className={getFieldClasses("website")}
                 placeholder="https://..."
               />
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="established_year">Established Year</Label>
+            <FieldWrapper field="established_year" label="Established Year">
               <Input
                 id="established_year"
                 type="number"
                 value={formData.established_year}
-                onChange={(e) =>
-                  setFormData({ ...formData, established_year: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, established_year: e.target.value })}
+                className={getFieldClasses("established_year")}
                 placeholder="e.g., 1856"
               />
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="springboks_count">Number of Springboks</Label>
+            <FieldWrapper field="springboks_count" label="Number of Springboks">
               <Input
                 id="springboks_count"
                 type="number"
                 value={formData.springboks_count}
-                onChange={(e) =>
-                  setFormData({ ...formData, springboks_count: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, springboks_count: e.target.value })}
+                className={getFieldClasses("springboks_count")}
                 placeholder="0"
               />
-            </div>
+            </FieldWrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="motto">School Motto</Label>
+            <FieldWrapper field="motto" label="School Motto">
               <Input
                 id="motto"
                 value={formData.motto}
-                onChange={(e) =>
-                  setFormData({ ...formData, motto: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, motto: e.target.value })}
+                className={getFieldClasses("motto")}
                 placeholder="e.g., Per Aspera Ad Astra"
               />
-            </div>
+            </FieldWrapper>
           </div>
 
           {/* Images Section */}
           <div className="border-t pt-4 mt-4">
             <h3 className="text-sm font-semibold mb-3 text-foreground">School Images</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="emblem_url">Emblem/Crest URL</Label>
+              <FieldWrapper field="emblem_url" label="Emblem/Crest URL">
                 <Input
                   id="emblem_url"
                   value={formData.emblem_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, emblem_url: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, emblem_url: e.target.value })}
+                  className={getFieldClasses("emblem_url")}
                   placeholder="Primary display image URL"
                 />
                 <p className="text-xs text-muted-foreground">Primary image shown on profile and fixtures</p>
-              </div>
+              </FieldWrapper>
 
-              <div className="space-y-2">
-                <Label htmlFor="jersey_url">Jersey Image URL</Label>
+              <FieldWrapper field="jersey_url" label="Jersey Image URL">
                 <Input
                   id="jersey_url"
                   value={formData.jersey_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, jersey_url: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, jersey_url: e.target.value })}
+                  className={getFieldClasses("jersey_url")}
                   placeholder="Fallback jersey image URL"
                 />
                 <p className="text-xs text-muted-foreground">Fallback if no emblem uploaded</p>
-              </div>
+              </FieldWrapper>
 
               <div className="space-y-2">
                 <Label htmlFor="icon_url">Legacy Icon URL</Label>
                 <Input
                   id="icon_url"
                   value={formData.icon_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, icon_url: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, icon_url: e.target.value })}
                   placeholder="Legacy icon (deprecated)"
                 />
               </div>
@@ -351,16 +437,12 @@ export function EditSchoolDialog({
                     type="color"
                     id="primary_color"
                     value={formData.primary_color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, primary_color: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
                     className="h-10 w-14 rounded-md border border-input cursor-pointer"
                   />
                   <Input
                     value={formData.primary_color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, primary_color: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
                     placeholder="#1e3a5f"
                     className="flex-1"
                   />
@@ -374,16 +456,12 @@ export function EditSchoolDialog({
                     type="color"
                     id="secondary_color"
                     value={formData.secondary_color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, secondary_color: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
                     className="h-10 w-14 rounded-md border border-input cursor-pointer"
                   />
                   <Input
                     value={formData.secondary_color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, secondary_color: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
                     placeholder="#c9a227"
                     className="flex-1"
                   />
@@ -415,9 +493,7 @@ export function EditSchoolDialog({
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
-                  }
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -435,9 +511,7 @@ export function EditSchoolDialog({
                   <Switch
                     id="is_visible"
                     checked={formData.is_visible}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, is_visible: checked })
-                    }
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
                   />
                   <span className="text-sm text-muted-foreground">
                     {formData.is_visible ? "Visible" : "Hidden"}
@@ -453,9 +527,7 @@ export function EditSchoolDialog({
             <Textarea
               id="trivia_fact"
               value={formData.trivia_fact}
-              onChange={(e) =>
-                setFormData({ ...formData, trivia_fact: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, trivia_fact: e.target.value })}
               placeholder="Interesting fact about the school..."
               rows={3}
             />
@@ -470,7 +542,7 @@ export function EditSchoolDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? "Saving..." : `Save Changes (${completeness.percentage}%)`}
             </Button>
           </div>
         </form>

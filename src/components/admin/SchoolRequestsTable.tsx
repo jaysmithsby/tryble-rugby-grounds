@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, Users, Eye } from "lucide-react";
 import { ReviewSchoolRequestDialog } from "./ReviewSchoolRequestDialog";
+import { CreateSchoolDialog, type PrefilledSchoolData } from "./CreateSchoolDialog";
 
 interface GroupedRequest {
   school_name: string;
@@ -36,6 +37,8 @@ export function SchoolRequestsTable() {
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [selectedGroup, setSelectedGroup] = useState<GroupedRequest | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [prefillData, setPrefillData] = useState<PrefilledSchoolData | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -102,6 +105,16 @@ export function SchoolRequestsTable() {
   const handleReview = (group: GroupedRequest) => {
     setSelectedGroup(group);
     setReviewDialogOpen(true);
+  };
+
+  const handleApproveAndCreate = (data: PrefilledSchoolData) => {
+    setPrefillData(data);
+    setCreateDialogOpen(true);
+  };
+
+  const handleCreateSuccess = () => {
+    setPrefillData(null);
+    fetchRequests();
   };
 
   const getSchoolTypeBadge = (type: string) => {
@@ -214,6 +227,14 @@ export function SchoolRequestsTable() {
         onOpenChange={setReviewDialogOpen}
         groupedRequest={selectedGroup}
         onSuccess={fetchRequests}
+        onApproveAndCreate={handleApproveAndCreate}
+      />
+
+      <CreateSchoolDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        prefillData={prefillData}
+        onSuccess={handleCreateSuccess}
       />
     </div>
   );

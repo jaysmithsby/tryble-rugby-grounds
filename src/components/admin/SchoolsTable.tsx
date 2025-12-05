@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Pencil, Trash2, Loader2, Search, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
@@ -31,6 +38,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { 
+  calculateCompleteness, 
+  getCompletenessColor,
+  getCompletenessBadgeVariant,
+  FIELD_LABELS,
+} from "@/lib/schoolCompleteness";
 
 interface School {
   id: string;
@@ -55,9 +68,10 @@ interface School {
 
 interface SchoolsTableProps {
   onEdit: (school: School) => void;
+  refreshTrigger?: number;
 }
 
-export function SchoolsTable({ onEdit }: SchoolsTableProps) {
+export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const navigate = useNavigate();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,12 +79,13 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [completenessFilter, setCompletenessFilter] = useState("all");
   const debouncedSearch = useDebounce(searchQuery, 300);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSchools();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchSchools = async () => {
     try {
@@ -117,6 +132,26 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
     }
   };
 
+  // Calculate completeness for each school
+  const schoolsWithCompleteness = useMemo(() => {
+    return schools.map(school => ({
+      ...school,
+      completeness: calculateCompleteness({
+        name: school.name,
+        province: school.province,
+        nickname: school.nickname,
+        main_rival: school.main_rival,
+        motto: school.motto,
+        website: school.website,
+        established_year: school.established_year,
+        springboks_count: school.springboks_count,
+        emblem_url: school.emblem_url || school.icon_url,
+        jersey_url: school.jersey_url,
+        logo_url: school.emblem_url || school.icon_url,
+      }),
+    }));
+  }, [schools]);
+
   // Get unique provinces for filter dropdown
   const provinces = useMemo(() => {
     const uniqueProvinces = [...new Set(schools.map(s => s.province).filter(Boolean))];
@@ -125,7 +160,7 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
 
   // Filter schools based on search and filters
   const filteredSchools = useMemo(() => {
-    return schools.filter((school) => {
+    return schoolsWithCompleteness.filter((school) => {
       const query = debouncedSearch.toLowerCase();
       const matchesSearch =
         debouncedSearch === "" ||
@@ -140,14 +175,20 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
       const matchesStatus =
         statusFilter === "all" || school.status === statusFilter;
 
-      return matchesSearch && matchesProvince && matchesStatus;
+      const matchesCompleteness =
+        completenessFilter === "all" ||
+        (completenessFilter === "complete" && school.completeness.percentage >= 100) ||
+        (completenessFilter === "incomplete" && school.completeness.percentage < 100);
+
+      return matchesSearch && matchesProvince && matchesStatus && matchesCompleteness;
     });
-  }, [schools, debouncedSearch, provinceFilter, statusFilter]);
+  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setProvinceFilter("all");
     setStatusFilter("all");
+    setCompletenessFilter("all");
   };
 
   if (loading) {
@@ -195,6 +236,16 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
               <SelectItem value="pending">Pending</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={completenessFilter} onValueChange={setCompletenessFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Completeness" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Schools</SelectItem>
+              <SelectItem value="incomplete">Incomplete (&lt;100%)</SelectItem>
+              <SelectItem value="complete">Complete (100%)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -204,9 +255,9 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
             <TableRow>
               <TableHead>School Name</TableHead>
               <TableHead>Province</TableHead>
+              <TableHead>Completeness</TableHead>
               <TableHead>Established</TableHead>
               <TableHead>Main Rival</TableHead>
-              <TableHead>Springboks</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -221,7 +272,7 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
                         ? "No schools found"
                         : "No matches found for your search"}
                     </p>
-                    {(searchQuery || provinceFilter !== "all" || statusFilter !== "all") && (
+                    {(searchQuery || provinceFilter !== "all" || statusFilter !== "all" || completenessFilter !== "all") && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -261,9 +312,32 @@ export function SchoolsTable({ onEdit }: SchoolsTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>{school.province || "-"}</TableCell>
+                  <TableCell>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Badge 
+                            variant={getCompletenessBadgeVariant(school.completeness.percentage)}
+                            className="cursor-help"
+                          >
+                            {school.completeness.percentage}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-medium mb-1">
+                            {school.completeness.score}/{school.completeness.maxScore} points
+                          </p>
+                          {school.completeness.missingFields.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Missing: {school.completeness.missingFields.map(f => FIELD_LABELS[f]).join(", ")}
+                            </p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
                   <TableCell>{school.established_year || "-"}</TableCell>
                   <TableCell>{school.main_rival || "-"}</TableCell>
-                  <TableCell>{school.springboks_count || 0}</TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

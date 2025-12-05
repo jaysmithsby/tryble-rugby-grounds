@@ -26,6 +26,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
+  const [schoolsRefreshTrigger, setSchoolsRefreshTrigger] = useState(0);
   const [tournamentEditDialogOpen, setTournamentEditDialogOpen] = useState(false);
   const [tournamentCreateDialogOpen, setTournamentCreateDialogOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<any>(null);
@@ -36,6 +37,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const handleEditSchool = (school: any) => {
     setSelectedSchool(school);
     setEditDialogOpen(true);
+  };
+
+  const handleSchoolSuccess = () => {
+    setSchoolsRefreshTrigger(prev => prev + 1);
   };
 
   const handleEditTournament = (tournament: any) => {
@@ -107,7 +112,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 New School
               </Button>
             </div>
-            <SchoolsTable onEdit={handleEditSchool} />
+            <SchoolsTable onEdit={handleEditSchool} refreshTrigger={schoolsRefreshTrigger} />
           </TabsContent>
 
           <TabsContent value="school-requests" className="space-y-4">
@@ -207,11 +212,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         school={selectedSchool}
+        onSuccess={handleSchoolSuccess}
       />
 
       <CreateSchoolDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+        onSuccess={handleSchoolSuccess}
       />
 
       <EditTournamentDialog
