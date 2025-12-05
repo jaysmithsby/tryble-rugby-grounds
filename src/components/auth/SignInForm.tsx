@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Mail, Phone } from "lucide-react";
 import { countryCodes } from "@/data/countryCodes";
 import { z } from "zod";
+import ForgotPasswordDialog from "./ForgotPasswordDialog";
 
 const emailSignInSchema = z.object({
   email: z.string().trim().email("Invalid email address"),
@@ -31,6 +32,7 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
   const [countryCode, setCountryCode] = useState("+27");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -167,7 +169,18 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            {method === "email" && (
+              <button
+                type="button"
+                onClick={() => setForgotPasswordOpen(true)}
+                className="text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                Forgot Password?
+              </button>
+            )}
+          </div>
           <Input
             id="password"
             type="password"
@@ -182,6 +195,11 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
           {loading ? "Signing in..." : "Sign In"}
         </Button>
       </form>
+
+      <ForgotPasswordDialog
+        open={forgotPasswordOpen}
+        onOpenChange={setForgotPasswordOpen}
+      />
 
       <div className="text-center">
         <button

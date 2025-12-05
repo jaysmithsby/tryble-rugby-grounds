@@ -13,6 +13,7 @@ import PoolLeaderboard from "./pages/PoolLeaderboard";
 import SchoolProfile from "./pages/SchoolProfile";
 import Tournament from "./pages/Tournament";
 import Admin from "./pages/Admin";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/school/:schoolSlug" element={<SchoolProfile />} />
           <Route path="/tournament/:tournamentId" element={<Tournament />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
