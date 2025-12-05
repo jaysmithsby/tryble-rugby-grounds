@@ -379,6 +379,51 @@ export type Database = {
         }
         Relationships: []
       }
+      school_requests: {
+        Row: {
+          admin_response: string | null
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          note_to_admin: string | null
+          province: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_name: string
+          school_type: Database["public"]["Enums"]["school_type"]
+          status: Database["public"]["Enums"]["school_request_status"]
+          submitted_by_user_id: string | null
+        }
+        Insert: {
+          admin_response?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          note_to_admin?: string | null
+          province: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_name: string
+          school_type: Database["public"]["Enums"]["school_type"]
+          status?: Database["public"]["Enums"]["school_request_status"]
+          submitted_by_user_id?: string | null
+        }
+        Update: {
+          admin_response?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          note_to_admin?: string | null
+          province?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_name?: string
+          school_type?: Database["public"]["Enums"]["school_type"]
+          status?: Database["public"]["Enums"]["school_request_status"]
+          submitted_by_user_id?: string | null
+        }
+        Relationships: []
+      }
       school_scores: {
         Row: {
           average_points: number | null
@@ -754,6 +799,8 @@ export type Database = {
         | "derby_winner"
         | "streak_master"
       leaderboard_type: "global" | "school" | "province" | "pool"
+      school_request_status: "pending" | "approved" | "declined"
+      school_type: "boys" | "girls" | "co-ed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -893,6 +940,8 @@ export const Constants = {
         "streak_master",
       ],
       leaderboard_type: ["global", "school", "province", "pool"],
+      school_request_status: ["pending", "approved", "declined"],
+      school_type: ["boys", "girls", "co-ed"],
     },
   },
 } as const

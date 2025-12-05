@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { SchoolRequestModal } from "@/components/auth/SchoolRequestModal";
 
 interface StepSchoolProps {
   schoolName: string;
@@ -17,8 +16,7 @@ const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolPro
   const [schools, setSchools] = useState<{ id: string; name: string; status: string }[]>([]);
   const [filteredSchools, setFilteredSchools] = useState<{ id: string; name: string; status: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isAddingNewSchool, setIsAddingNewSchool] = useState(false);
-  const { toast } = useToast();
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
 
   useEffect(() => {
     fetchSchools();
@@ -38,7 +36,6 @@ const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolPro
 
   const handleInputChange = (value: string) => {
     setSchoolName(value);
-    setIsAddingNewSchool(false);
     
     if (value.trim().length > 0) {
       const searchTerm = value.toLowerCase();
@@ -55,49 +52,17 @@ const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolPro
   const selectSchool = (school: { name: string }) => {
     setSchoolName(school.name);
     setShowSuggestions(false);
-    setIsAddingNewSchool(false);
-  };
-
-  const handleAddNewSchool = async () => {
-    if (!schoolName.trim()) return;
-
-    // Generate slug from school name
-    const slug = schoolName
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-');
-
-    const { error } = await supabase
-      .from("schools")
-      .insert({ 
-        name: schoolName.trim(), 
-        slug: slug,
-        status: "pending" 
-      });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add school. It may already exist.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsAddingNewSchool(true);
-    setShowSuggestions(false);
-    
-    toast({
-      title: "School Added!",
-      description: "We'll review and add your school as soon as possible. You're good to go for now — your school will be marked as Pending until added.",
-    });
   };
 
   const handleNext = () => {
     if (schoolName.trim()) {
       onNext(schoolName.trim());
     }
+  };
+
+  const handleOpenRequestModal = () => {
+    setShowSuggestions(false);
+    setRequestModalOpen(true);
   };
 
   return (
@@ -133,30 +98,36 @@ const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolPro
                   {school.name}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={handleAddNewSchool}
-                className="w-full text-left px-4 py-2 border-t border-border hover:bg-muted transition-colors flex items-center gap-2 text-primary"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add My School: "{schoolName}"</span>
-              </button>
             </div>
           )}
 
           {showSuggestions && filteredSchools.length === 0 && schoolName.trim().length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-lg shadow-lg">
-              <button
+            <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-lg shadow-lg p-3 text-center">
+              <p className="text-sm text-muted-foreground mb-2">No schools found</p>
+              <Button
                 type="button"
-                onClick={handleAddNewSchool}
-                className="w-full text-left px-4 py-2 hover:bg-muted transition-colors flex items-center gap-2 text-primary"
+                variant="link"
+                size="sm"
+                onClick={handleOpenRequestModal}
+                className="text-primary p-0 h-auto"
               >
-                <Plus className="w-4 h-4" />
-                <span>Add My School: "{schoolName}"</span>
-              </button>
+                Request to add "{schoolName}"
+              </Button>
             </div>
           )}
         </div>
+
+        {/* Can't find school link */}
+        <p className="text-sm text-muted-foreground text-center">
+          Can't find your school?{" "}
+          <button
+            type="button"
+            onClick={handleOpenRequestModal}
+            className="text-primary hover:underline font-medium"
+          >
+            Request to add it
+          </button>
+        </p>
 
         <div className="flex gap-3">
           <Button variant="outline" onClick={onBack} className="flex-1">
@@ -167,6 +138,12 @@ const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolPro
           </Button>
         </div>
       </div>
+
+      <SchoolRequestModal
+        open={requestModalOpen}
+        onOpenChange={setRequestModalOpen}
+        initialSchoolName={schoolName}
+      />
     </div>
   );
 };

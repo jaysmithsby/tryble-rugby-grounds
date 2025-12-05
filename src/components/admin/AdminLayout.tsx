@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, Search } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, Search, FileQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +16,7 @@ import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { PoolPacksTable } from "./PoolPacksTable";
 import { CreatePoolPackDialog } from "./CreatePoolPackDialog";
 import { EditPoolPackDialog } from "./EditPoolPackDialog";
+import { SchoolRequestsTable } from "./SchoolRequestsTable";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -56,7 +57,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <Tabs defaultValue="fixtures" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-8 lg:w-auto">
             <TabsTrigger value="fixtures" className="gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Fixtures</span>
@@ -64,6 +65,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <TabsTrigger value="schools" className="gap-2">
               <School className="h-4 w-4" />
               <span className="hidden sm:inline">Schools</span>
+            </TabsTrigger>
+            <TabsTrigger value="school-requests" className="gap-2">
+              <FileQuestion className="h-4 w-4" />
+              <span className="hidden sm:inline">Requests</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" />
@@ -103,6 +108,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </Button>
             </div>
             <SchoolsTable onEdit={handleEditSchool} />
+          </TabsContent>
+
+          <TabsContent value="school-requests" className="space-y-4">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-foreground">School Requests</h2>
+              <p className="text-muted-foreground mt-1">Review and approve user-submitted school requests</p>
+            </div>
+            <SchoolRequestsTable />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
