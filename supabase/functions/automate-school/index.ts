@@ -42,10 +42,14 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Webhook response received successfully");
+    console.log("Webhook raw response:", JSON.stringify(data, null, 2));
+    
+    // If the webhook returns an array, extract the first item to simplify client handling
+    const responseData = Array.isArray(data) && data.length > 0 ? data[0] : data;
+    console.log("Sending to client:", JSON.stringify(responseData, null, 2));
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
