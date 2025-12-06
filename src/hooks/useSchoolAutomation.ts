@@ -225,53 +225,20 @@ export function useSchoolAutomation() {
       }
       
       console.log("Automation response data:", JSON.stringify(data, null, 2));
+      console.log("Data type:", typeof data);
+      console.log("Is array:", Array.isArray(data));
       
-      // Handle response - could be JSON format or text output format
+      // Handle response - the edge function now returns a single object (not array)
+      let responseObj: Record<string, unknown> | null = null;
+      
       if (Array.isArray(data) && data.length > 0) {
-        let parsed: ParsedSchoolData;
-        
-        const firstItem = data[0];
-        console.log("First item keys:", Object.keys(firstItem));
-        
-        // Check if it's the new JSON format (has direct keys like "School Name")
-        if ("School Name" in firstItem) {
-          console.log("Using JSON format parser");
-          parsed = parseJsonResponse(firstItem as Record<string, unknown>);
-        } 
-        // Check if it's the legacy text output format
-        else if ("output" in firstItem && typeof firstItem.output === 'string') {
-          console.log("Using text output parser");
-          parsed = parseTextOutput(firstItem.output);
-        } 
-        else {
-          console.log("Unknown format, falling back to no data");
-          toast({
-            title: "No data found",
-            description: "No data found. Please fill manually.",
-            variant: "destructive",
-          });
-          return null;
-        }
-        
-        console.log("Parsed result:", parsed);
-        
-        if (Object.keys(parsed).length === 0) {
-          toast({
-            title: "No data found",
-            description: "No data found. Please fill manually.",
-            variant: "destructive",
-          });
-          return null;
-        }
-        
-        toast({
-          title: "Success",
-          description: "Fields auto-filled from automation!",
-        });
-        
-        return parsed;
-      } else {
-        console.log("Data is not an array or empty:", data);
+        responseObj = data[0] as Record<string, unknown>;
+      } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+        responseObj = data as Record<string, unknown>;
+      }
+      
+      if (!responseObj) {
+        console.log("Could not extract response object from:", data);
         toast({
           title: "No data found",
           description: "No data found. Please fill manually.",
@@ -279,6 +246,48 @@ export function useSchoolAutomation() {
         });
         return null;
       }
+      
+      console.log("Response object keys:", Object.keys(responseObj));
+      
+      let parsed: ParsedSchoolData;
+      
+      // Check if it's the new JSON format (has direct keys like "School Name")
+      if ("School Name" in responseObj) {
+        console.log("Using JSON format parser");
+        parsed = parseJsonResponse(responseObj);
+      } 
+      // Check if it's the legacy text output format
+      else if ("output" in responseObj && typeof responseObj.output === 'string') {
+        console.log("Using text output parser");
+        parsed = parseTextOutput(responseObj.output);
+      } 
+      else {
+        console.log("Unknown format, keys found:", Object.keys(responseObj));
+        toast({
+          title: "No data found",
+          description: "No data found. Please fill manually.",
+          variant: "destructive",
+        });
+        return null;
+      }
+      
+      console.log("Parsed result:", parsed);
+      
+      if (Object.keys(parsed).length === 0) {
+        toast({
+          title: "No data found",
+          description: "No data found. Please fill manually.",
+          variant: "destructive",
+        });
+        return null;
+      }
+      
+      toast({
+        title: "Success",
+        description: "Fields auto-filled from automation!",
+      });
+      
+      return parsed;
     } catch (error) {
       console.error("Automation error:", error);
       toast({
