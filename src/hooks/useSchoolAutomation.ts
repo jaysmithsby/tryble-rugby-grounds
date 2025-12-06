@@ -51,80 +51,59 @@ function isValidValue(value: unknown): boolean {
 function parseJsonResponse(item: Record<string, unknown>): ParsedSchoolData {
   const result: ParsedSchoolData = {};
   
-  // School Name
-  if (isValidValue(item["School Name"])) {
-    result.name = String(item["School Name"]).trim();
-  }
-  
-  // Nickname
-  if (isValidValue(item["Nickname"])) {
-    result.nickname = String(item["Nickname"]).trim();
-  }
-  
-  // Province
-  if (isValidValue(item["Province"])) {
-    const provinceValue = String(item["Province"]).trim();
-    const matchedProvince = PROVINCES.find(
-      p => p.toLowerCase() === provinceValue.toLowerCase()
-    );
-    if (matchedProvince) {
-      result.province = matchedProvince;
+  // Map both camelCase and space-separated keys to our schema (snake_case)
+  const keyMappings: Record<string, keyof ParsedSchoolData> = {
+    // camelCase format (from n8n)
+    'schoolName': 'name',
+    'nickname': 'nickname',
+    'province': 'province',
+    'website': 'website',
+    'mainRival': 'main_rival',
+    'establishedYear': 'established_year',
+    'numberOfSpringboks': 'springboks_count',
+    'schoolMotto': 'motto',
+    'primaryColourHex': 'primary_color',
+    'secondaryColourHex': 'secondary_color',
+    'rugbyTrivia': 'trivia_fact',
+    // Space-separated format (legacy)
+    'School Name': 'name',
+    'Nickname': 'nickname',
+    'Province': 'province',
+    'Website': 'website',
+    'Main Rival': 'main_rival',
+    'Main Rival (Derby)': 'main_rival',
+    'Established Year': 'established_year',
+    'Number of Springboks': 'springboks_count',
+    'School Motto': 'motto',
+    'Primary uniform colour (HEX)': 'primary_color',
+    'Secondary uniform colour (HEX)': 'secondary_color',
+    'Tertiary colour (HEX)': 'primary_color',
+    'Rugby Trivia': 'trivia_fact',
+  };
+
+  for (const [key, value] of Object.entries(item)) {
+    const mappedKey = keyMappings[key];
+    if (mappedKey && isValidValue(value)) {
+      const strValue = String(value);
+      
+      if (mappedKey === 'primary_color' || mappedKey === 'secondary_color') {
+        const color = extractHexColor(strValue);
+        if (color) result[mappedKey] = color;
+      } else if (mappedKey === 'established_year' || mappedKey === 'springboks_count') {
+        const num = extractNumber(strValue);
+        if (num) result[mappedKey] = num;
+      } else if (mappedKey === 'province') {
+        const normalizedProvince = PROVINCES.find(p => 
+          p.toLowerCase() === strValue.toLowerCase() || 
+          strValue.toLowerCase().includes(p.toLowerCase())
+        );
+        if (normalizedProvince) result[mappedKey] = normalizedProvince;
+      } else {
+        result[mappedKey] = strValue;
+      }
     }
   }
-  
-  // Website
-  if (isValidValue(item["Website"])) {
-    result.website = String(item["Website"]).trim();
-  }
-  
-  // Main Rival
-  if (isValidValue(item["Main Rival"])) {
-    result.main_rival = String(item["Main Rival"]).trim();
-  }
-  
-  // Established Year
-  if (isValidValue(item["Established Year"])) {
-    const yearStr = extractNumber(String(item["Established Year"])) || String(item["Established Year"]).trim();
-    const year = parseInt(yearStr);
-    if (!isNaN(year) && year > 1000 && year <= new Date().getFullYear()) {
-      result.established_year = yearStr;
-    }
-  }
-  
-  // Number of Springboks
-  if (isValidValue(item["Number of Springboks"])) {
-    const countStr = extractNumber(String(item["Number of Springboks"]));
-    if (countStr) {
-      result.springboks_count = countStr;
-    }
-  }
-  
-  // School Motto
-  if (isValidValue(item["School Motto"])) {
-    result.motto = String(item["School Motto"]).trim();
-  }
-  
-  // Primary uniform colour
-  if (isValidValue(item["Primary uniform colour (HEX)"])) {
-    const hex = extractHexColor(String(item["Primary uniform colour (HEX)"]));
-    if (hex) {
-      result.primary_color = hex;
-    }
-  }
-  
-  // Secondary uniform colour
-  if (isValidValue(item["Secondary uniform colour (HEX)"])) {
-    const hex = extractHexColor(String(item["Secondary uniform colour (HEX)"]));
-    if (hex) {
-      result.secondary_color = hex;
-    }
-  }
-  
-  // Rugby Trivia
-  if (isValidValue(item["Rugby Trivia"])) {
-    result.trivia_fact = String(item["Rugby Trivia"]).trim();
-  }
-  
+
   return result;
 }
 
@@ -251,8 +230,8 @@ export function useSchoolAutomation() {
       
       let parsed: ParsedSchoolData;
       
-      // Check if it's the new JSON format (has direct keys like "School Name")
-      if ("School Name" in responseObj) {
+      // Check if it's JSON format (camelCase or space-separated keys)
+      if ("School Name" in responseObj || "schoolName" in responseObj) {
         console.log("Using JSON format parser");
         parsed = parseJsonResponse(responseObj);
       } 
@@ -262,13 +241,9 @@ export function useSchoolAutomation() {
         parsed = parseTextOutput(responseObj.output);
       } 
       else {
-        console.log("Unknown format, keys found:", Object.keys(responseObj));
-        toast({
-          title: "No data found",
-          description: "No data found. Please fill manually.",
-          variant: "destructive",
-        });
-        return null;
+        // Try parsing anyway - might have different key variations
+        console.log("Trying JSON parser for unknown format, keys:", Object.keys(responseObj));
+        parsed = parseJsonResponse(responseObj);
       }
       
       console.log("Parsed result:", parsed);
