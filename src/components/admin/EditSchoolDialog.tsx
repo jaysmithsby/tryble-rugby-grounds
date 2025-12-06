@@ -26,7 +26,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { useSchoolAutomation } from "@/hooks/useSchoolAutomation";
+import { AutomateSchoolDialog } from "./AutomateSchoolDialog";
 import { 
   calculateCompleteness, 
   getCompletenessColor, 
@@ -115,6 +117,7 @@ export function EditSchoolDialog({
 }: EditSchoolDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const automation = useSchoolAutomation();
   const [formData, setFormData] = useState({
     name: "",
     nickname: "",
@@ -133,6 +136,27 @@ export function EditSchoolDialog({
     status: "verified",
     is_visible: true,
   });
+
+  const handleAutomationSubmit = async () => {
+    const data = await automation.fetchSchoolData(automation.schoolNameInput);
+    if (data) {
+      setFormData(prev => ({
+        ...prev,
+        name: data.name || prev.name,
+        nickname: data.nickname || prev.nickname,
+        province: data.province || prev.province,
+        website: data.website || prev.website,
+        main_rival: data.main_rival || prev.main_rival,
+        established_year: data.established_year || prev.established_year,
+        springboks_count: data.springboks_count || prev.springboks_count,
+        motto: data.motto || prev.motto,
+        primary_color: data.primary_color || prev.primary_color,
+        secondary_color: data.secondary_color || prev.secondary_color,
+        trivia_fact: data.trivia_fact || prev.trivia_fact,
+      }));
+    }
+    automation.closePrompt();
+  };
 
   useEffect(() => {
     if (school) {
@@ -238,17 +262,30 @@ export function EditSchoolDialog({
   const displayImage = formData.emblem_url || formData.jersey_url || formData.icon_url;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Edit School</DialogTitle>
-            <Badge 
-              variant={completeness.percentage >= 100 ? "default" : completeness.percentage >= 70 ? "secondary" : "destructive"}
-              className="ml-4 text-sm"
-            >
-              {completeness.score}/{completeness.maxScore}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => automation.openPrompt(formData.name)}
+                className="gap-1.5"
+              >
+                <Sparkles className="h-4 w-4" />
+                Automate
+              </Button>
+              <Badge 
+                variant={completeness.percentage >= 100 ? "default" : completeness.percentage >= 70 ? "secondary" : "destructive"}
+                className="text-sm"
+              >
+                {completeness.score}/{completeness.maxScore}
+              </Badge>
+            </div>
           </div>
           
           {/* Completeness Progress Bar */}
@@ -549,5 +586,15 @@ export function EditSchoolDialog({
         </form>
       </DialogContent>
     </Dialog>
+    
+    <AutomateSchoolDialog
+      open={automation.showPrompt}
+      onOpenChange={(open) => !open && automation.closePrompt()}
+      schoolName={automation.schoolNameInput}
+      onSchoolNameChange={automation.setSchoolNameInput}
+      onSubmit={handleAutomationSubmit}
+      isLoading={automation.isLoading}
+    />
+    </>
   );
 }
