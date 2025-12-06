@@ -123,7 +123,7 @@ export function CreateSchoolDialog({
     motto: "",
     primary_color: "#1e3a5f",
     secondary_color: "#c9a227",
-    status: "verified",
+    status: "pending",
     is_visible: true,
   });
 
