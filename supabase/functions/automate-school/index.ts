@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const WEBHOOK_URL = "https://jamesie.app.n8n.cloud/webhook-test/57f3e119-d4c1-4438-b9a2-67eeec53c463";
+const WEBHOOK_URL = "https://jamesie.app.n8n.cloud/webhook/57f3e119-d4c1-4438-b9a2-67eeec53c463";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
