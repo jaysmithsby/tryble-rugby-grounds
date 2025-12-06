@@ -28,7 +28,108 @@ interface ParsedSchoolData {
   trivia_fact?: string;
 }
 
-function parseWebhookOutput(output: string): ParsedSchoolData {
+// Extract hex color from value like "#002060 (Navy Blue)" -> "#002060"
+function extractHexColor(value: string): string | null {
+  const match = value.match(/#[A-Fa-f0-9]{6}/);
+  return match ? match[0] : null;
+}
+
+// Extract number from value like "39 (confirmed from multiple...)" -> "39"
+function extractNumber(value: string): string | null {
+  const match = value.match(/^\d+/);
+  return match ? match[0] : null;
+}
+
+// Check if value is valid (not empty, unclear, etc.)
+function isValidValue(value: unknown): boolean {
+  if (!value || typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  return v !== '' && v !== 'unclear' && !v.startsWith('unclear');
+}
+
+// Parse JSON format response (new format)
+function parseJsonResponse(item: Record<string, unknown>): ParsedSchoolData {
+  const result: ParsedSchoolData = {};
+  
+  // School Name
+  if (isValidValue(item["School Name"])) {
+    result.name = String(item["School Name"]).trim();
+  }
+  
+  // Nickname
+  if (isValidValue(item["Nickname"])) {
+    result.nickname = String(item["Nickname"]).trim();
+  }
+  
+  // Province
+  if (isValidValue(item["Province"])) {
+    const provinceValue = String(item["Province"]).trim();
+    const matchedProvince = PROVINCES.find(
+      p => p.toLowerCase() === provinceValue.toLowerCase()
+    );
+    if (matchedProvince) {
+      result.province = matchedProvince;
+    }
+  }
+  
+  // Website
+  if (isValidValue(item["Website"])) {
+    result.website = String(item["Website"]).trim();
+  }
+  
+  // Main Rival
+  if (isValidValue(item["Main Rival"])) {
+    result.main_rival = String(item["Main Rival"]).trim();
+  }
+  
+  // Established Year
+  if (isValidValue(item["Established Year"])) {
+    const yearStr = extractNumber(String(item["Established Year"])) || String(item["Established Year"]).trim();
+    const year = parseInt(yearStr);
+    if (!isNaN(year) && year > 1000 && year <= new Date().getFullYear()) {
+      result.established_year = yearStr;
+    }
+  }
+  
+  // Number of Springboks
+  if (isValidValue(item["Number of Springboks"])) {
+    const countStr = extractNumber(String(item["Number of Springboks"]));
+    if (countStr) {
+      result.springboks_count = countStr;
+    }
+  }
+  
+  // School Motto
+  if (isValidValue(item["School Motto"])) {
+    result.motto = String(item["School Motto"]).trim();
+  }
+  
+  // Primary uniform colour
+  if (isValidValue(item["Primary uniform colour (HEX)"])) {
+    const hex = extractHexColor(String(item["Primary uniform colour (HEX)"]));
+    if (hex) {
+      result.primary_color = hex;
+    }
+  }
+  
+  // Secondary uniform colour
+  if (isValidValue(item["Secondary uniform colour (HEX)"])) {
+    const hex = extractHexColor(String(item["Secondary uniform colour (HEX)"]));
+    if (hex) {
+      result.secondary_color = hex;
+    }
+  }
+  
+  // Rugby Trivia
+  if (isValidValue(item["Rugby Trivia"])) {
+    result.trivia_fact = String(item["Rugby Trivia"]).trim();
+  }
+  
+  return result;
+}
+
+// Parse text-based output format (legacy format)
+function parseTextOutput(output: string): ParsedSchoolData {
   const result: ParsedSchoolData = {};
   
   const lines = output.split('\n');
@@ -40,8 +141,7 @@ function parseWebhookOutput(output: string): ParsedSchoolData {
     const label = line.substring(0, colonIndex).trim().toLowerCase();
     const value = line.substring(colonIndex + 1).trim();
     
-    // Skip unclear or empty values
-    if (!value || value.toLowerCase() === 'unclear' || value === '') continue;
+    if (!isValidValue(value)) continue;
     
     switch (label) {
       case 'school name':
@@ -51,7 +151,6 @@ function parseWebhookOutput(output: string): ParsedSchoolData {
         result.nickname = value;
         break;
       case 'province':
-        // Match province from the list (case-insensitive)
         const matchedProvince = PROVINCES.find(
           p => p.toLowerCase() === value.toLowerCase()
         );
@@ -81,17 +180,16 @@ function parseWebhookOutput(output: string): ParsedSchoolData {
         result.motto = value;
         break;
       case 'primary uniform colour (hex)':
-        if (value.startsWith('#')) {
-          result.primary_color = value;
+        const primaryHex = extractHexColor(value);
+        if (primaryHex) {
+          result.primary_color = primaryHex;
         }
         break;
       case 'secondary uniform colour (hex)':
-        if (value.startsWith('#')) {
-          result.secondary_color = value;
+        const secondaryHex = extractHexColor(value);
+        if (secondaryHex) {
+          result.secondary_color = secondaryHex;
         }
-        break;
-      case 'tertiary colour (hex)':
-        // We don't have a tertiary color field, ignore for now
         break;
     }
   }
@@ -100,7 +198,7 @@ function parseWebhookOutput(output: string): ParsedSchoolData {
   const triviaMatch = output.match(/Rugby Trivia:\s*\n?([\s\S]*?)(?:\n\n|$)/i);
   if (triviaMatch && triviaMatch[1]) {
     const triviaText = triviaMatch[1].trim();
-    if (triviaText && triviaText.toLowerCase() !== 'unclear') {
+    if (isValidValue(triviaText)) {
       result.trivia_fact = triviaText;
     }
   }
@@ -126,9 +224,26 @@ export function useSchoolAutomation() {
         throw new Error(error.message);
       }
       
-      // Handle array response with single object
-      if (Array.isArray(data) && data.length > 0 && data[0].output) {
-        const parsed = parseWebhookOutput(data[0].output);
+      // Handle response - could be JSON format or text output format
+      if (Array.isArray(data) && data.length > 0) {
+        let parsed: ParsedSchoolData;
+        
+        // Check if it's the new JSON format (has direct keys like "School Name")
+        if (data[0]["School Name"] !== undefined) {
+          parsed = parseJsonResponse(data[0] as Record<string, unknown>);
+        } 
+        // Check if it's the legacy text output format
+        else if (data[0].output) {
+          parsed = parseTextOutput(data[0].output);
+        } 
+        else {
+          toast({
+            title: "No data found",
+            description: "No data found. Please fill manually.",
+            variant: "destructive",
+          });
+          return null;
+        }
         
         if (Object.keys(parsed).length === 0) {
           toast({
