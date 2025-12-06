@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-const WEBHOOK_URL = "https://jamesie.app.n8n.cloud/webhook-test/57f3e119-d4c1-4438-b9a2-67eeec53c463";
+import { supabase } from "@/integrations/supabase/client";
 
 const PROVINCES = [
   "Eastern Cape",
@@ -119,19 +118,13 @@ export function useSchoolAutomation() {
     setIsLoading(true);
     
     try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ school_name: schoolName }),
+      const { data, error } = await supabase.functions.invoke('automate-school', {
+        body: { school_name: schoolName },
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        throw new Error(error.message);
       }
-      
-      const data = await response.json();
       
       // Handle array response with single object
       if (Array.isArray(data) && data.length > 0 && data[0].output) {
