@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, RefreshCw } from "lucide-react";
+import { Loader2, Search, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { UserActionsDropdown } from "./UserActionsDropdown";
 import { format } from "date-fns";
+
+type SortField = 'display_name' | 'username' | 'school' | 'age_band' | 'joined' | 'type' | 'consent' | 'email' | 'sanction' | 'predictions';
+type SortDirection = 'asc' | 'desc';
 
 interface UserData {
   id: string;
@@ -47,6 +50,26 @@ export function UsersTable() {
   const [ageBandFilter, setAgeBandFilter] = useState<string>("all");
   const [consentFilter, setConsentFilter] = useState<string>("all");
   const [schools, setSchools] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<SortField>('joined');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -143,30 +166,86 @@ export function UsersTable() {
     return active?.sanction_type || null;
   };
 
-  const filteredUsers = users.filter(user => {
-    const query = searchTerm.toLowerCase();
-    const activeSanctionType = getActiveSanctionType(user.sanctions);
-    
-    const matchesSearch = 
-      searchTerm === '' ||
-      user.profile?.display_name?.toLowerCase().includes(query) ||
-      user.profile?.username?.toLowerCase().includes(query) ||
-      user.profile?.first_name?.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.profile?.school_name?.toLowerCase().includes(query) ||
-      user.profile?.account_type?.toLowerCase().includes(query) ||
-      // Search within sanctions
-      (activeSanctionType && activeSanctionType.toLowerCase().includes(query)) ||
-      // Search "banned" or "suspended"
-      (query.includes('ban') && activeSanctionType === 'ban') ||
-      (query.includes('suspend') && activeSanctionType === 'suspension');
+  const filteredAndSortedUsers = useMemo(() => {
+    const filtered = users.filter(user => {
+      const query = searchTerm.toLowerCase();
+      const activeSanctionType = getActiveSanctionType(user.sanctions);
+      
+      const matchesSearch = 
+        searchTerm === '' ||
+        user.profile?.display_name?.toLowerCase().includes(query) ||
+        user.profile?.username?.toLowerCase().includes(query) ||
+        user.profile?.first_name?.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        user.profile?.school_name?.toLowerCase().includes(query) ||
+        user.profile?.account_type?.toLowerCase().includes(query) ||
+        (activeSanctionType && activeSanctionType.toLowerCase().includes(query)) ||
+        (query.includes('ban') && activeSanctionType === 'ban') ||
+        (query.includes('suspend') && activeSanctionType === 'suspension');
 
-    const matchesSchool = schoolFilter === 'all' || user.profile?.school_name === schoolFilter;
-    const matchesAgeBand = ageBandFilter === 'all' || user.profile?.age_band === ageBandFilter;
-    const matchesConsent = consentFilter === 'all' || user.profile?.consent_status === consentFilter;
+      const matchesSchool = schoolFilter === 'all' || user.profile?.school_name === schoolFilter;
+      const matchesAgeBand = ageBandFilter === 'all' || user.profile?.age_band === ageBandFilter;
+      const matchesConsent = consentFilter === 'all' || user.profile?.consent_status === consentFilter;
 
-    return matchesSearch && matchesSchool && matchesAgeBand && matchesConsent;
-  });
+      return matchesSearch && matchesSchool && matchesAgeBand && matchesConsent;
+    });
+
+    // Sort results
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'display_name':
+          const nameA = a.profile?.display_name || a.profile?.first_name || '';
+          const nameB = b.profile?.display_name || b.profile?.first_name || '';
+          comparison = nameA.localeCompare(nameB);
+          break;
+        case 'username':
+          const userA = a.profile?.username || '';
+          const userB = b.profile?.username || '';
+          comparison = userA.localeCompare(userB);
+          break;
+        case 'school':
+          const schoolA = a.profile?.school_name || '';
+          const schoolB = b.profile?.school_name || '';
+          comparison = schoolA.localeCompare(schoolB);
+          break;
+        case 'age_band':
+          const ageA = a.profile?.age_band || '';
+          const ageB = b.profile?.age_band || '';
+          comparison = ageA.localeCompare(ageB);
+          break;
+        case 'joined':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case 'type':
+          const typeA = a.profile?.account_type || '';
+          const typeB = b.profile?.account_type || '';
+          comparison = typeA.localeCompare(typeB);
+          break;
+        case 'consent':
+          const consentA = a.profile?.consent_status || '';
+          const consentB = b.profile?.consent_status || '';
+          comparison = consentA.localeCompare(consentB);
+          break;
+        case 'email':
+          comparison = a.email.localeCompare(b.email);
+          break;
+        case 'sanction':
+          const sanctionA = getActiveSanctionType(a.sanctions) || '';
+          const sanctionB = getActiveSanctionType(b.sanctions) || '';
+          comparison = sanctionA.localeCompare(sanctionB);
+          break;
+        case 'predictions':
+          const predA = a.scores?.predictions_made || 0;
+          const predB = b.scores?.predictions_made || 0;
+          comparison = predA - predB;
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [users, searchTerm, schoolFilter, ageBandFilter, consentFilter, sortField, sortDirection]);
 
   if (loading) {
     return (
@@ -232,21 +311,101 @@ export function UsersTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Display Name</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>School</TableHead>
-              <TableHead>Age Band</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Consent</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Sanction</TableHead>
-              <TableHead>Activity</TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('display_name')}
+              >
+                <div className="flex items-center">
+                  Display Name
+                  {getSortIcon('display_name')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('username')}
+              >
+                <div className="flex items-center">
+                  Username
+                  {getSortIcon('username')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('school')}
+              >
+                <div className="flex items-center">
+                  School
+                  {getSortIcon('school')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('age_band')}
+              >
+                <div className="flex items-center">
+                  Age Band
+                  {getSortIcon('age_band')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('joined')}
+              >
+                <div className="flex items-center">
+                  Joined
+                  {getSortIcon('joined')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('type')}
+              >
+                <div className="flex items-center">
+                  Type
+                  {getSortIcon('type')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('consent')}
+              >
+                <div className="flex items-center">
+                  Consent
+                  {getSortIcon('consent')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('email')}
+              >
+                <div className="flex items-center">
+                  Email
+                  {getSortIcon('email')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('sanction')}
+              >
+                <div className="flex items-center">
+                  Sanction
+                  {getSortIcon('sanction')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('predictions')}
+              >
+                <div className="flex items-center">
+                  Activity
+                  {getSortIcon('predictions')}
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length === 0 ? (
+            {filteredAndSortedUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -275,7 +434,7 @@ export function UsersTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map(user => (
+              filteredAndSortedUsers.map(user => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
                     {user.profile?.display_name || user.profile?.first_name || 'N/A'}
@@ -336,7 +495,7 @@ export function UsersTable() {
       </div>
 
       <div className="text-sm text-muted-foreground">
-        Showing {filteredUsers.length} of {users.length} users
+        Showing {filteredAndSortedUsers.length} of {users.length} users
       </div>
     </div>
   );
