@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil, Trash2, Loader2, Search, RefreshCw } from "lucide-react";
+import { Pencil, Trash2, Loader2, Search, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,9 @@ import {
   getCompletenessBadgeVariant,
   FIELD_LABELS,
 } from "@/lib/schoolCompleteness";
+
+type SortField = 'name' | 'province' | 'completeness' | 'established' | 'rival' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 interface School {
   id: string;
@@ -80,9 +83,28 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [completenessFilter, setCompletenessFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"name" | "completeness-asc" | "completeness-desc">("name");
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const debouncedSearch = useDebounce(searchQuery, 300);
   const { toast } = useToast();
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
 
   useEffect(() => {
     fetchSchools();
@@ -184,23 +206,48 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
       return matchesSearch && matchesProvince && matchesStatus && matchesCompleteness;
     });
 
-    // Sort results
+    // Sort results based on sortField and sortDirection
     return filtered.sort((a, b) => {
-      if (sortBy === "completeness-asc") {
-        return a.completeness.percentage - b.completeness.percentage;
-      } else if (sortBy === "completeness-desc") {
-        return b.completeness.percentage - a.completeness.percentage;
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'province':
+          const provA = a.province || '';
+          const provB = b.province || '';
+          comparison = provA.localeCompare(provB);
+          break;
+        case 'completeness':
+          comparison = a.completeness.percentage - b.completeness.percentage;
+          break;
+        case 'established':
+          const yearA = a.established_year || 0;
+          const yearB = b.established_year || 0;
+          comparison = yearA - yearB;
+          break;
+        case 'rival':
+          const rivalA = a.main_rival || '';
+          const rivalB = b.main_rival || '';
+          comparison = rivalA.localeCompare(rivalB);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
       }
-      return a.name.localeCompare(b.name);
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter, sortBy]);
+  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter, sortField, sortDirection]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setProvinceFilter("all");
     setStatusFilter("all");
     setCompletenessFilter("all");
-    setSortBy("name");
+    setSortField("name");
+    setSortDirection("asc");
   };
 
   if (loading) {
@@ -258,16 +305,6 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
               <SelectItem value="complete">Complete (100%)</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Sort: Name (A-Z)</SelectItem>
-              <SelectItem value="completeness-asc">Sort: Completeness ↑</SelectItem>
-              <SelectItem value="completeness-desc">Sort: Completeness ↓</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -275,12 +312,60 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>School Name</TableHead>
-              <TableHead>Province</TableHead>
-              <TableHead>Completeness</TableHead>
-              <TableHead>Established</TableHead>
-              <TableHead>Main Rival</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center">
+                  School Name
+                  {getSortIcon('name')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('province')}
+              >
+                <div className="flex items-center">
+                  Province
+                  {getSortIcon('province')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('completeness')}
+              >
+                <div className="flex items-center">
+                  Completeness
+                  {getSortIcon('completeness')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('established')}
+              >
+                <div className="flex items-center">
+                  Established
+                  {getSortIcon('established')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('rival')}
+              >
+                <div className="flex items-center">
+                  Main Rival
+                  {getSortIcon('rival')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('status')}
+              >
+                <div className="flex items-center">
+                  Status
+                  {getSortIcon('status')}
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
