@@ -26,7 +26,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, Search } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -247,7 +247,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
         away_school_id: awaySchoolId,
         match_date: matchDate.toISOString(),
         venue: venue || "TBD",
-        tournament_id: tournamentId || null,
+        tournament_id: tournamentId && tournamentId !== "none" ? tournamentId : null,
         home_score: homeScore ? parseInt(homeScore) : null,
         away_score: awayScore ? parseInt(awayScore) : null,
         status,
@@ -479,7 +479,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
                   <SelectValue placeholder="Select tournament (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {tournaments.map((tournament) => (
                     <SelectItem key={tournament.id} value={tournament.id}>
                       {tournament.name}
