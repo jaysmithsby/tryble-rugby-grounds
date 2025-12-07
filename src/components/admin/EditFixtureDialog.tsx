@@ -104,10 +104,8 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
     }
   };
 
-  if (!fixture) return null;
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open && !!fixture} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Edit Fixture</DialogTitle>
