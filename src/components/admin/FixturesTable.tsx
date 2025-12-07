@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -22,6 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+type SortField = 'date' | 'home' | 'away' | 'venue' | 'tournament' | 'status' | 'visible';
+type SortDirection = 'asc' | 'desc';
 
 interface FixturesTableProps {
   onEdit: (fixture: any) => void;
@@ -36,6 +39,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   useEffect(() => {
@@ -122,8 +127,26 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   };
 
-  const filteredFixtures = useMemo(() => {
-    return fixtures.filter((fixture) => {
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  const filteredAndSortedFixtures = useMemo(() => {
+    const filtered = fixtures.filter((fixture) => {
       const homeSchool = schools.get(fixture.home_school_id) || '';
       const awaySchool = schools.get(fixture.away_school_id) || '';
       const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
@@ -146,7 +169,44 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
       return matchesSearch && matchesStatus && matchesYear;
     });
-  }, [fixtures, schools, tournaments, debouncedSearch, statusFilter, yearFilter]);
+
+    // Sort the filtered results
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'date':
+          comparison = new Date(a.match_date).getTime() - new Date(b.match_date).getTime();
+          break;
+        case 'home':
+          const homeA = schools.get(a.home_school_id) || '';
+          const homeB = schools.get(b.home_school_id) || '';
+          comparison = homeA.localeCompare(homeB);
+          break;
+        case 'away':
+          const awayA = schools.get(a.away_school_id) || '';
+          const awayB = schools.get(b.away_school_id) || '';
+          comparison = awayA.localeCompare(awayB);
+          break;
+        case 'venue':
+          comparison = a.venue.localeCompare(b.venue);
+          break;
+        case 'tournament':
+          const tournA = a.tournament_id ? tournaments.get(a.tournament_id) || '' : '';
+          const tournB = b.tournament_id ? tournaments.get(b.tournament_id) || '' : '';
+          comparison = tournA.localeCompare(tournB);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case 'visible':
+          comparison = (a.is_visible === b.is_visible) ? 0 : a.is_visible ? -1 : 1;
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [fixtures, schools, tournaments, debouncedSearch, statusFilter, yearFilter, sortField, sortDirection]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -215,26 +275,82 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
       {/* Results count */}
       <div className="text-sm text-muted-foreground">
-        Showing {filteredFixtures.length} of {fixtures.length} fixtures
+        Showing {filteredAndSortedFixtures.length} of {fixtures.length} fixtures
       </div>
 
       <div className="rounded-lg border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Date</TableHead>
-              <TableHead>Home</TableHead>
-              <TableHead>Away</TableHead>
-              <TableHead>Venue</TableHead>
-              <TableHead>Tournament</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('date')}
+              >
+                <div className="flex items-center">
+                  Date
+                  {getSortIcon('date')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('home')}
+              >
+                <div className="flex items-center">
+                  Home
+                  {getSortIcon('home')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('away')}
+              >
+                <div className="flex items-center">
+                  Away
+                  {getSortIcon('away')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('venue')}
+              >
+                <div className="flex items-center">
+                  Venue
+                  {getSortIcon('venue')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('tournament')}
+              >
+                <div className="flex items-center">
+                  Tournament
+                  {getSortIcon('tournament')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('status')}
+              >
+                <div className="flex items-center">
+                  Status
+                  {getSortIcon('status')}
+                </div>
+              </TableHead>
               <TableHead>Score</TableHead>
-              <TableHead>Visible</TableHead>
+              <TableHead 
+                className="cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('visible')}
+              >
+                <div className="flex items-center">
+                  Visible
+                  {getSortIcon('visible')}
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredFixtures.length === 0 ? (
+            {filteredAndSortedFixtures.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -258,7 +374,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredFixtures.map((fixture) => {
+              filteredAndSortedFixtures.map((fixture) => {
                 const homeSchool = schools.get(fixture.home_school_id) || 'Unknown School';
                 const awaySchool = schools.get(fixture.away_school_id) || 'Unknown School';
                 const tournamentName = fixture.tournament_id 
