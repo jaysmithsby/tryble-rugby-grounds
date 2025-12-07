@@ -26,7 +26,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, ExternalLink } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -80,6 +80,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
   const [awayScore, setAwayScore] = useState("");
   const [status, setStatus] = useState("upcoming");
   const [isVisible, setIsVisible] = useState(true);
+  const [sourceUrl, setSourceUrl] = useState("");
   
   // Combobox state
   const [homeSchoolOpen, setHomeSchoolOpen] = useState(false);
@@ -211,6 +212,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
     setAwayScore("");
     setStatus("upcoming");
     setIsVisible(true);
+    setSourceUrl("");
     setHomeSearchQuery("");
     setAwaySearchQuery("");
     setShowInlineSchool(null);
@@ -252,6 +254,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
         away_score: awayScore ? parseInt(awayScore) : null,
         status,
         is_visible: isVisible,
+        source_url: sourceUrl || null,
         season: new Date().getFullYear().toString(),
         year: new Date().getFullYear(),
         sport: "Rugby",
@@ -529,6 +532,34 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
                   <SelectItem value="holding">Holding</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Source URL */}
+            <div className="space-y-2">
+              <Label htmlFor="sourceUrl">Source URL (Optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="sourceUrl"
+                  type="url"
+                  value={sourceUrl}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                  placeholder="https://example.com/fixture-info"
+                  className="flex-1"
+                />
+                {sourceUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    asChild
+                  >
+                    <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Where did you get this fixture information?</p>
             </div>
 
             {/* Visible Toggle */}

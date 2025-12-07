@@ -55,6 +55,7 @@ export type Database = {
           match_date: string
           round_name: string | null
           season: string
+          source_url: string | null
           sport: string
           status: string
           tournament_id: string | null
@@ -75,6 +76,7 @@ export type Database = {
           match_date: string
           round_name?: string | null
           season: string
+          source_url?: string | null
           sport?: string
           status?: string
           tournament_id?: string | null
@@ -95,6 +97,7 @@ export type Database = {
           match_date?: string
           round_name?: string | null
           season?: string
+          source_url?: string | null
           sport?: string
           status?: string
           tournament_id?: string | null

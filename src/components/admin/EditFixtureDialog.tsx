@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 
 interface EditFixtureDialogProps {
   open: boolean;
@@ -36,6 +36,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
     away_score: null as number | null,
     match_date: "",
     tournament_id: "",
+    source_url: "",
   });
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
         away_score: fixture.away_score,
         match_date: fixture.match_date?.substring(0, 16) || "",
         tournament_id: fixture.tournament_id || "",
+        source_url: fixture.source_url || "",
       });
     }
   }, [fixture, open]);
@@ -77,6 +79,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
       const updateData = {
         ...formData,
         tournament_id: formData.tournament_id || null,
+        source_url: formData.source_url || null,
       };
       const { error } = await supabase
         .from('fixtures')
@@ -200,6 +203,33 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="source_url">Source URL (Optional)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="source_url"
+                type="url"
+                value={formData.source_url}
+                onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
+                placeholder="https://example.com/fixture-info"
+                className="flex-1"
+              />
+              {formData.source_url && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  asChild
+                >
+                  <a href={formData.source_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Where did you get this fixture information?</p>
           </div>
 
           <div className="flex justify-end gap-2">
