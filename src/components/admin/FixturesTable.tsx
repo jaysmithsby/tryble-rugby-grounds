@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -337,6 +337,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                 </div>
               </TableHead>
               <TableHead>Score</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead 
                 className="cursor-pointer select-none hover:bg-muted/50"
                 onClick={() => handleSort('visible')}
@@ -352,7 +353,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           <TableBody>
             {filteredAndSortedFixtures.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
+                <TableCell colSpan={10} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <p>
                       {fixtures.length === 0 
@@ -407,6 +408,21 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                     {fixture.home_score !== null && fixture.away_score !== null
                       ? `${fixture.home_score} - ${fixture.away_score}`
                       : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {fixture.source_url ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                      >
+                        <a href={fixture.source_url} target="_blank" rel="noopener noreferrer" title={fixture.source_url}>
+                          <ExternalLink className="h-4 w-4 text-primary" />
+                        </a>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Button
