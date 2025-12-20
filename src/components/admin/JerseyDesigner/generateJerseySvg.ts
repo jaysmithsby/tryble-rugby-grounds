@@ -2,70 +2,86 @@ import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig, SleeveBandConfig } f
 
 /**
  * Generates a standalone SVG string from a JerseyConfig
- * This SVG can be stored and used across the app (school profiles, fixture cards, leaderboards)
- * Design: Clean, flat vector with polo collar, angled sleeves, subtle gradients, transparent background
+ * Design: Clean, flat vector rugby jersey icon matching reference style
+ * - Boxy shape with rounded bottom corners
+ * - Wide angled sleeves (~10-15° downward)
+ * - Polo collar with raised placket or soft V-neck
+ * - Horizontal stripes that stay below shoulder line
+ * - Horizontal sleeve bands wrapping around sleeve edge
  */
 export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG): string {
   const sortedStripes = [...(config.stripes || [])].sort((a, b) => a.order - b.order);
   
-  // Jersey body path - classic rugby shape with rounded corners and wider angled sleeves
+  // Main jersey body - boxy with rounded bottom corners
+  // Matches reference: straight sides, rounded bottom, no torso tapering
   const jerseyBodyPath = `
-    M 60 55
-    L 100 45
-    L 140 55
-    L 180 70
-    L 180 100
-    L 155 95
-    L 155 165
-    Q 155 175 145 175
-    L 55 175
-    Q 45 175 45 165
-    L 45 95
-    L 20 100
-    L 20 70
+    M 50 62
+    L 50 168
+    Q 50 178 60 178
+    L 140 178
+    Q 150 178 150 168
+    L 150 62
+    L 100 50
     Z
   `;
 
-  // Left sleeve path - wider, boxy with slight angle
+  // Left sleeve - wide, boxy, angled ~12° downward
+  // Starts at shoulder line (y=62), extends outward and down
   const leftSleevePath = `
-    M 20 70
-    L 60 55
-    L 60 75
-    L 45 95
-    L 20 100
+    M 50 62
+    L 100 50
+    L 100 55
+    L 58 65
+    L 20 80
+    L 20 110
+    Q 20 115 25 115
+    L 50 108
     Z
   `;
 
-  // Right sleeve path - wider, boxy with slight angle
+  // Right sleeve - mirror of left
   const rightSleevePath = `
-    M 180 70
-    L 140 55
-    L 140 75
-    L 155 95
-    L 180 100
+    M 150 62
+    L 100 50
+    L 100 55
+    L 142 65
+    L 180 80
+    L 180 110
+    Q 180 115 175 115
+    L 150 108
     Z
   `;
 
-  // Generate stripes
+  // Shoulder seam line Y position - stripes must stay below this
+  const shoulderLineY = 65;
+
+  // Generate horizontal stripes (below shoulder seam)
   const renderStripes = (): string => {
     if (!config.stripes || config.stripes.length === 0) return "";
     
     if (config.layout === "horizontal_stripes") {
-      const bodyHeight = 120;
-      const stripeHeight = bodyHeight / (sortedStripes.length * 2 + 1);
+      // Stripes start below shoulder seam, end at hem
+      const stripeAreaTop = shoulderLineY + 5;
+      const stripeAreaBottom = 175;
+      const stripeAreaHeight = stripeAreaBottom - stripeAreaTop;
+      
+      // Calculate stripe height and spacing
+      const totalStripes = sortedStripes.length;
+      const stripeHeight = stripeAreaHeight / (totalStripes * 2 + 1);
       
       return sortedStripes.map((stripe, index) => {
-        const y = 55 + stripeHeight + (index * stripeHeight * 2);
+        const y = stripeAreaTop + stripeHeight + (index * stripeHeight * 2);
+        // Full width rect, will be clipped to jersey shape
         return `<rect x="0" y="${y}" width="200" height="${stripeHeight}" fill="${stripe.color}"/>`;
       }).join("");
     }
     
     if (config.layout === "vertical_stripes") {
-      const bodyWidth = 110;
+      const bodyWidth = 100; // From x=50 to x=150
       const stripeWidth = bodyWidth / (sortedStripes.length * 2 + 1);
       
       return sortedStripes.map((stripe, index) => {
-        const x = 45 + stripeWidth + (index * stripeWidth * 2);
+        const x = 50 + stripeWidth + (index * stripeWidth * 2);
         return `<rect x="${x}" y="0" width="${stripeWidth}" height="200" fill="${stripe.color}"/>`;
       }).join("");
     }
@@ -73,106 +89,132 @@ export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG):
     return "";
   };
 
-  // Get sleeve bands - use new sleeveBands array or fallback to legacy sleeveTrimColor
+  // Get sleeve bands configuration
   const getSleeveBands = (): SleeveBandConfig[] => {
     if (config.sleeveBands && config.sleeveBands.length > 0) {
       return [...config.sleeveBands].sort((a, b) => a.order - b.order);
     }
-    // Fallback for legacy configs
     if (config.sleeveTrimColor && config.sleeveTrimColor !== config.baseColor) {
       return [{ color: config.sleeveTrimColor, order: 0 }];
     }
     return [];
   };
 
-  // Render multiple sleeve bands (up to 3) - horizontal bands across sleeves
+  // Render horizontal sleeve bands - wrapping around sleeve edge
   const renderSleeveBands = (): string => {
     const bands = getSleeveBands();
     if (bands.length === 0) return "";
 
-    const bandHeight = 6;
-    const bandGap = 3;
-    const startY = 72;
+    const bandHeight = 8;
+    const bandGap = 2;
+    // Start from bottom of sleeve and work up
+    const sleeveBottomY = 108;
 
     return bands.map((band, index) => {
-      const yOffset = index * (bandHeight + bandGap);
-      const y = startY + yOffset;
-      // Left sleeve - horizontal band following sleeve angle
-      // Right sleeve - horizontal band following sleeve angle
-      return `
-        <path d="M 20 ${y + 15 + yOffset * 0.3} L 58 ${y} L 58 ${y + bandHeight} L 20 ${y + 15 + bandHeight + yOffset * 0.3} Z" fill="${band.color}"/>
-        <path d="M 180 ${y + 15 + yOffset * 0.3} L 142 ${y} L 142 ${y + bandHeight} L 180 ${y + 15 + bandHeight + yOffset * 0.3} Z" fill="${band.color}"/>
+      const offset = index * (bandHeight + bandGap);
+      const bottomY = sleeveBottomY - offset;
+      const topY = bottomY - bandHeight;
+      
+      // Left sleeve band - horizontal across the sleeve
+      // Follows the sleeve angle
+      const leftBand = `
+        M 20 ${94 - offset - bandHeight * 0.3} 
+        L 50 ${topY - 6} 
+        L 50 ${bottomY - 6}
+        L 20 ${94 - offset + bandHeight * 0.7}
+        Z
       `;
+      
+      // Right sleeve band - mirror
+      const rightBand = `
+        M 180 ${94 - offset - bandHeight * 0.3}
+        L 150 ${topY - 6}
+        L 150 ${bottomY - 6}
+        L 180 ${94 - offset + bandHeight * 0.7}
+        Z
+      `;
+      
+      return `<path d="${leftBand}" fill="${band.color}"/><path d="${rightBand}" fill="${band.color}"/>`;
     }).join("");
   };
 
-  // Polo collar with placket
+  // Polo collar - raised with clear placket, matching reference exactly
   const renderPoloCollar = (): string => `
-    <!-- Collar back shadow -->
-    <path d="M 78 48 L 100 42 L 122 48 L 122 52 L 100 46 L 78 52 Z" fill="rgba(0,0,0,0.15)"/>
+    <!-- Collar back (inner neck) -->
+    <path d="M 80 52 L 100 46 L 120 52 L 118 56 L 100 51 L 82 56 Z" fill="rgba(0,0,0,0.12)"/>
     
-    <!-- Left collar wing -->
-    <path d="M 78 45 L 96 48 L 96 58 L 87 66 L 78 54 Z" fill="${config.collarColor}"/>
+    <!-- Left collar wing - raised, angled outward -->
+    <path d="M 72 55 L 95 52 L 95 60 L 84 70 L 72 62 Z" fill="${config.collarColor}"/>
+    <!-- Left collar shadow -->
+    <path d="M 84 70 L 95 60 L 95 62 L 86 71 Z" fill="rgba(0,0,0,0.08)"/>
     
-    <!-- Right collar wing -->
-    <path d="M 122 45 L 104 48 L 104 58 L 113 66 L 122 54 Z" fill="${config.collarColor}"/>
+    <!-- Right collar wing - raised, angled outward -->
+    <path d="M 128 55 L 105 52 L 105 60 L 116 70 L 128 62 Z" fill="${config.collarColor}"/>
+    <!-- Right collar shadow -->
+    <path d="M 116 70 L 105 60 L 105 62 L 114 71 Z" fill="rgba(0,0,0,0.08)"/>
     
-    <!-- Collar inner shadows -->
-    <path d="M 87 66 L 96 58 L 96 68 L 91 73 Z" fill="rgba(0,0,0,0.1)"/>
-    <path d="M 113 66 L 104 58 L 104 68 L 109 73 Z" fill="rgba(0,0,0,0.1)"/>
-    
-    <!-- Placket -->
-    <path d="M 96 58 L 100 55 L 104 58 L 104 78 L 100 83 L 96 78 Z" fill="${config.collarColor}"/>
-    <path d="M 100 55 L 104 58 L 104 78 L 100 83 Z" fill="rgba(0,0,0,0.08)"/>
-    <path d="M 97.5 61 L 100 59 L 102.5 61 L 102.5 75 L 100 78 L 97.5 75 Z" fill="${config.baseColor}" opacity="0.4"/>
+    <!-- Placket - vertical strip down center -->
+    <path d="M 95 60 L 100 56 L 105 60 L 105 82 L 100 86 L 95 82 Z" fill="${config.collarColor}"/>
+    <!-- Placket right shadow -->
+    <path d="M 100 56 L 105 60 L 105 82 L 100 86 Z" fill="rgba(0,0,0,0.06)"/>
+    <!-- Placket inner (neck opening) -->
+    <path d="M 97 62 L 100 59 L 103 62 L 103 78 L 100 82 L 97 78 Z" fill="rgba(0,0,0,0.15)"/>
   `;
 
-  // V-neck collar
+  // V-neck collar - soft wrap, thicker, matching MHS reference
   const renderVNeckCollar = (): string => `
-    <!-- Collar rim -->
-    <path d="M 73 50 L 100 44 L 127 50 L 123 55 L 100 50 L 77 55 Z" fill="${config.collarColor}"/>
+    <!-- Collar rim across shoulders -->
+    <path d="M 68 56 L 100 48 L 132 56 L 128 62 L 100 55 L 72 62 Z" fill="${config.collarColor}"/>
+    <!-- Collar rim shadow -->
+    <path d="M 100 48 L 132 56 L 128 62 L 100 55 Z" fill="rgba(0,0,0,0.05)"/>
     
-    <!-- V-neck opening -->
-    <path d="M 86 55 L 100 52 L 114 55 L 100 82 Z" fill="${config.collarColor}"/>
-    <path d="M 100 52 L 114 55 L 100 82 Z" fill="rgba(0,0,0,0.1)"/>
-    <path d="M 91 59 L 100 56 L 109 59 L 100 76 Z" fill="rgba(0,0,0,0.2)"/>
+    <!-- V-neck opening - soft V shape -->
+    <path d="M 82 62 L 100 56 L 118 62 L 100 92 Z" fill="${config.collarColor}"/>
+    <!-- V-neck inner shadow -->
+    <path d="M 100 56 L 118 62 L 100 92 Z" fill="rgba(0,0,0,0.08)"/>
+    
+    <!-- Inner neck darkness -->
+    <path d="M 88 66 L 100 61 L 112 66 L 100 85 Z" fill="rgba(0,0,0,0.18)"/>
+    <!-- Deeper inner shadow -->
+    <path d="M 93 70 L 100 66 L 107 70 L 100 80 Z" fill="rgba(0,0,0,0.12)"/>
   `;
 
   const collarSvg = config.collarStyle === "polo" ? renderPoloCollar() : renderVNeckCollar();
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
   <defs>
-    <!-- Jersey body clip path -->
+    <!-- Jersey clip path including body and sleeves -->
     <clipPath id="jersey-clip">
       <path d="${jerseyBodyPath}"/>
       <path d="${leftSleevePath}"/>
       <path d="${rightSleevePath}"/>
     </clipPath>
     
-    <!-- Top-left lighting gradient -->
+    <!-- Subtle top-left to bottom-right gradient for depth -->
     <linearGradient id="body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
-      <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.08)"/>
+      <stop offset="0%" stop-color="rgba(255,255,255,0.1)"/>
+      <stop offset="40%" stop-color="rgba(255,255,255,0.02)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.06)"/>
     </linearGradient>
     
-    <!-- Inner shadow for depth -->
-    <linearGradient id="inner-shadow" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="rgba(0,0,0,0.05)"/>
-      <stop offset="10%" stop-color="rgba(0,0,0,0)"/>
-      <stop offset="90%" stop-color="rgba(0,0,0,0)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.1)"/>
+    <!-- Vertical shading for hem depth -->
+    <linearGradient id="hem-shadow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="85%" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.08)"/>
     </linearGradient>
   </defs>
   
-  <!-- Base jersey body -->
+  <!-- Jersey body base -->
   <path d="${jerseyBodyPath}" fill="${config.baseColor}"/>
   
-  <!-- Sleeves -->
+  <!-- Left sleeve base -->
   <path d="${leftSleevePath}" fill="${config.baseColor}"/>
+  
+  <!-- Right sleeve base -->
   <path d="${rightSleevePath}" fill="${config.baseColor}"/>
   
-  <!-- Stripes clipped to jersey -->
+  <!-- Stripes clipped to jersey shape -->
   <g clip-path="url(#jersey-clip)">
     ${renderStripes()}
   </g>
@@ -180,23 +222,20 @@ export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG):
   <!-- Sleeve bands -->
   ${renderSleeveBands()}
   
-  <!-- Top-left lighting gradient overlay -->
+  <!-- Gradient overlay for subtle depth -->
   <path d="${jerseyBodyPath}" fill="url(#body-gradient)"/>
   <path d="${leftSleevePath}" fill="url(#body-gradient)"/>
   <path d="${rightSleevePath}" fill="url(#body-gradient)"/>
   
-  <!-- Inner shadow for depth -->
-  <path d="${jerseyBodyPath}" fill="url(#inner-shadow)"/>
+  <!-- Hem shadow -->
+  <path d="${jerseyBodyPath}" fill="url(#hem-shadow)"/>
   
   <!-- Collar -->
   ${collarSvg}
   
-  <!-- Hem shadow -->
-  <path d="M 55 170 Q 100 175 145 170 L 145 175 Q 100 180 55 175 Z" fill="rgba(0,0,0,0.08)"/>
-  
-  <!-- Sleeve edge shadows for depth -->
-  <path d="M 20 70 L 20 100 L 22 99 L 22 71 Z" fill="rgba(0,0,0,0.06)"/>
-  <path d="M 180 70 L 180 100 L 178 99 L 178 71 Z" fill="rgba(0,0,0,0.06)"/>
+  <!-- Subtle sleeve edge shadows -->
+  <path d="M 20 80 L 22 81 L 22 108 L 20 110 Z" fill="rgba(0,0,0,0.04)"/>
+  <path d="M 180 80 L 178 81 L 178 108 L 180 110 Z" fill="rgba(0,0,0,0.04)"/>
 </svg>`;
 }
 
