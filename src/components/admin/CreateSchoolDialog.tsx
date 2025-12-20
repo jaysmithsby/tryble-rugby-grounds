@@ -39,7 +39,7 @@ import {
   type SchoolFieldWeights 
 } from "@/lib/schoolCompleteness";
 import { cn } from "@/lib/utils";
-import { JerseyDesigner, JerseyConfig } from "./JerseyDesigner";
+import { JerseyDesigner, JerseyConfig, generateJerseySvg, svgToBlob } from "./JerseyDesigner";
 
 // Moved outside component to prevent recreation on every render
 interface FieldWrapperProps {
@@ -222,6 +222,32 @@ export function CreateSchoolDialog({
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-');
 
+      let jerseyUrl = formData.jersey_url;
+
+      // If there's a custom jersey config, generate and upload SVG
+      if (formData.jersey_config) {
+        const svgString = generateJerseySvg(formData.jersey_config);
+        const svgBlob = svgToBlob(svgString);
+        const filename = `${slug}-${Date.now()}.svg`;
+
+        // Upload to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('custom-jerseys')
+          .upload(filename, svgBlob, {
+            contentType: 'image/svg+xml',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading jersey SVG:', uploadError);
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('custom-jerseys')
+            .getPublicUrl(filename);
+          jerseyUrl = urlData.publicUrl;
+        }
+      }
+
       const { error } = await supabase.from("schools").insert({
         name: formData.name,
         slug: slug,
@@ -229,9 +255,9 @@ export function CreateSchoolDialog({
         province: formData.province || null,
         website: formData.website || null,
         emblem_url: formData.emblem_url || null,
-        jersey_url: formData.jersey_url || null,
+        jersey_url: jerseyUrl || null,
         jersey_config: formData.jersey_config as any,
-        icon_url: formData.emblem_url || formData.jersey_url || null,
+        icon_url: formData.emblem_url || jerseyUrl || null,
         main_rival: formData.main_rival || null,
         established_year: formData.established_year
           ? parseInt(formData.established_year)
