@@ -39,6 +39,7 @@ import {
   type SchoolFieldWeights 
 } from "@/lib/schoolCompleteness";
 import { cn } from "@/lib/utils";
+import { JerseyDesigner, JerseyConfig } from "./JerseyDesigner";
 
 // Moved outside component to prevent recreation on every render
 interface FieldWrapperProps {
@@ -116,6 +117,7 @@ export function CreateSchoolDialog({
     website: "",
     emblem_url: "",
     jersey_url: "",
+    jersey_config: null as JerseyConfig | null,
     main_rival: "",
     established_year: "",
     springboks_count: "",
@@ -170,6 +172,7 @@ export function CreateSchoolDialog({
       website: "",
       emblem_url: "",
       jersey_url: "",
+      jersey_config: null,
       main_rival: "",
       established_year: "",
       springboks_count: "",
@@ -227,6 +230,7 @@ export function CreateSchoolDialog({
         website: formData.website || null,
         emblem_url: formData.emblem_url || null,
         jersey_url: formData.jersey_url || null,
+        jersey_config: formData.jersey_config as any,
         icon_url: formData.emblem_url || formData.jersey_url || null,
         main_rival: formData.main_rival || null,
         established_year: formData.established_year
@@ -503,8 +507,18 @@ export function CreateSchoolDialog({
                     <span className="text-xs text-muted-foreground">No image</span>
                   )}
                 </div>
-              </div>
             </div>
+            
+            {/* Jersey Designer */}
+            <div className="col-span-2 mt-4">
+              <JerseyDesigner
+                value={formData.jersey_config}
+                onChange={(jersey_config) => setFormData({ ...formData, jersey_config })}
+                primaryColor={formData.primary_color}
+                secondaryColor={formData.secondary_color}
+              />
+            </div>
+          </div>
           </div>
 
           {/* School Branding Section */}
