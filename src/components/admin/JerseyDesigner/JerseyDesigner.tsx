@@ -19,6 +19,7 @@ import {
 import { JerseyPreview } from "./JerseyPreview";
 import { ColorPicker } from "./ColorPicker";
 import { StripeEditor } from "./StripeEditor";
+import { SleeveBandEditor } from "./SleeveBandEditor";
 import { cn } from "@/lib/utils";
 
 interface JerseyDesignerProps {
@@ -36,18 +37,28 @@ export function JerseyDesigner({
 }: JerseyDesignerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [config, setConfig] = useState<JerseyConfig>(() => {
-    if (value) return value;
+    if (value) {
+      // Ensure sleeveBands exists for legacy configs
+      return {
+        ...value,
+        sleeveBands: value.sleeveBands || (value.sleeveTrimColor ? [{ color: value.sleeveTrimColor, order: 0 }] : []),
+      };
+    }
     return {
       ...DEFAULT_JERSEY_CONFIG,
       baseColor: primaryColor || DEFAULT_JERSEY_CONFIG.baseColor,
       sleeveTrimColor: secondaryColor || DEFAULT_JERSEY_CONFIG.sleeveTrimColor,
+      sleeveBands: secondaryColor ? [{ color: secondaryColor, order: 0 }] : DEFAULT_JERSEY_CONFIG.sleeveBands,
     };
   });
 
   // Sync with external value changes
   useEffect(() => {
     if (value) {
-      setConfig(value);
+      setConfig({
+        ...value,
+        sleeveBands: value.sleeveBands || (value.sleeveTrimColor ? [{ color: value.sleeveTrimColor, order: 0 }] : []),
+      });
     }
   }, [value]);
 
@@ -58,6 +69,7 @@ export function JerseyDesigner({
         ...prev,
         baseColor: primaryColor || prev.baseColor,
         sleeveTrimColor: secondaryColor || prev.sleeveTrimColor,
+        sleeveBands: secondaryColor ? [{ color: secondaryColor, order: 0 }] : prev.sleeveBands,
       }));
     }
   }, [primaryColor, secondaryColor, value]);
@@ -94,6 +106,7 @@ export function JerseyDesigner({
       ...DEFAULT_JERSEY_CONFIG,
       baseColor: primaryColor || DEFAULT_JERSEY_CONFIG.baseColor,
       sleeveTrimColor: secondaryColor || DEFAULT_JERSEY_CONFIG.sleeveTrimColor,
+      sleeveBands: secondaryColor ? [{ color: secondaryColor, order: 0 }] : DEFAULT_JERSEY_CONFIG.sleeveBands,
     };
     setConfig(defaultConfig);
     onChange(defaultConfig);
@@ -223,13 +236,14 @@ export function JerseyDesigner({
                     value={config.collarColor}
                     onChange={(collarColor) => updateConfig({ collarColor })}
                   />
-                  
-                  <ColorPicker
-                    label="Sleeve Trim Color"
-                    value={config.sleeveTrimColor}
-                    onChange={(sleeveTrimColor) => updateConfig({ sleeveTrimColor })}
-                  />
                 </div>
+
+                {/* Sleeve Bands Editor */}
+                <SleeveBandEditor
+                  sleeveBands={config.sleeveBands || []}
+                  onChange={(sleeveBands) => updateConfig({ sleeveBands })}
+                  maxBands={3}
+                />
               </div>
               
               {/* Right side: Live Preview */}
