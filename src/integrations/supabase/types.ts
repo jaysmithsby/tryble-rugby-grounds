@@ -471,6 +471,7 @@ export type Database = {
           icon_url: string | null
           id: string
           is_visible: boolean | null
+          jersey_config: Json | null
           jersey_url: string | null
           main_rival: string | null
           motto: string | null
@@ -493,6 +494,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_visible?: boolean | null
+          jersey_config?: Json | null
           jersey_url?: string | null
           main_rival?: string | null
           motto?: string | null
@@ -515,6 +517,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_visible?: boolean | null
+          jersey_config?: Json | null
           jersey_url?: string | null
           main_rival?: string | null
           motto?: string | null

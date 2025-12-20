@@ -37,6 +37,7 @@ import {
   type SchoolFieldWeights 
 } from "@/lib/schoolCompleteness";
 import { cn } from "@/lib/utils";
+import { JerseyDesigner, JerseyConfig } from "./JerseyDesigner";
 
 // Moved outside component to prevent recreation on every render
 interface FieldWrapperProps {
@@ -91,6 +92,7 @@ interface School {
   icon_url: string | null;
   emblem_url?: string | null;
   jersey_url?: string | null;
+  jersey_config?: JerseyConfig | null;
   main_rival: string | null;
   established_year: number | null;
   springboks_count: number | null;
@@ -126,6 +128,7 @@ export function EditSchoolDialog({
     icon_url: "",
     emblem_url: "",
     jersey_url: "",
+    jersey_config: null as JerseyConfig | null,
     main_rival: "",
     established_year: "",
     springboks_count: "",
@@ -168,6 +171,7 @@ export function EditSchoolDialog({
         icon_url: school.icon_url || "",
         emblem_url: school.emblem_url || "",
         jersey_url: school.jersey_url || "",
+        jersey_config: school.jersey_config || null,
         main_rival: school.main_rival || "",
         established_year: school.established_year?.toString() || "",
         springboks_count: school.springboks_count?.toString() || "",
@@ -222,6 +226,7 @@ export function EditSchoolDialog({
           icon_url: formData.icon_url || null,
           emblem_url: formData.emblem_url || null,
           jersey_url: formData.jersey_url || null,
+          jersey_config: formData.jersey_config as any,
           main_rival: formData.main_rival || null,
           established_year: formData.established_year
             ? parseInt(formData.established_year)
@@ -461,6 +466,16 @@ export function EditSchoolDialog({
                   )}
                 </div>
               </div>
+            </div>
+            
+            {/* Jersey Designer */}
+            <div className="col-span-2 mt-4">
+              <JerseyDesigner
+                value={formData.jersey_config}
+                onChange={(jersey_config) => setFormData({ ...formData, jersey_config })}
+                primaryColor={formData.primary_color}
+                secondaryColor={formData.secondary_color}
+              />
             </div>
           </div>
 
