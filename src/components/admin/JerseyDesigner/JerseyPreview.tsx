@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig } from "./types";
+import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig, SleeveBandConfig } from "./types";
 
 interface JerseyPreviewProps {
   config: JerseyConfig;
@@ -111,23 +111,46 @@ export function JerseyPreview({
     return null;
   };
 
-  // Sleeve band stripes
+  // Get sleeve bands - use new sleeveBands array or fallback to legacy sleeveTrimColor
+  const getSleeveBands = (): SleeveBandConfig[] => {
+    if (config.sleeveBands && config.sleeveBands.length > 0) {
+      return [...config.sleeveBands].sort((a, b) => a.order - b.order);
+    }
+    // Fallback for legacy configs
+    if (config.sleeveTrimColor && config.sleeveTrimColor !== config.baseColor) {
+      return [{ color: config.sleeveTrimColor, order: 0 }];
+    }
+    return [];
+  };
+
+  // Render multiple sleeve bands (up to 3)
   const renderSleeveBands = () => {
-    if (config.sleeveTrimColor === config.baseColor) return null;
-    
+    const bands = getSleeveBands();
+    if (bands.length === 0) return null;
+
+    const bandHeight = 8; // Height of each band
+    const bandGap = 2; // Gap between bands
+    const startY = 80; // Starting Y position on sleeve
+
     return (
       <>
-        {/* Left sleeve bands */}
-        <path
-          d="M 25 85 L 45 80 L 45 88 L 25 92 Z"
-          fill={config.sleeveTrimColor}
-        />
-        
-        {/* Right sleeve bands */}
-        <path
-          d="M 175 85 L 155 80 L 155 88 L 175 92 Z"
-          fill={config.sleeveTrimColor}
-        />
+        {bands.map((band, index) => {
+          const yOffset = index * (bandHeight + bandGap);
+          return (
+            <g key={`band-${index}`}>
+              {/* Left sleeve band */}
+              <path
+                d={`M 25 ${85 + yOffset} L 45 ${startY + yOffset} L 45 ${startY + yOffset + bandHeight} L 25 ${85 + yOffset + bandHeight + 2} Z`}
+                fill={band.color}
+              />
+              {/* Right sleeve band */}
+              <path
+                d={`M 175 ${85 + yOffset} L 155 ${startY + yOffset} L 155 ${startY + yOffset + bandHeight} L 175 ${85 + yOffset + bandHeight + 2} Z`}
+                fill={band.color}
+              />
+            </g>
+          );
+        })}
       </>
     );
   };

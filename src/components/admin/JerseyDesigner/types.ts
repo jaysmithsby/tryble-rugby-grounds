@@ -6,13 +6,19 @@ export interface StripeConfig {
   order: number;
 }
 
+export interface SleeveBandConfig {
+  color: string;
+  order: number;
+}
+
 export interface JerseyConfig {
   layout: JerseyLayout;
   collarStyle: CollarStyle;
   baseColor: string;
   stripes: StripeConfig[];
   collarColor: string;
-  sleeveTrimColor: string;
+  sleeveTrimColor: string; // Keep for backwards compatibility
+  sleeveBands: SleeveBandConfig[]; // New: up to 3 sleeve bands
 }
 
 export const DEFAULT_JERSEY_CONFIG: JerseyConfig = {
@@ -22,6 +28,7 @@ export const DEFAULT_JERSEY_CONFIG: JerseyConfig = {
   stripes: [],
   collarColor: "#ffffff",
   sleeveTrimColor: "#c9a227",
+  sleeveBands: [{ color: "#c9a227", order: 0 }],
 };
 
 export const LAYOUT_OPTIONS: { value: JerseyLayout; label: string }[] = [

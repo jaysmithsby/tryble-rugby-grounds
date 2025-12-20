@@ -9,6 +9,7 @@ interface ColorPickerProps {
   value: string;
   onChange: (color: string) => void;
   showAdjustments?: boolean;
+  compact?: boolean;
   className?: string;
 }
 
@@ -70,6 +71,7 @@ export function ColorPicker({
   value, 
   onChange, 
   showAdjustments = false,
+  compact = false,
   className 
 }: ColorPickerProps) {
   const [hsl, setHsl] = useState(() => hexToHsl(value));
@@ -83,6 +85,20 @@ export function ColorPicker({
     setHsl(newHsl);
     onChange(hslToHex(newHsl.h, newHsl.s, newHsl.l));
   };
+
+  if (compact) {
+    return (
+      <div className={cn("flex items-center gap-2", className)}>
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-7 w-10 rounded border border-input cursor-pointer"
+        />
+        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-2", className)}>

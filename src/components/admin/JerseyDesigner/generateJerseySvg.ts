@@ -1,4 +1,4 @@
-import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig } from "./types";
+import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig, SleeveBandConfig } from "./types";
 
 /**
  * Generates a standalone SVG string from a JerseyConfig
@@ -73,14 +73,34 @@ export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG):
     return "";
   };
 
-  // Sleeve bands
+  // Get sleeve bands - use new sleeveBands array or fallback to legacy sleeveTrimColor
+  const getSleeveBands = (): SleeveBandConfig[] => {
+    if (config.sleeveBands && config.sleeveBands.length > 0) {
+      return [...config.sleeveBands].sort((a, b) => a.order - b.order);
+    }
+    // Fallback for legacy configs
+    if (config.sleeveTrimColor && config.sleeveTrimColor !== config.baseColor) {
+      return [{ color: config.sleeveTrimColor, order: 0 }];
+    }
+    return [];
+  };
+
+  // Render multiple sleeve bands (up to 3)
   const renderSleeveBands = (): string => {
-    if (config.sleeveTrimColor === config.baseColor) return "";
-    
-    return `
-      <path d="M 25 85 L 45 80 L 45 88 L 25 92 Z" fill="${config.sleeveTrimColor}"/>
-      <path d="M 175 85 L 155 80 L 155 88 L 175 92 Z" fill="${config.sleeveTrimColor}"/>
-    `;
+    const bands = getSleeveBands();
+    if (bands.length === 0) return "";
+
+    const bandHeight = 8;
+    const bandGap = 2;
+    const startY = 80;
+
+    return bands.map((band, index) => {
+      const yOffset = index * (bandHeight + bandGap);
+      return `
+        <path d="M 25 ${85 + yOffset} L 45 ${startY + yOffset} L 45 ${startY + yOffset + bandHeight} L 25 ${85 + yOffset + bandHeight + 2} Z" fill="${band.color}"/>
+        <path d="M 175 ${85 + yOffset} L 155 ${startY + yOffset} L 155 ${startY + yOffset + bandHeight} L 175 ${85 + yOffset + bandHeight + 2} Z" fill="${band.color}"/>
+      `;
+    }).join("");
   };
 
   // Polo collar with placket
