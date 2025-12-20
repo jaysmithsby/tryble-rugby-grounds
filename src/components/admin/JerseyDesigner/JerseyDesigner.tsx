@@ -8,7 +8,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { JerseyConfig, JerseyLayout, DEFAULT_JERSEY_CONFIG, LAYOUT_OPTIONS } from "./types";
+import { 
+  JerseyConfig, 
+  JerseyLayout, 
+  CollarStyle,
+  DEFAULT_JERSEY_CONFIG, 
+  LAYOUT_OPTIONS,
+  COLLAR_OPTIONS 
+} from "./types";
 import { JerseyPreview } from "./JerseyPreview";
 import { ColorPicker } from "./ColorPicker";
 import { StripeEditor } from "./StripeEditor";
@@ -76,6 +83,10 @@ export function JerseyDesigner({
         updateConfig({ layout });
       }
     }
+  };
+
+  const handleCollarChange = (collarStyle: CollarStyle) => {
+    updateConfig({ collarStyle });
   };
 
   const resetToDefaults = () => {
@@ -149,6 +160,36 @@ export function JerseyDesigner({
                         <RadioGroupItem value={option.value} id={`layout-${option.value}`} />
                         <Label 
                           htmlFor={`layout-${option.value}`} 
+                          className="cursor-pointer text-sm flex-1"
+                        >
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+
+                {/* Collar Style Selection */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Collar Style</Label>
+                  <RadioGroup
+                    value={config.collarStyle || "polo"}
+                    onValueChange={(val) => handleCollarChange(val as CollarStyle)}
+                    className="grid grid-cols-2 gap-2"
+                  >
+                    {COLLAR_OPTIONS.map((option) => (
+                      <div
+                        key={option.value}
+                        className={cn(
+                          "flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-colors",
+                          (config.collarStyle || "polo") === option.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border/50 hover:border-border"
+                        )}
+                      >
+                        <RadioGroupItem value={option.value} id={`collar-${option.value}`} />
+                        <Label 
+                          htmlFor={`collar-${option.value}`} 
                           className="cursor-pointer text-sm flex-1"
                         >
                           {option.label}
