@@ -37,7 +37,7 @@ import {
   type SchoolFieldWeights 
 } from "@/lib/schoolCompleteness";
 import { cn } from "@/lib/utils";
-import { JerseyDesigner, JerseyConfig } from "./JerseyDesigner";
+import { JerseyDesigner, JerseyConfig, generateJerseySvg, svgToBlob } from "./JerseyDesigner";
 
 // Moved outside component to prevent recreation on every render
 interface FieldWrapperProps {
@@ -216,6 +216,40 @@ export function EditSchoolDialog({
 
     setLoading(true);
     try {
+      let jerseyUrl = formData.jersey_url;
+
+      // If there's a custom jersey config, generate and upload SVG
+      if (formData.jersey_config) {
+        const svgString = generateJerseySvg(formData.jersey_config);
+        const svgBlob = svgToBlob(svgString);
+        
+        // Generate filename from school slug
+        const slug = formData.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-');
+        const filename = `${slug}-${Date.now()}.svg`;
+
+        // Upload to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('custom-jerseys')
+          .upload(filename, svgBlob, {
+            contentType: 'image/svg+xml',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading jersey SVG:', uploadError);
+          // Continue without the custom jersey URL
+        } else {
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('custom-jerseys')
+            .getPublicUrl(filename);
+          jerseyUrl = urlData.publicUrl;
+        }
+      }
+
       const { error } = await supabase
         .from("schools")
         .update({
@@ -225,7 +259,7 @@ export function EditSchoolDialog({
           website: formData.website || null,
           icon_url: formData.icon_url || null,
           emblem_url: formData.emblem_url || null,
-          jersey_url: formData.jersey_url || null,
+          jersey_url: jerseyUrl || null,
           jersey_config: formData.jersey_config as any,
           main_rival: formData.main_rival || null,
           established_year: formData.established_year
