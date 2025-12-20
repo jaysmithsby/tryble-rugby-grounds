@@ -8,41 +8,41 @@ import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig, SleeveBandConfig } f
 export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG): string {
   const sortedStripes = [...(config.stripes || [])].sort((a, b) => a.order - b.order);
   
-  // Jersey body path - classic rugby shape with rounded corners and angled sleeves
+  // Jersey body path - classic rugby shape with rounded corners and wider angled sleeves
   const jerseyBodyPath = `
     M 60 55
     L 100 45
     L 140 55
-    L 175 75
-    L 175 95
-    L 155 90
+    L 180 70
+    L 180 100
+    L 155 95
     L 155 165
     Q 155 175 145 175
     L 55 175
     Q 45 175 45 165
-    L 45 90
-    L 25 95
-    L 25 75
+    L 45 95
+    L 20 100
+    L 20 70
     Z
   `;
 
-  // Left sleeve path
+  // Left sleeve path - wider, boxy with slight angle
   const leftSleevePath = `
-    M 25 75
+    M 20 70
     L 60 55
-    L 60 70
-    L 45 90
-    L 25 95
+    L 60 75
+    L 45 95
+    L 20 100
     Z
   `;
 
-  // Right sleeve path  
+  // Right sleeve path - wider, boxy with slight angle
   const rightSleevePath = `
-    M 175 75
+    M 180 70
     L 140 55
-    L 140 70
-    L 155 90
-    L 175 95
+    L 140 75
+    L 155 95
+    L 180 100
     Z
   `;
 
@@ -85,20 +85,23 @@ export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG):
     return [];
   };
 
-  // Render multiple sleeve bands (up to 3)
+  // Render multiple sleeve bands (up to 3) - horizontal bands across sleeves
   const renderSleeveBands = (): string => {
     const bands = getSleeveBands();
     if (bands.length === 0) return "";
 
-    const bandHeight = 8;
-    const bandGap = 2;
-    const startY = 80;
+    const bandHeight = 6;
+    const bandGap = 3;
+    const startY = 72;
 
     return bands.map((band, index) => {
       const yOffset = index * (bandHeight + bandGap);
+      const y = startY + yOffset;
+      // Left sleeve - horizontal band following sleeve angle
+      // Right sleeve - horizontal band following sleeve angle
       return `
-        <path d="M 25 ${85 + yOffset} L 45 ${startY + yOffset} L 45 ${startY + yOffset + bandHeight} L 25 ${85 + yOffset + bandHeight + 2} Z" fill="${band.color}"/>
-        <path d="M 175 ${85 + yOffset} L 155 ${startY + yOffset} L 155 ${startY + yOffset + bandHeight} L 175 ${85 + yOffset + bandHeight + 2} Z" fill="${band.color}"/>
+        <path d="M 20 ${y + 15 + yOffset * 0.3} L 58 ${y} L 58 ${y + bandHeight} L 20 ${y + 15 + bandHeight + yOffset * 0.3} Z" fill="${band.color}"/>
+        <path d="M 180 ${y + 15 + yOffset * 0.3} L 142 ${y} L 142 ${y + bandHeight} L 180 ${y + 15 + bandHeight + yOffset * 0.3} Z" fill="${band.color}"/>
       `;
     }).join("");
   };
@@ -106,33 +109,33 @@ export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG):
   // Polo collar with placket
   const renderPoloCollar = (): string => `
     <!-- Collar back shadow -->
-    <path d="M 75 48 L 100 42 L 125 48 L 125 52 L 100 46 L 75 52 Z" fill="rgba(0,0,0,0.15)"/>
+    <path d="M 78 48 L 100 42 L 122 48 L 122 52 L 100 46 L 78 52 Z" fill="rgba(0,0,0,0.15)"/>
     
     <!-- Left collar wing -->
-    <path d="M 75 45 L 95 48 L 95 58 L 85 68 L 75 55 Z" fill="${config.collarColor}"/>
+    <path d="M 78 45 L 96 48 L 96 58 L 87 66 L 78 54 Z" fill="${config.collarColor}"/>
     
     <!-- Right collar wing -->
-    <path d="M 125 45 L 105 48 L 105 58 L 115 68 L 125 55 Z" fill="${config.collarColor}"/>
+    <path d="M 122 45 L 104 48 L 104 58 L 113 66 L 122 54 Z" fill="${config.collarColor}"/>
     
     <!-- Collar inner shadows -->
-    <path d="M 85 68 L 95 58 L 95 70 L 90 75 Z" fill="rgba(0,0,0,0.1)"/>
-    <path d="M 115 68 L 105 58 L 105 70 L 110 75 Z" fill="rgba(0,0,0,0.1)"/>
+    <path d="M 87 66 L 96 58 L 96 68 L 91 73 Z" fill="rgba(0,0,0,0.1)"/>
+    <path d="M 113 66 L 104 58 L 104 68 L 109 73 Z" fill="rgba(0,0,0,0.1)"/>
     
     <!-- Placket -->
-    <path d="M 95 58 L 100 55 L 105 58 L 105 80 L 100 85 L 95 80 Z" fill="${config.collarColor}"/>
-    <path d="M 100 55 L 105 58 L 105 80 L 100 85 Z" fill="rgba(0,0,0,0.08)"/>
-    <path d="M 97 62 L 100 60 L 103 62 L 103 78 L 100 80 L 97 78 Z" fill="${config.baseColor}" opacity="0.4"/>
+    <path d="M 96 58 L 100 55 L 104 58 L 104 78 L 100 83 L 96 78 Z" fill="${config.collarColor}"/>
+    <path d="M 100 55 L 104 58 L 104 78 L 100 83 Z" fill="rgba(0,0,0,0.08)"/>
+    <path d="M 97.5 61 L 100 59 L 102.5 61 L 102.5 75 L 100 78 L 97.5 75 Z" fill="${config.baseColor}" opacity="0.4"/>
   `;
 
   // V-neck collar
   const renderVNeckCollar = (): string => `
     <!-- Collar rim -->
-    <path d="M 70 50 L 100 44 L 130 50 L 125 55 L 100 50 L 75 55 Z" fill="${config.collarColor}"/>
+    <path d="M 73 50 L 100 44 L 127 50 L 123 55 L 100 50 L 77 55 Z" fill="${config.collarColor}"/>
     
     <!-- V-neck opening -->
-    <path d="M 85 55 L 100 52 L 115 55 L 100 85 Z" fill="${config.collarColor}"/>
-    <path d="M 100 52 L 115 55 L 100 85 Z" fill="rgba(0,0,0,0.1)"/>
-    <path d="M 90 60 L 100 57 L 110 60 L 100 78 Z" fill="rgba(0,0,0,0.2)"/>
+    <path d="M 86 55 L 100 52 L 114 55 L 100 82 Z" fill="${config.collarColor}"/>
+    <path d="M 100 52 L 114 55 L 100 82 Z" fill="rgba(0,0,0,0.1)"/>
+    <path d="M 91 59 L 100 56 L 109 59 L 100 76 Z" fill="rgba(0,0,0,0.2)"/>
   `;
 
   const collarSvg = config.collarStyle === "polo" ? renderPoloCollar() : renderVNeckCollar();
@@ -190,6 +193,10 @@ export function generateJerseySvg(config: JerseyConfig = DEFAULT_JERSEY_CONFIG):
   
   <!-- Hem shadow -->
   <path d="M 55 170 Q 100 175 145 170 L 145 175 Q 100 180 55 175 Z" fill="rgba(0,0,0,0.08)"/>
+  
+  <!-- Sleeve edge shadows for depth -->
+  <path d="M 20 70 L 20 100 L 22 99 L 22 71 Z" fill="rgba(0,0,0,0.06)"/>
+  <path d="M 180 70 L 180 100 L 178 99 L 178 71 Z" fill="rgba(0,0,0,0.06)"/>
 </svg>`;
 }
 
