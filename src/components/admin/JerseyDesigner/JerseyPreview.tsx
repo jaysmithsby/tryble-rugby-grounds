@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { JerseyConfig, DEFAULT_JERSEY_CONFIG } from "./types";
+import { JerseyConfig, DEFAULT_JERSEY_CONFIG, StripeConfig } from "./types";
 
 interface JerseyPreviewProps {
   config: JerseyConfig;
@@ -14,171 +14,273 @@ const sizeMap = {
   xl: { width: 128, height: 128 },
 };
 
+// Helper to generate unique IDs for SVG defs
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
 export function JerseyPreview({ 
   config = DEFAULT_JERSEY_CONFIG, 
   size = "lg",
   className 
 }: JerseyPreviewProps) {
   const { width, height } = sizeMap[size];
-  const viewBox = "0 0 100 100";
+  const viewBox = "0 0 200 200";
+  const uniqueId = generateId();
   
-  // Generate stripes pattern
-  const renderStripes = () => {
-    if (!config.stripes || config.stripes.length === 0) return null;
+  // Jersey body path - classic rugby shape with rounded corners and angled sleeves
+  const jerseyBodyPath = `
+    M 60 55
+    L 100 45
+    L 140 55
+    L 175 75
+    L 175 95
+    L 155 90
+    L 155 165
+    Q 155 175 145 175
+    L 55 175
+    Q 45 175 45 165
+    L 45 90
+    L 25 95
+    L 25 75
+    Z
+  `;
+
+  // Left sleeve path
+  const leftSleevePath = `
+    M 25 75
+    L 60 55
+    L 60 70
+    L 45 90
+    L 25 95
+    Z
+  `;
+
+  // Right sleeve path  
+  const rightSleevePath = `
+    M 175 75
+    L 140 55
+    L 140 70
+    L 155 90
+    L 175 95
+    Z
+  `;
+
+  // Render stripes based on layout
+  const renderStripes = (stripes: StripeConfig[], layout: string) => {
+    if (!stripes || stripes.length === 0) return null;
+    const sortedStripes = [...stripes].sort((a, b) => a.order - b.order);
     
-    const sortedStripes = [...config.stripes].sort((a, b) => a.order - b.order);
-    
-    if (config.layout === "horizontal_stripes") {
-      const stripeHeight = 60 / (sortedStripes.length + 1);
-      return sortedStripes.map((stripe, index) => (
-        <rect
-          key={index}
-          x="15"
-          y={25 + (index + 1) * stripeHeight - stripeHeight / 2}
-          width="70"
-          height={stripeHeight * 0.8}
-          fill={stripe.color}
-          rx="1"
-        />
-      ));
+    if (layout === "horizontal_stripes") {
+      // Full-width horizontal stripes across the jersey body
+      const bodyHeight = 120; // From y=55 to y=175
+      const stripeHeight = bodyHeight / (sortedStripes.length * 2 + 1);
+      
+      return sortedStripes.map((stripe, index) => {
+        const y = 55 + stripeHeight + (index * stripeHeight * 2);
+        return (
+          <rect
+            key={`stripe-${index}`}
+            x="0"
+            y={y}
+            width="200"
+            height={stripeHeight}
+            fill={stripe.color}
+          />
+        );
+      });
     }
     
-    if (config.layout === "vertical_stripes") {
-      const stripeWidth = 60 / (sortedStripes.length + 1);
-      return sortedStripes.map((stripe, index) => (
-        <rect
-          key={index}
-          x={20 + (index + 1) * stripeWidth - stripeWidth / 2}
-          y="20"
-          width={stripeWidth * 0.8}
-          height="60"
-          fill={stripe.color}
-          rx="1"
-        />
-      ));
+    if (layout === "vertical_stripes") {
+      const bodyWidth = 110; // From x=45 to x=155
+      const stripeWidth = bodyWidth / (sortedStripes.length * 2 + 1);
+      
+      return sortedStripes.map((stripe, index) => {
+        const x = 45 + stripeWidth + (index * stripeWidth * 2);
+        return (
+          <rect
+            key={`stripe-${index}`}
+            x={x}
+            y="0"
+            width={stripeWidth}
+            height="200"
+            fill={stripe.color}
+          />
+        );
+      });
     }
     
     return null;
   };
 
+  // Sleeve band stripes
+  const renderSleeveBands = () => {
+    if (config.sleeveTrimColor === config.baseColor) return null;
+    
+    return (
+      <>
+        {/* Left sleeve bands */}
+        <path
+          d="M 25 85 L 45 80 L 45 88 L 25 92 Z"
+          fill={config.sleeveTrimColor}
+        />
+        
+        {/* Right sleeve bands */}
+        <path
+          d="M 175 85 L 155 80 L 155 88 L 175 92 Z"
+          fill={config.sleeveTrimColor}
+        />
+      </>
+    );
+  };
+
+  // Polo collar with placket
+  const renderPoloCollar = () => (
+    <>
+      {/* Collar back shadow */}
+      <path
+        d="M 75 48 L 100 42 L 125 48 L 125 52 L 100 46 L 75 52 Z"
+        fill="rgba(0,0,0,0.15)"
+      />
+      
+      {/* Left collar wing */}
+      <path
+        d="M 75 45 L 95 48 L 95 58 L 85 68 L 75 55 Z"
+        fill={config.collarColor}
+      />
+      
+      {/* Right collar wing */}
+      <path
+        d="M 125 45 L 105 48 L 105 58 L 115 68 L 125 55 Z"
+        fill={config.collarColor}
+      />
+      
+      {/* Collar inner shadow */}
+      <path
+        d="M 85 68 L 95 58 L 95 70 L 90 75 Z"
+        fill="rgba(0,0,0,0.1)"
+      />
+      <path
+        d="M 115 68 L 105 58 L 105 70 L 110 75 Z"
+        fill="rgba(0,0,0,0.1)"
+      />
+      
+      {/* Placket */}
+      <path
+        d="M 95 58 L 100 55 L 105 58 L 105 80 L 100 85 L 95 80 Z"
+        fill={config.collarColor}
+      />
+      
+      {/* Placket shadow */}
+      <path
+        d="M 100 55 L 105 58 L 105 80 L 100 85 Z"
+        fill="rgba(0,0,0,0.08)"
+      />
+      
+      {/* Placket inner shadow */}
+      <path
+        d="M 97 62 L 100 60 L 103 62 L 103 78 L 100 80 L 97 78 Z"
+        fill={config.baseColor}
+        opacity="0.4"
+      />
+    </>
+  );
+
+  // V-neck collar
+  const renderVNeckCollar = () => (
+    <>
+      {/* Collar back/rim */}
+      <path
+        d="M 70 50 L 100 44 L 130 50 L 125 55 L 100 50 L 75 55 Z"
+        fill={config.collarColor}
+      />
+      
+      {/* V-neck opening */}
+      <path
+        d="M 85 55 L 100 52 L 115 55 L 100 85 Z"
+        fill={config.collarColor}
+      />
+      
+      {/* Inner shadow */}
+      <path
+        d="M 100 52 L 115 55 L 100 85 Z"
+        fill="rgba(0,0,0,0.1)"
+      />
+      
+      {/* Inner neck darkness */}
+      <path
+        d="M 90 60 L 100 57 L 110 60 L 100 78 Z"
+        fill="rgba(0,0,0,0.2)"
+      />
+    </>
+  );
+
   return (
     <div 
       className={cn(
-        "rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-primary overflow-hidden",
+        "flex items-center justify-center",
         className
       )}
       style={{ width, height }}
     >
       <svg 
         viewBox={viewBox} 
-        width={width * 0.75} 
-        height={height * 0.75}
-        className="drop-shadow-sm"
+        width={width} 
+        height={height}
+        style={{ overflow: 'visible' }}
       >
-        {/* Jersey body - main shape with rounded shoulders */}
-        <path
-          d={`
-            M 30 20
-            Q 30 15 35 15
-            L 50 10
-            L 65 15
-            Q 70 15 70 20
-            L 85 30
-            L 85 40
-            L 70 35
-            L 70 85
-            Q 70 90 65 90
-            L 35 90
-            Q 30 90 30 85
-            L 30 35
-            L 15 40
-            L 15 30
-            Z
-          `}
-          fill={config.baseColor}
-          stroke="rgba(0,0,0,0.1)"
-          strokeWidth="0.5"
-        />
+        <defs>
+          {/* Jersey body clip path */}
+          <clipPath id={`jersey-clip-${uniqueId}`}>
+            <path d={jerseyBodyPath} />
+            <path d={leftSleevePath} />
+            <path d={rightSleevePath} />
+          </clipPath>
+          
+          {/* Top-left lighting gradient for body */}
+          <linearGradient id={`body-gradient-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+            <stop offset="50%" stopColor="rgba(255,255,255,0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.08)" />
+          </linearGradient>
+          
+          {/* Subtle inner shadow for depth */}
+          <linearGradient id={`inner-shadow-${uniqueId}`} x1="50%" y1="0%" x2="50%" y2="100%">
+            <stop offset="0%" stopColor="rgba(0,0,0,0.05)" />
+            <stop offset="10%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="90%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.1)" />
+          </linearGradient>
+        </defs>
         
-        {/* Stripes overlay */}
-        <clipPath id="jersey-clip">
-          <path
-            d={`
-              M 30 20
-              Q 30 15 35 15
-              L 50 10
-              L 65 15
-              Q 70 15 70 20
-              L 85 30
-              L 85 40
-              L 70 35
-              L 70 85
-              Q 70 90 65 90
-              L 35 90
-              Q 30 90 30 85
-              L 30 35
-              L 15 40
-              L 15 30
-              Z
-            `}
-          />
-        </clipPath>
+        {/* Base jersey body */}
+        <path d={jerseyBodyPath} fill={config.baseColor} />
         
-        <g clipPath="url(#jersey-clip)">
-          {renderStripes()}
+        {/* Sleeves */}
+        <path d={leftSleevePath} fill={config.baseColor} />
+        <path d={rightSleevePath} fill={config.baseColor} />
+        
+        {/* Stripes clipped to jersey */}
+        <g clipPath={`url(#jersey-clip-${uniqueId})`}>
+          {renderStripes(config.stripes, config.layout)}
         </g>
         
-        {/* Collar */}
-        <ellipse
-          cx="50"
-          cy="15"
-          rx="8"
-          ry="4"
-          fill={config.collarColor}
-          stroke="rgba(0,0,0,0.1)"
-          strokeWidth="0.5"
-        />
+        {/* Sleeve bands */}
+        {renderSleeveBands()}
         
-        {/* Left sleeve trim */}
-        <path
-          d={`M 15 30 L 30 20 L 30 24 L 17 33 Z`}
-          fill={config.sleeveTrimColor}
-          opacity="0.9"
-        />
+        {/* Top-left lighting gradient overlay */}
+        <path d={jerseyBodyPath} fill={`url(#body-gradient-${uniqueId})`} />
+        <path d={leftSleevePath} fill={`url(#body-gradient-${uniqueId})`} />
+        <path d={rightSleevePath} fill={`url(#body-gradient-${uniqueId})`} />
         
-        {/* Right sleeve trim */}
-        <path
-          d={`M 85 30 L 70 20 L 70 24 L 83 33 Z`}
-          fill={config.sleeveTrimColor}
-          opacity="0.9"
-        />
+        {/* Inner shadow for depth */}
+        <path d={jerseyBodyPath} fill={`url(#inner-shadow-${uniqueId})`} />
         
-        {/* Subtle 3D effect - highlight */}
-        <path
-          d={`
-            M 30 20
-            Q 30 15 35 15
-            L 50 10
-            L 50 85
-            L 35 85
-            Q 30 85 30 80
-            Z
-          `}
-          fill="rgba(255,255,255,0.08)"
-        />
+        {/* Collar - render based on style */}
+        {config.collarStyle === "polo" ? renderPoloCollar() : renderVNeckCollar()}
         
-        {/* Subtle 3D effect - shadow */}
+        {/* Hem shadow */}
         <path
-          d={`
-            M 70 20
-            Q 70 15 65 15
-            L 50 10
-            L 50 85
-            L 65 85
-            Q 70 85 70 80
-            Z
-          `}
-          fill="rgba(0,0,0,0.05)"
+          d="M 55 170 Q 100 175 145 170 L 145 175 Q 100 180 55 175 Z"
+          fill="rgba(0,0,0,0.08)"
         />
       </svg>
     </div>

@@ -6,7 +6,9 @@ export { generateJerseySvg, svgToBlob, generateJerseyFilename } from "./generate
 export { 
   type JerseyConfig, 
   type JerseyLayout, 
+  type CollarStyle,
   type StripeConfig,
   DEFAULT_JERSEY_CONFIG,
-  LAYOUT_OPTIONS 
+  LAYOUT_OPTIONS,
+  COLLAR_OPTIONS 
 } from "./types";
