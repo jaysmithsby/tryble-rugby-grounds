@@ -26,43 +26,46 @@ export function JerseyPreview({
   const viewBox = "0 0 200 200";
   const uniqueId = generateId();
   
-  // Jersey body path - classic rugby shape with rounded corners and wider angled sleeves
+  // Main jersey body - boxy with rounded bottom corners
   const jerseyBodyPath = `
-    M 60 55
-    L 100 45
-    L 140 55
-    L 180 70
-    L 180 100
-    L 155 95
-    L 155 165
-    Q 155 175 145 175
-    L 55 175
-    Q 45 175 45 165
-    L 45 95
-    L 20 100
-    L 20 70
+    M 50 62
+    L 50 168
+    Q 50 178 60 178
+    L 140 178
+    Q 150 178 150 168
+    L 150 62
+    L 100 50
     Z
   `;
 
-  // Left sleeve path - wider, boxy with slight angle
+  // Left sleeve - wide, boxy, angled ~12° downward
   const leftSleevePath = `
-    M 20 70
-    L 60 55
-    L 60 75
-    L 45 95
-    L 20 100
+    M 50 62
+    L 100 50
+    L 100 55
+    L 58 65
+    L 20 80
+    L 20 110
+    Q 20 115 25 115
+    L 50 108
     Z
   `;
 
-  // Right sleeve path - wider, boxy with slight angle
+  // Right sleeve - mirror of left
   const rightSleevePath = `
-    M 180 70
-    L 140 55
-    L 140 75
-    L 155 95
-    L 180 100
+    M 150 62
+    L 100 50
+    L 100 55
+    L 142 65
+    L 180 80
+    L 180 110
+    Q 180 115 175 115
+    L 150 108
     Z
   `;
+
+  // Shoulder seam line Y position - stripes must stay below this
+  const shoulderLineY = 65;
 
   // Render stripes based on layout
   const renderStripes = (stripes: StripeConfig[], layout: string) => {
@@ -70,12 +73,15 @@ export function JerseyPreview({
     const sortedStripes = [...stripes].sort((a, b) => a.order - b.order);
     
     if (layout === "horizontal_stripes") {
-      // Full-width horizontal stripes across the jersey body
-      const bodyHeight = 120; // From y=55 to y=175
-      const stripeHeight = bodyHeight / (sortedStripes.length * 2 + 1);
+      const stripeAreaTop = shoulderLineY + 5;
+      const stripeAreaBottom = 175;
+      const stripeAreaHeight = stripeAreaBottom - stripeAreaTop;
+      
+      const totalStripes = sortedStripes.length;
+      const stripeHeight = stripeAreaHeight / (totalStripes * 2 + 1);
       
       return sortedStripes.map((stripe, index) => {
-        const y = 55 + stripeHeight + (index * stripeHeight * 2);
+        const y = stripeAreaTop + stripeHeight + (index * stripeHeight * 2);
         return (
           <rect
             key={`stripe-${index}`}
@@ -90,11 +96,11 @@ export function JerseyPreview({
     }
     
     if (layout === "vertical_stripes") {
-      const bodyWidth = 110; // From x=45 to x=155
+      const bodyWidth = 100;
       const stripeWidth = bodyWidth / (sortedStripes.length * 2 + 1);
       
       return sortedStripes.map((stripe, index) => {
-        const x = 45 + stripeWidth + (index * stripeWidth * 2);
+        const x = 50 + stripeWidth + (index * stripeWidth * 2);
         return (
           <rect
             key={`stripe-${index}`}
@@ -111,42 +117,43 @@ export function JerseyPreview({
     return null;
   };
 
-  // Get sleeve bands - use new sleeveBands array or fallback to legacy sleeveTrimColor
+  // Get sleeve bands configuration
   const getSleeveBands = (): SleeveBandConfig[] => {
     if (config.sleeveBands && config.sleeveBands.length > 0) {
       return [...config.sleeveBands].sort((a, b) => a.order - b.order);
     }
-    // Fallback for legacy configs
     if (config.sleeveTrimColor && config.sleeveTrimColor !== config.baseColor) {
       return [{ color: config.sleeveTrimColor, order: 0 }];
     }
     return [];
   };
 
-  // Render multiple sleeve bands (up to 3) - horizontal bands across sleeves
+  // Render horizontal sleeve bands
   const renderSleeveBands = () => {
     const bands = getSleeveBands();
     if (bands.length === 0) return null;
 
-    const bandHeight = 6;
-    const bandGap = 3;
-    const startY = 72;
+    const bandHeight = 8;
+    const bandGap = 2;
+    const sleeveBottomY = 108;
 
     return (
       <>
         {bands.map((band, index) => {
-          const yOffset = index * (bandHeight + bandGap);
-          const y = startY + yOffset;
+          const offset = index * (bandHeight + bandGap);
+          const bottomY = sleeveBottomY - offset;
+          const topY = bottomY - bandHeight;
+          
           return (
             <g key={`band-${index}`}>
-              {/* Left sleeve band - horizontal */}
+              {/* Left sleeve band */}
               <path
-                d={`M 20 ${y + 15 + yOffset * 0.3} L 58 ${y} L 58 ${y + bandHeight} L 20 ${y + 15 + bandHeight + yOffset * 0.3} Z`}
+                d={`M 20 ${94 - offset - bandHeight * 0.3} L 50 ${topY - 6} L 50 ${bottomY - 6} L 20 ${94 - offset + bandHeight * 0.7} Z`}
                 fill={band.color}
               />
-              {/* Right sleeve band - horizontal */}
+              {/* Right sleeve band */}
               <path
-                d={`M 180 ${y + 15 + yOffset * 0.3} L 142 ${y} L 142 ${y + bandHeight} L 180 ${y + 15 + bandHeight + yOffset * 0.3} Z`}
+                d={`M 180 ${94 - offset - bandHeight * 0.3} L 150 ${topY - 6} L 150 ${bottomY - 6} L 180 ${94 - offset + bandHeight * 0.7} Z`}
                 fill={band.color}
               />
             </g>
@@ -159,51 +166,44 @@ export function JerseyPreview({
   // Polo collar with placket
   const renderPoloCollar = () => (
     <>
-      {/* Collar back shadow */}
+      {/* Collar back (inner neck) */}
       <path
-        d="M 78 48 L 100 42 L 122 48 L 122 52 L 100 46 L 78 52 Z"
-        fill="rgba(0,0,0,0.15)"
+        d="M 80 52 L 100 46 L 120 52 L 118 56 L 100 51 L 82 56 Z"
+        fill="rgba(0,0,0,0.12)"
       />
       
       {/* Left collar wing */}
       <path
-        d="M 78 45 L 96 48 L 96 58 L 87 66 L 78 54 Z"
+        d="M 72 55 L 95 52 L 95 60 L 84 70 L 72 62 Z"
         fill={config.collarColor}
+      />
+      <path
+        d="M 84 70 L 95 60 L 95 62 L 86 71 Z"
+        fill="rgba(0,0,0,0.08)"
       />
       
       {/* Right collar wing */}
       <path
-        d="M 122 45 L 104 48 L 104 58 L 113 66 L 122 54 Z"
+        d="M 128 55 L 105 52 L 105 60 L 116 70 L 128 62 Z"
         fill={config.collarColor}
       />
-      
-      {/* Collar inner shadow */}
       <path
-        d="M 87 66 L 96 58 L 96 68 L 91 73 Z"
-        fill="rgba(0,0,0,0.1)"
-      />
-      <path
-        d="M 113 66 L 104 58 L 104 68 L 109 73 Z"
-        fill="rgba(0,0,0,0.1)"
+        d="M 116 70 L 105 60 L 105 62 L 114 71 Z"
+        fill="rgba(0,0,0,0.08)"
       />
       
       {/* Placket */}
       <path
-        d="M 96 58 L 100 55 L 104 58 L 104 78 L 100 83 L 96 78 Z"
+        d="M 95 60 L 100 56 L 105 60 L 105 82 L 100 86 L 95 82 Z"
         fill={config.collarColor}
       />
-      
-      {/* Placket shadow */}
       <path
-        d="M 100 55 L 104 58 L 104 78 L 100 83 Z"
-        fill="rgba(0,0,0,0.08)"
+        d="M 100 56 L 105 60 L 105 82 L 100 86 Z"
+        fill="rgba(0,0,0,0.06)"
       />
-      
-      {/* Placket inner shadow */}
       <path
-        d="M 97.5 61 L 100 59 L 102.5 61 L 102.5 75 L 100 78 L 97.5 75 Z"
-        fill={config.baseColor}
-        opacity="0.4"
+        d="M 97 62 L 100 59 L 103 62 L 103 78 L 100 82 L 97 78 Z"
+        fill="rgba(0,0,0,0.15)"
       />
     </>
   );
@@ -211,28 +211,34 @@ export function JerseyPreview({
   // V-neck collar
   const renderVNeckCollar = () => (
     <>
-      {/* Collar back/rim */}
+      {/* Collar rim */}
       <path
-        d="M 73 50 L 100 44 L 127 50 L 123 55 L 100 50 L 77 55 Z"
+        d="M 68 56 L 100 48 L 132 56 L 128 62 L 100 55 L 72 62 Z"
         fill={config.collarColor}
+      />
+      <path
+        d="M 100 48 L 132 56 L 128 62 L 100 55 Z"
+        fill="rgba(0,0,0,0.05)"
       />
       
       {/* V-neck opening */}
       <path
-        d="M 86 55 L 100 52 L 114 55 L 100 82 Z"
+        d="M 82 62 L 100 56 L 118 62 L 100 92 Z"
         fill={config.collarColor}
       />
-      
-      {/* Inner shadow */}
       <path
-        d="M 100 52 L 114 55 L 100 82 Z"
-        fill="rgba(0,0,0,0.1)"
+        d="M 100 56 L 118 62 L 100 92 Z"
+        fill="rgba(0,0,0,0.08)"
       />
       
-      {/* Inner neck darkness */}
+      {/* Inner neck shadows */}
       <path
-        d="M 91 59 L 100 56 L 109 59 L 100 76 Z"
-        fill="rgba(0,0,0,0.2)"
+        d="M 88 66 L 100 61 L 112 66 L 100 85 Z"
+        fill="rgba(0,0,0,0.18)"
+      />
+      <path
+        d="M 93 70 L 100 66 L 107 70 L 100 80 Z"
+        fill="rgba(0,0,0,0.12)"
       />
     </>
   );
@@ -252,37 +258,33 @@ export function JerseyPreview({
         style={{ overflow: 'visible' }}
       >
         <defs>
-          {/* Jersey body clip path */}
           <clipPath id={`jersey-clip-${uniqueId}`}>
             <path d={jerseyBodyPath} />
             <path d={leftSleevePath} />
             <path d={rightSleevePath} />
           </clipPath>
           
-          {/* Top-left lighting gradient for body */}
           <linearGradient id={`body-gradient-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
-            <stop offset="50%" stopColor="rgba(255,255,255,0)" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.08)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.1)" />
+            <stop offset="40%" stopColor="rgba(255,255,255,0.02)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.06)" />
           </linearGradient>
           
-          {/* Subtle inner shadow for depth */}
-          <linearGradient id={`inner-shadow-${uniqueId}`} x1="50%" y1="0%" x2="50%" y2="100%">
-            <stop offset="0%" stopColor="rgba(0,0,0,0.05)" />
-            <stop offset="10%" stopColor="rgba(0,0,0,0)" />
-            <stop offset="90%" stopColor="rgba(0,0,0,0)" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.1)" />
+          <linearGradient id={`hem-shadow-${uniqueId}`} x1="50%" y1="0%" x2="50%" y2="100%">
+            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="85%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.08)" />
           </linearGradient>
         </defs>
         
-        {/* Base jersey body */}
+        {/* Jersey body */}
         <path d={jerseyBodyPath} fill={config.baseColor} />
         
         {/* Sleeves */}
         <path d={leftSleevePath} fill={config.baseColor} />
         <path d={rightSleevePath} fill={config.baseColor} />
         
-        {/* Stripes clipped to jersey */}
+        {/* Stripes */}
         <g clipPath={`url(#jersey-clip-${uniqueId})`}>
           {renderStripes(config.stripes, config.layout)}
         </g>
@@ -290,32 +292,25 @@ export function JerseyPreview({
         {/* Sleeve bands */}
         {renderSleeveBands()}
         
-        {/* Top-left lighting gradient overlay */}
+        {/* Gradient overlays */}
         <path d={jerseyBodyPath} fill={`url(#body-gradient-${uniqueId})`} />
         <path d={leftSleevePath} fill={`url(#body-gradient-${uniqueId})`} />
         <path d={rightSleevePath} fill={`url(#body-gradient-${uniqueId})`} />
         
-        {/* Inner shadow for depth */}
-        <path d={jerseyBodyPath} fill={`url(#inner-shadow-${uniqueId})`} />
+        {/* Hem shadow */}
+        <path d={jerseyBodyPath} fill={`url(#hem-shadow-${uniqueId})`} />
         
-        {/* Collar - render based on style */}
+        {/* Collar */}
         {config.collarStyle === "polo" ? renderPoloCollar() : renderVNeckCollar()}
         
-        {/* Hem shadow */}
-        <path
-          d="M 55 170 Q 100 175 145 170 L 145 175 Q 100 180 55 175 Z"
-          fill="rgba(0,0,0,0.08)"
-        />
-        
-        {/* Sleeve edge shadows for depth */}
-        <path d="M 20 70 L 20 100 L 22 99 L 22 71 Z" fill="rgba(0,0,0,0.06)" />
-        <path d="M 180 70 L 180 100 L 178 99 L 178 71 Z" fill="rgba(0,0,0,0.06)" />
+        {/* Sleeve edge shadows */}
+        <path d="M 20 80 L 22 81 L 22 108 L 20 110 Z" fill="rgba(0,0,0,0.04)" />
+        <path d="M 180 80 L 178 81 L 178 108 L 180 110 Z" fill="rgba(0,0,0,0.04)" />
       </svg>
     </div>
   );
 }
 
-// Standalone preview for use across the app (e.g., fixture cards)
 export function JerseyIcon({ 
   config, 
   size = "sm",
