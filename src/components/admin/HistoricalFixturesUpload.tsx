@@ -414,11 +414,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
               }}
             />
             <CommandList>
-              {filteredOpponents.length === 0 && searchQuery && (
-                <div className="p-2 text-center text-sm text-muted-foreground">
-                  Will create "{searchQuery}" as new school
-                </div>
-              )}
               <CommandGroup>
                 {filteredOpponents.slice(0, 10).map((school) => (
                   <CommandItem
@@ -441,6 +436,32 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                   </CommandItem>
                 ))}
               </CommandGroup>
+              {searchQuery && filteredOpponents.length === 0 && (
+                <CommandGroup>
+                  <CommandItem
+                    value={`create-${searchQuery}`}
+                    onSelect={() => {
+                      updateRow(row.id, "opponentId", "");
+                      updateRow(row.id, "opponentName", searchQuery);
+                      setActiveOpponentDropdown(null);
+                      setOpponentSearchQueries(prev => ({ ...prev, [row.id]: "" }));
+                      toast({
+                        title: "New school will be created",
+                        description: `"${searchQuery}" will be added to the database when you upload.`,
+                      });
+                    }}
+                    className="text-primary"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span>Create "{searchQuery}" as new school</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+              {filteredOpponents.length === 0 && !searchQuery && (
+                <div className="p-2 text-center text-sm text-muted-foreground">
+                  Type to search or add new school
+                </div>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
