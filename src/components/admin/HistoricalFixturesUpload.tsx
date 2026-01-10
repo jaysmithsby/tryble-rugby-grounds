@@ -1010,10 +1010,10 @@ match_date	home_school	away_school	sport	venue	home_away	round_name
             )}
 
             {/* Step 2: Fixture Rows Table */}
-            <ScrollArea className="flex-1 -mx-6 px-6 min-h-[200px] max-h-[calc(90vh-380px)]">
-              <div className="space-y-2">
+            <div className="flex-1 -mx-6 px-6 min-h-[200px] max-h-[calc(90vh-380px)] overflow-auto border rounded-md">
+              <div className="space-y-2 min-w-[900px] p-2">
                 {/* Table Header */}
-                <div className="grid grid-cols-[80px_110px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
+                <div className="grid grid-cols-[80px_110px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b sticky top-0 bg-background z-10">
                   <div>Year</div>
                   <div>Date</div>
                   <div>H/A</div>
@@ -1189,34 +1189,34 @@ match_date	home_school	away_school	sport	venue	home_away	round_name
                 <Plus className="h-4 w-4" />
                 Add Row
               </Button>
-            </ScrollArea>
+            </div>
 
-            <DialogFooter className="mt-4 pt-4 border-t">
-              <div className="flex items-center justify-between w-full">
-                <p className="text-sm text-muted-foreground">
-                  {rows.length} fixture{rows.length !== 1 ? "s" : ""} to upload
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleClose}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={loading || !primarySchoolId}
-                    className="gap-2"
-                  >
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Upload {rows.length} Fixture{rows.length !== 1 ? "s" : ""}
-                  </Button>
-                </div>
+          <DialogFooter className="mt-4 pt-4 border-t">
+            <div className="flex items-center justify-between w-full">
+              <p className="text-sm text-muted-foreground">
+                {rows.length} fixture{rows.length !== 1 ? "s" : ""} to upload
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading || !primarySchoolId}
+                  className="gap-2"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Upload {rows.length} Fixture{rows.length !== 1 ? "s" : ""}
+                </Button>
               </div>
-            </DialogFooter>
-          </>
+            </div>
+          </DialogFooter>
+        </>
         )}
       </DialogContent>
     </Dialog>
