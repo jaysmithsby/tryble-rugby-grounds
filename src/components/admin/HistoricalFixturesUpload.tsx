@@ -25,8 +25,14 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2, CalendarIcon } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2, CalendarIcon, ClipboardPaste, ChevronDown } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -96,6 +102,11 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
   // Opponent dropdown states
   const [activeOpponentDropdown, setActiveOpponentDropdown] = useState<string | null>(null);
   const [opponentSearchQueries, setOpponentSearchQueries] = useState<Record<string, string>>({});
+  
+  // Quick Paste state
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [parseInfo, setParseInfo] = useState<string | null>(null);
   
   // Submission state
   const [submitted, setSubmitted] = useState(false);
@@ -203,6 +214,181 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     setSubmitted(false);
     setSubmittedCount(0);
     setErrors([]);
+    setPasteText("");
+    setParseInfo(null);
+  };
+
+  // Fuzzy match school name to existing schools
+  const fuzzyMatchSchool = (name: string): { id: string; name: string } | null => {
+    const normalizedName = name.toLowerCase().trim();
+    
+    // Exact match
+    const exactMatch = schools.find(s => s.name.toLowerCase() === normalizedName);
+    if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
+    
+    // Partial match (school name contains or is contained in search)
+    const partialMatch = schools.find(s => 
+      s.name.toLowerCase().includes(normalizedName) || 
+      normalizedName.includes(s.name.toLowerCase())
+    );
+    if (partialMatch) return { id: partialMatch.id, name: partialMatch.name };
+    
+    // Word-based match (any significant word matches)
+    const searchWords = normalizedName.split(/\s+/).filter(w => w.length > 3);
+    for (const school of schools) {
+      const schoolWords = school.name.toLowerCase().split(/\s+/);
+      const hasMatchingWord = searchWords.some(sw => 
+        schoolWords.some(scw => scw.includes(sw) || sw.includes(scw))
+      );
+      if (hasMatchingWord) return { id: school.id, name: school.name };
+    }
+    
+    return null;
+  };
+
+  // Parse pasted data from clipboard
+  const parsePastedData = () => {
+    if (!pasteText.trim()) {
+      toast({
+        title: "No data to parse",
+        description: "Please paste your fixture data first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const lines = pasteText.trim().split('\n');
+    if (lines.length < 2) {
+      toast({
+        title: "Invalid format",
+        description: "Data should have headers and at least one row",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Parse headers (tab-separated)
+    const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
+    
+    // Find column indices
+    const colIndex = {
+      matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
+      homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
+      awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
+      homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
+      venue: headers.findIndex(h => h.includes('venue')),
+      roundName: headers.findIndex(h => h.includes('round_name') || h.includes('tournament')),
+    };
+
+    const parsedRows: FixtureRow[] = [];
+    const matchedSchools: string[] = [];
+    const newSchools: string[] = [];
+
+    // Parse data rows
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split('\t').map(v => v.trim());
+      if (values.length < 2) continue; // Skip empty/malformed rows
+
+      // Parse date
+      let matchDate = "";
+      let year = defaultYear;
+      if (colIndex.matchDate >= 0 && values[colIndex.matchDate]) {
+        try {
+          const dateStr = values[colIndex.matchDate];
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime())) {
+            parsedDate.setHours(14, 0, 0, 0);
+            matchDate = parsedDate.toISOString();
+            year = parsedDate.getFullYear().toString();
+          }
+        } catch (e) {
+          // Keep defaults
+        }
+      }
+
+      // Determine home/away and opponent
+      let homeAway: "home" | "away" = "home";
+      let opponentName = "";
+      
+      if (colIndex.homeAway >= 0) {
+        const haValue = values[colIndex.homeAway]?.toLowerCase() || "";
+        homeAway = haValue.includes('away') || haValue === 'a' ? "away" : "home";
+      }
+
+      // Get the primary school name for comparison
+      const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
+
+      // Determine opponent based on home/away
+      if (colIndex.homeSchool >= 0 && colIndex.awaySchool >= 0) {
+        const homeSchoolName = values[colIndex.homeSchool] || "";
+        const awaySchoolName = values[colIndex.awaySchool] || "";
+        
+        // Check which one is the primary school
+        if (homeSchoolName.toLowerCase().includes(primarySchoolName) || 
+            primarySchoolName.includes(homeSchoolName.toLowerCase())) {
+          // Primary school is home
+          opponentName = awaySchoolName;
+          homeAway = "home";
+        } else if (awaySchoolName.toLowerCase().includes(primarySchoolName) || 
+                   primarySchoolName.includes(awaySchoolName.toLowerCase())) {
+          // Primary school is away
+          opponentName = homeSchoolName;
+          homeAway = "away";
+        } else {
+          // Can't determine, use home_away column if available
+          opponentName = homeAway === "home" ? awaySchoolName : homeSchoolName;
+        }
+      }
+
+      // Try to match opponent to existing school
+      const matchedSchool = fuzzyMatchSchool(opponentName);
+      if (matchedSchool) {
+        matchedSchools.push(matchedSchool.name);
+      } else if (opponentName) {
+        newSchools.push(opponentName);
+      }
+
+      // Create fixture row
+      parsedRows.push({
+        id: generateId(),
+        year,
+        matchDate,
+        homeAway,
+        opponentName: matchedSchool?.name || opponentName,
+        opponentId: matchedSchool?.id || "",
+        result: "won", // Default, user needs to fill in
+        scoreFor: "",
+        scoreAgainst: "",
+        tournamentId: "",
+      });
+    }
+
+    if (parsedRows.length === 0) {
+      toast({
+        title: "No fixtures parsed",
+        description: "Could not parse any fixtures from the pasted data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Update rows
+    setRows(parsedRows);
+    
+    // Show info about parsing
+    const info = `Parsed ${parsedRows.length} row(s). ` +
+      `${matchedSchools.length} school(s) matched. ` +
+      `${newSchools.length} new school(s) will be created.`;
+    setParseInfo(info);
+    
+    toast({
+      title: "Data parsed successfully",
+      description: info,
+    });
+
+    // Clear paste text and close
+    setPasteText("");
+    setPasteOpen(false);
   };
 
   const validateRows = (): string[] => {
@@ -575,6 +761,75 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                 </Select>
               </div>
             </div>
+
+            {/* Quick Paste Section */}
+            <Collapsible open={pasteOpen} onOpenChange={setPasteOpen} className="border rounded-lg mb-4">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between px-4 py-3 h-auto">
+                  <div className="flex items-center gap-2">
+                    <ClipboardPaste className="h-4 w-4" />
+                    <span className="font-medium">Quick Paste</span>
+                    <span className="text-xs text-muted-foreground">
+                      — Paste tab-separated data from spreadsheets
+                    </span>
+                  </div>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", pasteOpen && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder={`Paste your fixture data here...
+
+Expected format (tab-separated with headers):
+match_date	home_school	away_school	sport	venue	home_away	round_name
+2026-03-14	St Charles College	Kearsney College	Rugby	St Charles College	Away	Winter Season`}
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    className="min-h-[120px] font-mono text-xs"
+                  />
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-muted-foreground">
+                      Headers: match_date, home_school, away_school, home_away, venue, round_name
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPasteText("")}
+                        disabled={!pasteText}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={parsePastedData}
+                        disabled={!pasteText.trim() || !primarySchoolId}
+                        className="gap-1"
+                      >
+                        <ClipboardPaste className="h-3 w-3" />
+                        Parse & Fill Rows
+                      </Button>
+                    </div>
+                  </div>
+                  {!primarySchoolId && pasteText && (
+                    <p className="text-xs text-amber-600">
+                      Please select a Primary School first to parse correctly
+                    </p>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Parse Info Display */}
+            {parseInfo && (
+              <Alert className="mb-4">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>{parseInfo}</AlertDescription>
+              </Alert>
+            )}
 
             {/* Error Display */}
             {errors.length > 0 && (
