@@ -5,18 +5,36 @@ import { DayPicker } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  fromYear?: number;
+  toYear?: number;
+};
 
-function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+function Calendar({ 
+  className, 
+  classNames, 
+  showOutsideDays = true,
+  fromYear = 2000,
+  toYear = new Date().getFullYear() + 5,
+  ...props 
+}: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
+      captionLayout="dropdown-buttons"
+      fromYear={fromYear}
+      toYear={toYear}
+      className={cn("p-3 pointer-events-auto", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption: "flex justify-center pt-1 relative items-center gap-1",
+        caption_label: "text-sm font-medium hidden",
+        caption_dropdowns: "flex items-center gap-1",
+        dropdown_month: "relative inline-flex",
+        dropdown_year: "relative inline-flex",
+        dropdown: "absolute inset-0 w-full opacity-0 cursor-pointer z-10",
+        vhidden: "sr-only",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
@@ -44,6 +62,21 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
       components={{
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
+        Dropdown: ({ value, onChange, children, ...dropdownProps }) => {
+          return (
+            <div className="relative inline-flex items-center">
+              <select
+                value={value}
+                onChange={onChange}
+                className="appearance-none bg-background border border-input rounded-md px-2 py-1 text-sm font-medium cursor-pointer hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                {...dropdownProps}
+              >
+                {children}
+              </select>
+              <ChevronLeft className="absolute right-1 h-3 w-3 opacity-50 rotate-[-90deg] pointer-events-none" />
+            </div>
+          );
+        },
       }}
       {...props}
     />
