@@ -218,35 +218,284 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     setParseInfo(null);
   };
 
+  // Normalize school name for better matching
+  const normalizeSchoolName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/[''`']/g, '') // Remove apostrophes
+      .replace(/[^a-z0-9\s]/g, '') // Remove other punctuation
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   // Fuzzy match school name to existing schools
   const fuzzyMatchSchool = (name: string): { id: string; name: string } | null => {
-    const normalizedName = name.toLowerCase().trim();
+    if (!name || !name.trim()) return null;
     
-    // Exact match
-    const exactMatch = schools.find(s => s.name.toLowerCase() === normalizedName);
+    const normalizedName = normalizeSchoolName(name);
+    
+    // Exact match on normalized names
+    const exactMatch = schools.find(s => normalizeSchoolName(s.name) === normalizedName);
     if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
     
     // Partial match (school name contains or is contained in search)
-    const partialMatch = schools.find(s => 
-      s.name.toLowerCase().includes(normalizedName) || 
-      normalizedName.includes(s.name.toLowerCase())
-    );
+    const partialMatch = schools.find(s => {
+      const normalizedSchool = normalizeSchoolName(s.name);
+      return normalizedSchool.includes(normalizedName) || normalizedName.includes(normalizedSchool);
+    });
     if (partialMatch) return { id: partialMatch.id, name: partialMatch.name };
     
-    // Word-based match (any significant word matches)
-    const searchWords = normalizedName.split(/\s+/).filter(w => w.length > 3);
+    // Word-based scoring match
+    const searchWords = normalizedName.split(' ').filter(w => w.length > 2);
+    if (searchWords.length === 0) return null;
+    
+    let bestMatch: School | null = null;
+    let bestScore = 0;
+    
     for (const school of schools) {
-      const schoolWords = school.name.toLowerCase().split(/\s+/);
-      const hasMatchingWord = searchWords.some(sw => 
+      const schoolWords = normalizeSchoolName(school.name).split(' ');
+      const matchingWords = searchWords.filter(sw => 
         schoolWords.some(scw => scw.includes(sw) || sw.includes(scw))
       );
-      if (hasMatchingWord) return { id: school.id, name: school.name };
+      const score = matchingWords.length / searchWords.length;
+      if (score > bestScore && score >= 0.5) {
+        bestScore = score;
+        bestMatch = school;
+      }
     }
+    
+    if (bestMatch) return { id: bestMatch.id, name: bestMatch.name };
     
     return null;
   };
 
-  // Parse pasted data from clipboard
+  // Parse concatenated data (no tabs) using date patterns as anchors
+  const parseConcatenatedData = (text: string): FixtureRow[] => {
+    const primarySchoolName = getSchoolName(primarySchoolId);
+    const normalizedPrimary = normalizeSchoolName(primarySchoolName);
+    
+    // Remove headers if present
+    let dataText = text;
+    if (text.toLowerCase().includes('match_date')) {
+      // Find where first date appears (after headers)
+      const firstDateMatch = text.match(/\d{4}-\d{2}-\d{2}/);
+      if (firstDateMatch && firstDateMatch.index !== undefined) {
+        dataText = text.substring(firstDateMatch.index);
+      }
+    }
+    
+    // Split into chunks using date as delimiter
+    // Each chunk starts with a date: YYYY-MM-DD
+    const datePattern = /(\d{4}-\d{2}-\d{2})/g;
+    const parts: string[] = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = datePattern.exec(dataText)) !== null) {
+      if (match.index > lastIndex) {
+        // Add the text before this date to the previous chunk
+        if (parts.length > 0) {
+          parts[parts.length - 1] += dataText.substring(lastIndex, match.index);
+        }
+      }
+      // Start new chunk with this date
+      parts.push(match[1]);
+      lastIndex = match.index + match[1].length;
+    }
+    // Add remaining text to last chunk
+    if (parts.length > 0 && lastIndex < dataText.length) {
+      parts[parts.length - 1] += dataText.substring(lastIndex);
+    }
+    
+    const parsedRows: FixtureRow[] = [];
+    
+    for (const part of parts) {
+      // Extract date (first 10 chars should be the date)
+      const dateMatch = part.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (!dateMatch) continue;
+      
+      const dateStr = dateMatch[1];
+      const remainder = part.substring(10);
+      
+      // Parse the date
+      let matchDate = "";
+      let year = defaultYear;
+      try {
+        const parsedDate = new Date(dateStr);
+        if (!isNaN(parsedDate.getTime())) {
+          parsedDate.setHours(14, 0, 0, 0);
+          matchDate = parsedDate.toISOString();
+          year = parsedDate.getFullYear().toString();
+        }
+      } catch (e) {
+        // Keep defaults
+      }
+      
+      // Find "Rugby" keyword to split schools section from rest
+      const rugbyIndex = remainder.toLowerCase().indexOf('rugby');
+      if (rugbyIndex === -1) continue;
+      
+      const schoolsSection = remainder.substring(0, rugbyIndex);
+      const afterRugby = remainder.substring(rugbyIndex + 5);
+      
+      // Find Home/Away/Neutral keyword
+      const haMatch = afterRugby.match(/(Home|Away|Neutral)/i);
+      let homeAway: "home" | "away" = "home";
+      
+      if (haMatch) {
+        const haValue = haMatch[1].toLowerCase();
+        // "Neutral" and "Away" both mean primary school is away
+        homeAway = (haValue === 'away' || haValue === 'neutral') ? "away" : "home";
+      }
+      
+      // Now extract opponent from schools section
+      // The schools section contains: homeSchool + awaySchool
+      // We need to find the primary school and the other one is the opponent
+      let opponentName = "";
+      
+      // Try to find where primary school name appears in the schools section
+      const normalizedSchools = normalizeSchoolName(schoolsSection);
+      
+      // Check if we can find the primary school name
+      if (normalizedSchools.includes(normalizedPrimary)) {
+        // Split around the primary school name
+        const primaryIndex = normalizedSchools.indexOf(normalizedPrimary);
+        const beforePrimary = schoolsSection.substring(0, primaryIndex).trim();
+        const afterPrimary = schoolsSection.substring(primaryIndex + primarySchoolName.length).trim();
+        
+        // The opponent is the non-empty part
+        opponentName = (beforePrimary || afterPrimary).trim();
+      } else {
+        // Primary school not found in text - use home/away to determine which part
+        // Split by trying to find known school names
+        let foundSchool1: { id: string; name: string } | null = null;
+        let foundSchool2: { id: string; name: string } | null = null;
+        
+        // Try to match each school from the database
+        for (const school of schools) {
+          if (school.id === primarySchoolId) continue;
+          const normalizedSchool = normalizeSchoolName(school.name);
+          if (normalizedSchools.includes(normalizedSchool)) {
+            if (!foundSchool1) {
+              foundSchool1 = { id: school.id, name: school.name };
+            } else if (!foundSchool2) {
+              foundSchool2 = { id: school.id, name: school.name };
+            }
+          }
+        }
+        
+        // Use the first found school as opponent
+        if (foundSchool1) {
+          opponentName = foundSchool1.name;
+        } else {
+          // Fallback: take the whole schools section as opponent name
+          // and try fuzzy matching
+          opponentName = schoolsSection.trim();
+        }
+      }
+      
+      // Clean up opponent name
+      opponentName = opponentName.replace(/^\s*['']?/, '').replace(/['']?\s*$/, '').trim();
+      
+      // Try to match opponent to existing school
+      const matchedSchool = fuzzyMatchSchool(opponentName);
+      
+      parsedRows.push({
+        id: generateId(),
+        year,
+        matchDate,
+        homeAway,
+        opponentName: matchedSchool?.name || opponentName,
+        opponentId: matchedSchool?.id || "",
+        result: "won",
+        scoreFor: "",
+        scoreAgainst: "",
+        tournamentId: "",
+      });
+    }
+    
+    return parsedRows;
+  };
+
+  // Parse tab-separated data
+  const parseTabSeparatedData = (text: string): FixtureRow[] => {
+    const lines = text.split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
+    
+    const colIndex = {
+      matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
+      homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
+      awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
+      homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
+    };
+
+    const parsedRows: FixtureRow[] = [];
+    const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split('\t').map(v => v.trim());
+      if (values.length < 2) continue;
+
+      let matchDate = "";
+      let year = defaultYear;
+      if (colIndex.matchDate >= 0 && values[colIndex.matchDate]) {
+        try {
+          const parsedDate = new Date(values[colIndex.matchDate]);
+          if (!isNaN(parsedDate.getTime())) {
+            parsedDate.setHours(14, 0, 0, 0);
+            matchDate = parsedDate.toISOString();
+            year = parsedDate.getFullYear().toString();
+          }
+        } catch (e) {}
+      }
+
+      let homeAway: "home" | "away" = "home";
+      let opponentName = "";
+      
+      if (colIndex.homeAway >= 0) {
+        const haValue = values[colIndex.homeAway]?.toLowerCase() || "";
+        homeAway = (haValue.includes('away') || haValue === 'a' || haValue === 'neutral') ? "away" : "home";
+      }
+
+      if (colIndex.homeSchool >= 0 && colIndex.awaySchool >= 0) {
+        const homeSchoolName = values[colIndex.homeSchool] || "";
+        const awaySchoolName = values[colIndex.awaySchool] || "";
+        
+        if (homeSchoolName.toLowerCase().includes(primarySchoolName) || 
+            primarySchoolName.includes(homeSchoolName.toLowerCase())) {
+          opponentName = awaySchoolName;
+          homeAway = "home";
+        } else if (awaySchoolName.toLowerCase().includes(primarySchoolName) || 
+                   primarySchoolName.includes(awaySchoolName.toLowerCase())) {
+          opponentName = homeSchoolName;
+          homeAway = "away";
+        } else {
+          opponentName = homeAway === "home" ? awaySchoolName : homeSchoolName;
+        }
+      }
+
+      const matchedSchool = fuzzyMatchSchool(opponentName);
+
+      parsedRows.push({
+        id: generateId(),
+        year,
+        matchDate,
+        homeAway,
+        opponentName: matchedSchool?.name || opponentName,
+        opponentId: matchedSchool?.id || "",
+        result: "won",
+        scoreFor: "",
+        scoreAgainst: "",
+        tournamentId: "",
+      });
+    }
+    
+    return parsedRows;
+  };
+
+  // Parse pasted data from clipboard - smart detection
   const parsePastedData = () => {
     if (!pasteText.trim()) {
       toast({
@@ -257,128 +506,44 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       return;
     }
 
-    const lines = pasteText.trim().split('\n');
-    if (lines.length < 2) {
+    if (!primarySchoolId) {
       toast({
-        title: "Invalid format",
-        description: "Data should have headers and at least one row",
+        title: "No primary school selected",
+        description: "Please select the primary school first",
         variant: "destructive",
       });
       return;
     }
 
-    // Parse headers (tab-separated)
-    const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
+    const text = pasteText.trim();
+    let parsedRows: FixtureRow[] = [];
     
-    // Find column indices
-    const colIndex = {
-      matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
-      homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
-      awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
-      homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
-      venue: headers.findIndex(h => h.includes('venue')),
-      roundName: headers.findIndex(h => h.includes('round_name') || h.includes('tournament')),
-    };
-
-    const parsedRows: FixtureRow[] = [];
-    const matchedSchools: string[] = [];
-    const newSchools: string[] = [];
-
-    // Parse data rows
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split('\t').map(v => v.trim());
-      if (values.length < 2) continue; // Skip empty/malformed rows
-
-      // Parse date
-      let matchDate = "";
-      let year = defaultYear;
-      if (colIndex.matchDate >= 0 && values[colIndex.matchDate]) {
-        try {
-          const dateStr = values[colIndex.matchDate];
-          const parsedDate = new Date(dateStr);
-          if (!isNaN(parsedDate.getTime())) {
-            parsedDate.setHours(14, 0, 0, 0);
-            matchDate = parsedDate.toISOString();
-            year = parsedDate.getFullYear().toString();
-          }
-        } catch (e) {
-          // Keep defaults
-        }
-      }
-
-      // Determine home/away and opponent
-      let homeAway: "home" | "away" = "home";
-      let opponentName = "";
-      
-      if (colIndex.homeAway >= 0) {
-        const haValue = values[colIndex.homeAway]?.toLowerCase() || "";
-        homeAway = haValue.includes('away') || haValue === 'a' ? "away" : "home";
-      }
-
-      // Get the primary school name for comparison
-      const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
-
-      // Determine opponent based on home/away
-      if (colIndex.homeSchool >= 0 && colIndex.awaySchool >= 0) {
-        const homeSchoolName = values[colIndex.homeSchool] || "";
-        const awaySchoolName = values[colIndex.awaySchool] || "";
-        
-        // Check which one is the primary school
-        if (homeSchoolName.toLowerCase().includes(primarySchoolName) || 
-            primarySchoolName.includes(homeSchoolName.toLowerCase())) {
-          // Primary school is home
-          opponentName = awaySchoolName;
-          homeAway = "home";
-        } else if (awaySchoolName.toLowerCase().includes(primarySchoolName) || 
-                   primarySchoolName.includes(awaySchoolName.toLowerCase())) {
-          // Primary school is away
-          opponentName = homeSchoolName;
-          homeAway = "away";
-        } else {
-          // Can't determine, use home_away column if available
-          opponentName = homeAway === "home" ? awaySchoolName : homeSchoolName;
-        }
-      }
-
-      // Try to match opponent to existing school
-      const matchedSchool = fuzzyMatchSchool(opponentName);
-      if (matchedSchool) {
-        matchedSchools.push(matchedSchool.name);
-      } else if (opponentName) {
-        newSchools.push(opponentName);
-      }
-
-      // Create fixture row
-      parsedRows.push({
-        id: generateId(),
-        year,
-        matchDate,
-        homeAway,
-        opponentName: matchedSchool?.name || opponentName,
-        opponentId: matchedSchool?.id || "",
-        result: "won", // Default, user needs to fill in
-        scoreFor: "",
-        scoreAgainst: "",
-        tournamentId: "",
-      });
+    // Check if tabs exist - use tab parser
+    if (text.includes('\t')) {
+      parsedRows = parseTabSeparatedData(text);
+    } else {
+      // No tabs - use concatenated data parser
+      parsedRows = parseConcatenatedData(text);
     }
 
     if (parsedRows.length === 0) {
       toast({
         title: "No fixtures parsed",
-        description: "Could not parse any fixtures from the pasted data",
+        description: "Could not parse any fixtures from the pasted data. Make sure dates are in YYYY-MM-DD format.",
         variant: "destructive",
       });
       return;
     }
 
-    // Update rows
+    // Count matched vs new schools
+    const matchedCount = parsedRows.filter(r => r.opponentId).length;
+    const newCount = parsedRows.filter(r => !r.opponentId && r.opponentName).length;
+
     setRows(parsedRows);
     
-    // Show info about parsing
-    const info = `Parsed ${parsedRows.length} row(s). ` +
-      `${matchedSchools.length} school(s) matched. ` +
-      `${newSchools.length} new school(s) will be created.`;
+    const info = `Parsed ${parsedRows.length} fixture(s). ` +
+      `${matchedCount} opponent(s) matched to database. ` +
+      `${newCount} will be created as new school(s).`;
     setParseInfo(info);
     
     toast({
@@ -386,7 +551,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       description: info,
     });
 
-    // Clear paste text and close
     setPasteText("");
     setPasteOpen(false);
   };
