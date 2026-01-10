@@ -21,7 +21,46 @@ All colors MUST be HSL.
 */
 
 @layer base {
+  /* Light Mode (default) */
   :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 12%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 12%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 45 93% 47%;
+    --accent-foreground: 0 0% 12%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 142 76% 36%;
+
+    --radius: 0.75rem;
+
+    --gradient-hero: linear-gradient(135deg, hsl(142 76% 36% / 0.1), hsl(45 93% 47% / 0.08));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98%));
+    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.08);
+    --shadow-glow: 0 0 40px hsl(142 76% 36% / 0.1);
+  }
+
+  /* Dark Mode */
+  .dark {
     --background: 0 0% 7%;
     --foreground: 0 0% 98%;
 
@@ -50,8 +89,6 @@ All colors MUST be HSL.
     --input: 0 0% 20%;
     --ring: 142 76% 36%;
 
-    --radius: 0.75rem;
-
     --gradient-hero: linear-gradient(135deg, hsl(142 76% 36% / 0.15), hsl(45 93% 47% / 0.1));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 12%), hsl(0 0% 8%));
     --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4);
@@ -61,11 +98,15 @@ All colors MUST be HSL.
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border transition-colors duration-300;
+  }
+
+  html {
+    @apply scroll-smooth;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 
   /* Remove number input spinner arrows */

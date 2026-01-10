@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import SignUpFlow from "@/components/auth/SignUpFlow";
 import SignInForm from "@/components/auth/SignInForm";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Auth = () => {
   const location = useLocation();
@@ -19,9 +20,12 @@ const Auth = () => {
           <button onClick={() => navigate("/")} className="text-2xl font-bold text-primary">
             Tryble
           </button>
-          <Button variant="ghost" onClick={() => navigate("/")}>
-            Back to Home
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button variant="ghost" onClick={() => navigate("/")}>
+              Back to Home
+            </Button>
+          </div>
         </div>
       </header>
 
