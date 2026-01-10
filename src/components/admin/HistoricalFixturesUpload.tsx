@@ -582,7 +582,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
             )}
 
             {/* Step 2: Fixture Rows Table */}
-            <ScrollArea className="flex-1 -mx-6 px-6">
+            <ScrollArea className="flex-1 -mx-6 px-6 max-h-[400px]">
               <div className="space-y-2">
                 {/* Table Header */}
                 <div className="grid grid-cols-[80px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
