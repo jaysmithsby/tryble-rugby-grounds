@@ -10,6 +10,7 @@ import { FixtureCard } from "@/components/home/FixtureCard";
 import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { TriviaCarousel } from "@/components/home/TriviaCarousel";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Trophy } from "lucide-react";
 import paarlGimJersey from "@/assets/jerseys/paarl_gim.png";
 import paulRoosJersey from "@/assets/jerseys/paul_roos.png";
@@ -222,12 +223,15 @@ const Home = () => {
             <Trophy className="w-6 h-6 text-primary" />
             <span className="text-2xl font-bold text-primary">Tryble</span>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 

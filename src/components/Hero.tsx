@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Apple, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import heroImage from "@/assets/hero-stadium.jpg";
 
 const Hero = () => {
@@ -12,13 +13,16 @@ const Hero = () => {
       <header className="relative z-10 border-b border-border/40 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-primary">Tryble</h2>
-          <Button 
-            variant="default"
-            onClick={() => navigate("/auth", { state: { mode: "signin" } })}
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-          >
-            Sign In
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button 
+              variant="default"
+              onClick={() => navigate("/auth", { state: { mode: "signin" } })}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              Sign In
+            </Button>
+          </div>
         </div>
       </header>
 

@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
 import { allBadges } from "@/data/badgesData";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface ProfileData {
   firstName: string;
@@ -127,9 +128,12 @@ const Profile = () => {
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-primary">Tryble</h2>
-          <Button variant="ghost" onClick={() => navigate("/home")}>
-            Back to Home
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button variant="ghost" onClick={() => navigate("/home")}>
+              Back to Home
+            </Button>
+          </div>
         </div>
       </header>
 

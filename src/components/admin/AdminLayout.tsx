@@ -17,6 +17,7 @@ import { PoolPacksTable } from "./PoolPacksTable";
 import { CreatePoolPackDialog } from "./CreatePoolPackDialog";
 import { EditPoolPackDialog } from "./EditPoolPackDialog";
 import { SchoolRequestsTable } from "./SchoolRequestsTable";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -56,9 +57,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Manage Tryble platform content and users</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-muted-foreground mt-2">Manage Tryble platform content and users</p>
+          </div>
+          <ThemeToggle />
         </div>
 
         <Tabs defaultValue="fixtures" className="space-y-6">
