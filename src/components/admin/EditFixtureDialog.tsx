@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, ExternalLink } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon, Loader2, ExternalLink } from "lucide-react";
 
 interface EditFixtureDialogProps {
   open: boolean;
@@ -25,43 +34,69 @@ interface EditFixtureDialogProps {
   fixture: any;
 }
 
+interface School {
+  id: string;
+  name: string;
+}
+
+interface Tournament {
+  id: string;
+  name: string;
+}
+
 export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [tournaments, setTournaments] = useState<Array<{ id: string; name: string }>>([]);
-  const [formData, setFormData] = useState({
-    venue: "",
-    status: "upcoming",
-    home_score: null as number | null,
-    away_score: null as number | null,
-    match_date: "",
-    tournament_id: "",
-    source_url: "",
-  });
+  const [schools, setSchools] = useState<School[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  
+  // Form state
+  const [matchDate, setMatchDate] = useState<Date | undefined>();
+  const [venue, setVenue] = useState("");
+  const [tournamentId, setTournamentId] = useState("");
+  const [homeScore, setHomeScore] = useState("");
+  const [awayScore, setAwayScore] = useState("");
+  const [status, setStatus] = useState("upcoming");
+  const [isVisible, setIsVisible] = useState(true);
+  const [sourceUrl, setSourceUrl] = useState("");
 
+  // Load data when dialog opens
   useEffect(() => {
-    if (open) {
+    if (open && fixture) {
+      fetchSchools();
       fetchTournaments();
+      
+      // Initialize form with fixture data
+      setMatchDate(fixture.match_date ? new Date(fixture.match_date) : undefined);
+      setVenue(fixture.venue || "");
+      setTournamentId(fixture.tournament_id || "none");
+      setHomeScore(fixture.home_score !== null ? String(fixture.home_score) : "");
+      setAwayScore(fixture.away_score !== null ? String(fixture.away_score) : "");
+      setStatus(fixture.status || "upcoming");
+      setIsVisible(fixture.is_visible !== false);
+      setSourceUrl(fixture.source_url || "");
     }
-    if (fixture) {
-      setFormData({
-        venue: fixture.venue,
-        status: fixture.status,
-        home_score: fixture.home_score,
-        away_score: fixture.away_score,
-        match_date: fixture.match_date?.substring(0, 16) || "",
-        tournament_id: fixture.tournament_id || "",
-        source_url: fixture.source_url || "",
-      });
+  }, [open, fixture]);
+
+  const fetchSchools = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("schools")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      setSchools(data || []);
+    } catch (error) {
+      console.error("Error fetching schools:", error);
     }
-  }, [fixture, open]);
+  };
 
   const fetchTournaments = async () => {
     try {
       const { data, error } = await supabase
         .from("tournaments")
         .select("id, name")
-        .eq("is_active", true)
         .order("start_date", { ascending: false });
 
       if (error) throw error;
@@ -71,20 +106,40 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
     }
   };
 
+  const getSchoolName = (id: string) => {
+    return schools.find(s => s.id === id)?.name || "Unknown School";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!matchDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a match date",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const updateData = {
-        ...formData,
-        tournament_id: formData.tournament_id || null,
-        source_url: formData.source_url || null,
+        match_date: matchDate.toISOString(),
+        venue: venue || "TBD",
+        tournament_id: tournamentId && tournamentId !== "none" ? tournamentId : null,
+        home_score: homeScore ? parseInt(homeScore) : null,
+        away_score: awayScore ? parseInt(awayScore) : null,
+        status,
+        is_visible: isVisible,
+        source_url: sourceUrl || null,
       };
+
       const { error } = await supabase
-        .from('fixtures')
+        .from("fixtures")
         .update(updateData)
-        .eq('id', fixture.id);
+        .eq("id", fixture.id);
 
       if (error) throw error;
 
@@ -96,10 +151,10 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
       onOpenChange(false);
       window.location.reload();
     } catch (error: any) {
-      console.error('Error updating fixture:', error);
+      console.error("Error updating fixture:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update fixture",
         variant: "destructive",
       });
     } finally {
@@ -107,44 +162,109 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
     }
   };
 
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
+  // Don't render dialog at all if no fixture
   if (!fixture) {
     return null;
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Fixture</DialogTitle>
         </DialogHeader>
+        
+        {/* Display fixture teams (read-only) */}
+        <div className="bg-muted/50 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-center gap-4 text-sm">
+            <span className="font-medium">{getSchoolName(fixture.home_school_id)}</span>
+            <span className="text-muted-foreground">vs</span>
+            <span className="font-medium">{getSchoolName(fixture.away_school_id)}</span>
+          </div>
+        </div>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Date Picker */}
           <div className="space-y-2">
-            <Label htmlFor="match_date">Match Date</Label>
-            <Input
-              id="match_date"
-              type="datetime-local"
-              value={formData.match_date}
-              onChange={(e) => setFormData({ ...formData, match_date: e.target.value })}
-              required
-            />
+            <Label>Match Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !matchDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {matchDate ? format(matchDate, "PPP 'at' HH:mm") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={matchDate}
+                  onSelect={setMatchDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+                <div className="border-t p-3">
+                  <Label className="text-xs">Time</Label>
+                  <Input
+                    type="time"
+                    className="mt-1"
+                    value={matchDate ? format(matchDate, "HH:mm") : ""}
+                    onChange={(e) => {
+                      if (matchDate && e.target.value) {
+                        const [hours, minutes] = e.target.value.split(':');
+                        const newDate = new Date(matchDate);
+                        newDate.setHours(parseInt(hours), parseInt(minutes));
+                        setMatchDate(newDate);
+                      }
+                    }}
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
+          {/* Venue */}
           <div className="space-y-2">
             <Label htmlFor="venue">Venue</Label>
             <Input
               id="venue"
-              value={formData.venue}
-              onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
-              required
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              placeholder="e.g., Grey College Stadium"
             />
           </div>
 
+          {/* Tournament */}
           <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
-            >
+            <Label>Tournament (Optional)</Label>
+            <Select value={tournamentId} onValueChange={setTournamentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select tournament (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {tournaments.map((tournament) => (
+                  <SelectItem key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -158,97 +278,92 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="home_score">Home Score</Label>
-              <Input
-                id="home_score"
-                type="number"
-                value={formData.home_score ?? ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    home_score: e.target.value ? parseInt(e.target.value) : null,
-                  })
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="away_score">Away Score</Label>
-              <Input
-                id="away_score"
-                type="number"
-                value={formData.away_score ?? ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    away_score: e.target.value ? parseInt(e.target.value) : null,
-                  })
-                }
-              />
-            </div>
-          </div>
-
+          {/* Score */}
           <div className="space-y-2">
-            <Label htmlFor="tournament">Tournament (Optional)</Label>
-            <Select
-              value={formData.tournament_id}
-              onValueChange={(value) => setFormData({ ...formData, tournament_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select tournament (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {tournaments.map((tournament) => (
-                  <SelectItem key={tournament.id} value={tournament.id}>
-                    {tournament.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Score</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  placeholder="Home"
+                  value={homeScore}
+                  onChange={(e) => setHomeScore(e.target.value)}
+                  min="0"
+                />
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {getSchoolName(fixture.home_school_id)}
+                </p>
+              </div>
+              <span className="text-muted-foreground font-medium">-</span>
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  placeholder="Away"
+                  value={awayScore}
+                  onChange={(e) => setAwayScore(e.target.value)}
+                  min="0"
+                />
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {getSchoolName(fixture.away_school_id)}
+                </p>
+              </div>
+            </div>
           </div>
 
+          {/* Source URL */}
           <div className="space-y-2">
             <Label htmlFor="source_url">Source URL (Optional)</Label>
             <div className="flex gap-2">
               <Input
                 id="source_url"
                 type="url"
-                value={formData.source_url}
-                onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
                 placeholder="https://example.com/fixture-info"
                 className="flex-1"
               />
-              {formData.source_url && (
+              {sourceUrl && (
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   asChild
                 >
-                  <a href={formData.source_url} target="_blank" rel="noopener noreferrer">
+                  <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Where did you get this fixture information?</p>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          {/* Visibility Toggle */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label>Visible to Users</Label>
+              <p className="text-xs text-muted-foreground">
+                Show this fixture on the app
+              </p>
+            </div>
+            <Switch
+              checked={isVisible}
+              onCheckedChange={setIsVisible}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               disabled={loading}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Fixture
+              Save Changes
             </Button>
           </div>
         </form>
