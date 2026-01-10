@@ -107,9 +107,13 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
     }
   };
 
+  if (!fixture) {
+    return null;
+  }
+
   return (
-    <Dialog open={open && !!fixture} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Fixture</DialogTitle>
         </DialogHeader>
@@ -148,6 +152,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
                 <SelectItem value="upcoming">Upcoming</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="final">Final</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="holding">Holding</SelectItem>
               </SelectContent>
             </Select>
@@ -232,7 +237,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
             <p className="text-xs text-muted-foreground">Where did you get this fixture information?</p>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
