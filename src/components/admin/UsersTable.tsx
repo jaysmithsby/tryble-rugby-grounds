@@ -79,54 +79,73 @@ export function UsersTable() {
     try {
       setLoading(true);
 
-      // Fetch all users with their auth data
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) throw authError;
-
-      // Fetch all profiles
+      // Fetch all profiles (this is the source of truth for users)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*');
-      if (profilesError) throw profilesError;
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      if (!profiles || profiles.length === 0) {
+        console.log('No profiles found in database');
+        setUsers([]);
+        setSchools([]);
+        setLoading(false);
+        return;
+      }
 
       // Fetch active sanctions
       const { data: sanctions, error: sanctionsError } = await supabase
         .from('user_sanctions')
         .select('*')
         .eq('is_active', true);
-      if (sanctionsError) throw sanctionsError;
+      if (sanctionsError) console.error('Error fetching sanctions:', sanctionsError);
 
       // Fetch user scores
       const { data: scores, error: scoresError } = await supabase
         .from('user_scores')
         .select('user_id, predictions_made, predictions_correct');
-      if (scoresError) throw scoresError;
+      if (scoresError) console.error('Error fetching scores:', scoresError);
 
       // Fetch pool memberships count
       const { data: poolMemberships, error: poolError } = await supabase
         .from('pool_members')
         .select('user_id');
-      if (poolError) throw poolError;
+      if (poolError) console.error('Error fetching pool memberships:', poolError);
 
       // Fetch badges count
       const { data: userBadges, error: badgesError } = await supabase
         .from('user_badges')
         .select('user_id');
-      if (badgesError) throw badgesError;
+      if (badgesError) console.error('Error fetching badges:', badgesError);
 
-      // Combine all data
-      const combinedUsers: UserData[] = authUsers.users.map(user => {
-        const profile = profiles?.find(p => p.id === user.id) || null;
-        const userSanctions = sanctions?.filter(s => s.user_id === user.id) || [];
-        const userScores = scores?.find(s => s.user_id === user.id) || null;
-        const poolCount = poolMemberships?.filter(pm => pm.user_id === user.id).length || 0;
-        const badgeCount = userBadges?.filter(b => b.user_id === user.id).length || 0;
+      // Build users from profiles (profiles table is the source of truth)
+      const combinedUsers: UserData[] = profiles.map(profile => {
+        const userSanctions = sanctions?.filter(s => s.user_id === profile.id) || [];
+        const userScores = scores?.find(s => s.user_id === profile.id) || null;
+        const poolCount = poolMemberships?.filter(pm => pm.user_id === profile.id).length || 0;
+        const badgeCount = userBadges?.filter(b => b.user_id === profile.id).length || 0;
 
         return {
-          id: user.id,
-          email: user.email || '',
-          created_at: user.created_at,
-          profile,
+          id: profile.id,
+          email: profile.contact_method === 'email' ? profile.contact_value : '',
+          created_at: profile.created_at,
+          profile: {
+            username: profile.username,
+            display_name: profile.display_name,
+            first_name: profile.first_name,
+            school_name: profile.school_name,
+            age_band: profile.age_band,
+            account_type: profile.account_type || 'adult',
+            consent_status: profile.consent_status || 'pending',
+            parent_email: profile.parent_email,
+            country: profile.country,
+            province: profile.province,
+          },
           sanctions: userSanctions,
           scores: userScores,
           pools: poolCount,
@@ -137,7 +156,7 @@ export function UsersTable() {
       setUsers(combinedUsers);
 
       // Extract unique schools for filter
-      const uniqueSchools = [...new Set(profiles?.map(p => p.school_name).filter(Boolean))];
+      const uniqueSchools = [...new Set(profiles.map(p => p.school_name).filter(Boolean))];
       setSchools(uniqueSchools as string[]);
     } catch (error) {
       console.error('Error fetching users:', error);
