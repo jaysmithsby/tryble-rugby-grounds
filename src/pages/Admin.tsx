@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FixturesTable } from "@/components/admin/FixturesTable";
 import { CreateFixtureDialog } from "@/components/admin/CreateFixtureDialog";
 import { EditFixtureDialog } from "@/components/admin/EditFixtureDialog";
 import { ImportFixturesButton } from "@/components/admin/ImportFixturesButton";
+import { HistoricalFixturesUpload } from "@/components/admin/HistoricalFixturesUpload";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BottomNav } from "@/components/BottomNav";
 
@@ -18,6 +19,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [historicalDialogOpen, setHistoricalDialogOpen] = useState(false);
   const [selectedFixture, setSelectedFixture] = useState<any>(null);
 
   useEffect(() => {
@@ -95,8 +97,16 @@ export default function Admin() {
             <h2 className="text-2xl font-bold text-foreground">Fixtures Manager</h2>
             <p className="text-muted-foreground mt-1">Manage rugby fixtures and match results</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <ImportFixturesButton />
+            <Button 
+              variant="outline" 
+              onClick={() => setHistoricalDialogOpen(true)} 
+              className="gap-2"
+            >
+              <History className="h-4 w-4" />
+              Historical Fixtures
+            </Button>
             <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               New Fixture
@@ -115,6 +125,11 @@ export default function Admin() {
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
           fixture={selectedFixture}
+        />
+
+        <HistoricalFixturesUpload
+          open={historicalDialogOpen}
+          onOpenChange={setHistoricalDialogOpen}
         />
       </AdminLayout>
       <BottomNav />
