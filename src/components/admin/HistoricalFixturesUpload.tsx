@@ -585,7 +585,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
             <ScrollArea className="flex-1 -mx-6 px-6">
               <div className="space-y-2">
                 {/* Table Header */}
-                <div className="grid grid-cols-[60px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
+                <div className="grid grid-cols-[80px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
                   <div>Year</div>
                   <div>H/A</div>
                   <div>Opponent</div>
@@ -600,7 +600,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                 {rows.map((row, index) => (
                   <div
                     key={row.id}
-                    className="grid grid-cols-[60px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 items-center py-1"
+                    className="grid grid-cols-[80px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 items-center py-1"
                   >
                     {/* Year */}
                     <Select
