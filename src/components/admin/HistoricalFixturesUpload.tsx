@@ -24,8 +24,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2, CalendarIcon } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -35,6 +36,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { format } from "date-fns";
 
 interface HistoricalFixturesUploadProps {
   open: boolean;
@@ -592,8 +594,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
             <ScrollArea className="flex-1 -mx-6 px-6 max-h-[400px]">
               <div className="space-y-2">
                 {/* Table Header */}
-                <div className="grid grid-cols-[80px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
+                <div className="grid grid-cols-[80px_110px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
                   <div>Year</div>
+                  <div>Date</div>
                   <div>H/A</div>
                   <div>Opponent</div>
                   <div>Result</div>
@@ -604,10 +607,14 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                 </div>
 
                 {/* Fixture Rows */}
-                {rows.map((row, index) => (
+                {rows.map((row, index) => {
+                  // Parse the date for the picker
+                  const rowDate = row.matchDate ? new Date(row.matchDate) : undefined;
+                  
+                  return (
                   <div
                     key={row.id}
-                    className="grid grid-cols-[80px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 items-center py-1"
+                    className="grid grid-cols-[80px_110px_80px_1fr_100px_70px_70px_1fr_40px] gap-2 items-center py-1"
                   >
                     {/* Year */}
                     <Select
@@ -625,6 +632,42 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                         ))}
                       </SelectContent>
                     </Select>
+
+                    {/* Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "h-9 text-sm justify-start text-left font-normal",
+                            !row.matchDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-1 h-3 w-3" />
+                          {row.matchDate ? format(new Date(row.matchDate), "MMM dd") : "Pick"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={rowDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              // Set time to 14:00 for the match
+                              date.setHours(14, 0, 0, 0);
+                              updateRow(row.id, "matchDate", date.toISOString());
+                              // Also update the year to match the selected date
+                              updateRow(row.id, "year", date.getFullYear().toString());
+                            } else {
+                              updateRow(row.id, "matchDate", "");
+                            }
+                          }}
+                          defaultMonth={row.year ? new Date(parseInt(row.year), 0) : undefined}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
 
                     {/* Home/Away */}
                     <Select
@@ -712,7 +755,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                       <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Add Row Button */}
