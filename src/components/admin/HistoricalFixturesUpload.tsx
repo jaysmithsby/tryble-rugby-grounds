@@ -315,6 +315,13 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         const homeScore = isHome ? scoreFor : scoreAgainst;
         const awayScore = isHome ? scoreAgainst : scoreFor;
 
+        // Determine venue based on home/away
+        // If Home: venue is the primary school's name
+        // If Away: venue is the opponent's name
+        const primarySchoolName = getSchoolName(primarySchoolId);
+        const opponentName = row.opponentName.trim() || getSchoolName(opponentId);
+        const venue = isHome ? primarySchoolName : opponentName;
+
         // Calculate status based on result
         const status = "completed";
 
@@ -334,7 +341,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
           home_score: homeScore,
           away_score: awayScore,
           match_date: matchDate.toISOString(),
-          venue: "TBD",
+          venue: venue || "TBD",
           status,
           season: year.toString(),
           year,
