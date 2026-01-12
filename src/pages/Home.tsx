@@ -11,7 +11,9 @@ import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { TriviaCarousel } from "@/components/home/TriviaCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy } from "lucide-react";
+import { Trophy, MessageCircle, Award } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import paarlGimJersey from "@/assets/jerseys/paarl_gim.png";
 import paulRoosJersey from "@/assets/jerseys/paul_roos.png";
 import glenwoodJersey from "@/assets/jerseys/glenwood.png";
@@ -293,6 +295,41 @@ const Home = () => {
 
         {/* Score Submission Section */}
         <ScoreSubmission />
+
+        {/* Become an Official Scorekeeper CTA */}
+        <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Award className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h3 className="font-semibold text-foreground">Become an Official Scorekeeper</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Get a special badge and be the trusted source for your school's first team scores. 
+                    Official scorekeepers are verified and accepted by the Tryble team.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-primary/30 hover:bg-primary/10"
+                  asChild
+                >
+                  <a
+                    href="https://wa.me/27836388389?text=Hey%20Trybal!%20I%20want%20to%20be%20an%20offical%20scorekeeper%2C%20I'll%20let%20you%20know%20what%20the%20final%20first%20team%20score%20is"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Apply via WhatsApp
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
 
       {/* Bottom Navigation */}
