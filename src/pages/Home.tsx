@@ -23,6 +23,7 @@ const Home = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
+  const [userSchoolName, setUserSchoolName] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Handle prediction submission
@@ -40,6 +41,17 @@ const Home = () => {
         navigate("/auth");
       } else {
         setUser(user);
+        // Fetch user's school from profile
+        supabase
+          .from("profiles")
+          .select("school_name")
+          .eq("id", user.id)
+          .single()
+          .then(({ data }) => {
+            if (data?.school_name) {
+              setUserSchoolName(data.school_name);
+            }
+          });
       }
       setLoading(false);
     });
@@ -50,6 +62,17 @@ const Home = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
+        // Fetch user's school from profile
+        supabase
+          .from("profiles")
+          .select("school_name")
+          .eq("id", session.user.id)
+          .single()
+          .then(({ data }) => {
+            if (data?.school_name) {
+              setUserSchoolName(data.school_name);
+            }
+          });
       }
     });
 
@@ -297,39 +320,41 @@ const Home = () => {
         <ScoreSubmission />
 
         {/* Become an Official Scorekeeper CTA */}
-        <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
-          <CardContent className="p-5">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                <Award className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1 space-y-3">
-                <div>
-                  <h3 className="font-semibold text-foreground">Become an Official Scorekeeper</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Get a special badge and be the trusted source for your school's first team scores. 
-                    Official scorekeepers are verified and accepted by the Tryble team.
-                  </p>
+        {userSchoolName && (
+          <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Award className="h-5 w-5 text-primary" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-primary/30 hover:bg-primary/10"
-                  asChild
-                >
-                  <a
-                    href="https://wa.me/27836388389?text=Hey%20Trybal!%20I%20want%20to%20be%20an%20offical%20scorekeeper%2C%20I'll%20let%20you%20know%20what%20the%20final%20first%20team%20score%20is"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h3 className="font-semibold text-foreground">Become an Official Scorekeeper for {userSchoolName}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Get a special badge and be the trusted source for {userSchoolName}'s first team scores. 
+                      Official scorekeepers are verified and accepted by the Tryble team.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-primary/30 hover:bg-primary/10"
+                    asChild
                   >
-                    <MessageCircle className="h-4 w-4" />
-                    Apply via WhatsApp
-                  </a>
-                </Button>
+                    <a
+                      href={`https://wa.me/27836388389?text=${encodeURIComponent(`Hey Trybal! I want to be an official scorekeeper for ${userSchoolName}, I'll let you know what the final first team score is`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Apply via WhatsApp
+                    </a>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       {/* Bottom Navigation */}
