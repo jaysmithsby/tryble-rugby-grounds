@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { BottomNav } from "@/components/BottomNav";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
+import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
 import { DerbyBanner } from "@/components/home/DerbyBanner";
 import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/home/FixtureCard";
@@ -316,7 +317,12 @@ const Home = () => {
         {/* Trivia / News Carousel */}
         <TriviaCarousel />
 
-        {/* Score Submission Section */}
+        {/* School-Specific Score Submission (Official Scorekeepers) */}
+        {userSchoolName && (
+          <SchoolScoreSubmission userSchoolName={userSchoolName} />
+        )}
+
+        {/* General Score Submission Section */}
         <ScoreSubmission />
 
         {/* Become an Official Scorekeeper CTA */}
