@@ -37,6 +37,7 @@ export const PredictionDialog = ({
 }: PredictionDialogProps) => {
   const [selectedTeam, setSelectedTeam] = useState<"home" | "away">("home");
   const [margin, setMargin] = useState<number>(7);
+  const [marginInput, setMarginInput] = useState<string>("7");
   const { toast } = useToast();
 
   const handleSubmit = () => {
@@ -57,12 +58,30 @@ export const PredictionDialog = ({
 
   const handleMarginChange = (value: number[]) => {
     setMargin(value[0]);
+    setMarginInput(value[0].toString());
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || 1;
-    if (value >= 1 && value <= 50) {
-      setMargin(value);
+    const inputValue = e.target.value;
+    setMarginInput(inputValue);
+    
+    const numValue = parseInt(inputValue);
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 50) {
+      setMargin(numValue);
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Ensure minimum of 1 when user leaves the field
+    const numValue = parseInt(marginInput);
+    if (isNaN(numValue) || numValue < 1) {
+      setMargin(1);
+      setMarginInput("1");
+    } else if (numValue > 50) {
+      setMargin(50);
+      setMarginInput("50");
+    } else {
+      setMarginInput(numValue.toString());
     }
   };
 
@@ -145,8 +164,9 @@ export const PredictionDialog = ({
               />
               <Input
                 type="number"
-                value={margin}
+                value={marginInput}
                 onChange={handleInputChange}
+                onBlur={handleInputBlur}
                 min={1}
                 max={50}
                 className="w-20 text-center"
