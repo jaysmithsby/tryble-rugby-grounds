@@ -474,6 +474,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     console.log('[Quick Paste Debug] Headers detected:', headers);
     console.log('[Quick Paste Debug] Raw first line:', lines[0]);
     
+    // Find indices for known columns
     const colIndex = {
       matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
       homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
@@ -506,8 +507,37 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       score: headers.findIndex(h => h === 'score' || h === 'final_score' || h === 'final score' || h === 'scores'),
     };
 
+    // Auto-detect score columns by analyzing first data row for numeric values
+    // Look for columns that have numeric values and aren't already identified
+    const firstDataValues = lines[1]?.split('\t').map(v => v.trim()) || [];
+    const numericColumns: number[] = [];
+    
+    firstDataValues.forEach((val, idx) => {
+      // Check if this column contains a numeric value (score-like)
+      const isNumeric = /^\d+$/.test(val) || /^\d+\s*[-–:]\s*\d+$/.test(val);
+      const isAlreadyUsed = Object.values(colIndex).includes(idx);
+      if (isNumeric && !isAlreadyUsed) {
+        numericColumns.push(idx);
+      }
+    });
+
     console.log('[Quick Paste Debug] Column indices:', colIndex);
+    console.log('[Quick Paste Debug] Auto-detected numeric columns:', numericColumns);
     console.log('[Quick Paste Debug] All headers with indices:', headers.map((h, i) => `${i}: "${h}"`).join(', '));
+    console.log('[Quick Paste Debug] First data row:', firstDataValues);
+
+    // If we haven't found score columns by header, try to use auto-detected numeric columns
+    // Assuming the last two numeric columns are "For" and "Against"
+    let autoScoreFor = -1;
+    let autoScoreAgainst = -1;
+    if (colIndex.scoreFor === -1 && colIndex.scoreAgainst === -1 && 
+        colIndex.homeScore === -1 && colIndex.awayScore === -1 && 
+        colIndex.score === -1 && numericColumns.length >= 2) {
+      // Take the last two numeric columns as For and Against
+      autoScoreFor = numericColumns[numericColumns.length - 2];
+      autoScoreAgainst = numericColumns[numericColumns.length - 1];
+      console.log('[Quick Paste Debug] Using auto-detected score columns:', autoScoreFor, autoScoreAgainst);
+    }
 
     const parsedRows: FixtureRow[] = [];
     const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
@@ -572,6 +602,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
           awayScore: colIndex.awayScore,
           result: colIndex.result,
           score: colIndex.score,
+          autoScoreFor,
+          autoScoreAgainst,
         });
       }
 
@@ -624,6 +656,19 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       if (!scoreAgainst && colIndex.scoreAgainst >= 0 && values[colIndex.scoreAgainst]) {
         const againstVal = values[colIndex.scoreAgainst];
         if (!isNaN(parseInt(againstVal))) {
+          scoreAgainst = againstVal;
+        }
+      }
+
+      // FALLBACK: Use auto-detected numeric columns if still no scores
+      if (!scoreFor && !scoreAgainst && autoScoreFor >= 0 && autoScoreAgainst >= 0) {
+        const forVal = values[autoScoreFor];
+        const againstVal = values[autoScoreAgainst];
+        if (i === 1) console.log('[Quick Paste Debug] Using auto-detected score values:', forVal, againstVal);
+        if (forVal && !isNaN(parseInt(forVal))) {
+          scoreFor = forVal;
+        }
+        if (againstVal && !isNaN(parseInt(againstVal))) {
           scoreAgainst = againstVal;
         }
       }
