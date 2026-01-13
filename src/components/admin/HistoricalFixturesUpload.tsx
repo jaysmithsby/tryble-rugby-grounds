@@ -358,30 +358,94 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       }
       
       // Extract scores from afterHomeAway
-      // Look for patterns like "Won 25-10", "Lost 10-25", "Drew 15-15", or just numbers "25 10" or "25-10"
+      // Look for patterns like "Won 25-10", "Lost 10-25", "Drew 15-15", "Win5519", or just numbers
       let scoreFor = "";
       let scoreAgainst = "";
       let result: "won" | "lost" | "drew" = "won";
       
-      // Try to match result keyword followed by scores
-      const resultScoreMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw)\s*(\d+)\s*[-–:]\s*(\d+)/i);
+      console.log('[Concat Parse Debug] afterHomeAway:', afterHomeAway);
+      
+      // Extract score values that might be in angle brackets like <15> or plain numbers
+      const extractScoreValue = (val: string): string => {
+        const bracketMatch = val.match(/<(\d+)>/);
+        if (bracketMatch) return bracketMatch[1];
+        return val;
+      };
+      
+      // Try to match result keyword followed by scores with separator
+      const resultScoreMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s*(\d+)\s*[-–:]\s*(\d+)/i);
+      // Also try result keyword with scores directly concatenated: "Win5519" or "Win 55 19"
+      const resultScoreNoSepMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s*(\d{1,3})(\d{1,3})(?!\d)/i);
+      // Also try result followed by <score><score> pattern
+      const resultBracketMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s*<(\d+)>\s*<(\d+)>/i);
+      // Try with space between scores
+      const resultScoreSpaceMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s+(\d+)\s+(\d+)(?!\d)/i);
+      
       if (resultScoreMatch) {
+        console.log('[Concat Parse Debug] Matched with separator:', resultScoreMatch);
         const resultKeyword = resultScoreMatch[1].toLowerCase();
-        const score1 = resultScoreMatch[2];
-        const score2 = resultScoreMatch[3];
+        scoreFor = resultScoreMatch[2];
+        scoreAgainst = resultScoreMatch[3];
         
         if (resultKeyword === 'won' || resultKeyword === 'win') {
           result = "won";
-          scoreFor = score1;
-          scoreAgainst = score2;
         } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
           result = "lost";
-          scoreFor = score1;
-          scoreAgainst = score2;
         } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
           result = "drew";
-          scoreFor = score1;
-          scoreAgainst = score2;
+        } else if (resultKeyword === 'unofficial') {
+          // For unofficial, determine result from scores
+          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
+        }
+      } else if (resultBracketMatch) {
+        console.log('[Concat Parse Debug] Matched bracket format:', resultBracketMatch);
+        const resultKeyword = resultBracketMatch[1].toLowerCase();
+        scoreFor = resultBracketMatch[2];
+        scoreAgainst = resultBracketMatch[3];
+        
+        if (resultKeyword === 'won' || resultKeyword === 'win') {
+          result = "won";
+        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
+          result = "lost";
+        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
+          result = "drew";
+        } else {
+          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
+        }
+      } else if (resultScoreSpaceMatch) {
+        console.log('[Concat Parse Debug] Matched with space:', resultScoreSpaceMatch);
+        const resultKeyword = resultScoreSpaceMatch[1].toLowerCase();
+        scoreFor = resultScoreSpaceMatch[2];
+        scoreAgainst = resultScoreSpaceMatch[3];
+        
+        if (resultKeyword === 'won' || resultKeyword === 'win') {
+          result = "won";
+        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
+          result = "lost";
+        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
+          result = "drew";
+        } else {
+          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
+        }
+      } else if (resultScoreNoSepMatch) {
+        // For concatenated scores like "Win5519", we need to intelligently split
+        console.log('[Concat Parse Debug] Matched no separator:', resultScoreNoSepMatch);
+        const resultKeyword = resultScoreNoSepMatch[1].toLowerCase();
+        const combinedScores = resultScoreNoSepMatch[2] + resultScoreNoSepMatch[3];
+        
+        // If we have 4 digits, split 2-2; if 3 digits, try 2-1 or 1-2
+        // The regex already captured them in groups 2 and 3
+        scoreFor = resultScoreNoSepMatch[2];
+        scoreAgainst = resultScoreNoSepMatch[3];
+        
+        if (resultKeyword === 'won' || resultKeyword === 'win') {
+          result = "won";
+        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
+          result = "lost";
+        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
+          result = "drew";
+        } else {
+          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
         }
       } else {
         // Try to match just score pattern like "25-10" or "25 - 10" or "25 10"
@@ -394,6 +458,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
           result = calculateResult(score1, score2);
         }
       }
+      
+      console.log('[Concat Parse Debug] Parsed scores:', { scoreFor, scoreAgainst, result });
       
       // Now extract opponent from schools section
       // The schools section contains: homeSchool + awaySchool
