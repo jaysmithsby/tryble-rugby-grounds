@@ -269,13 +269,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     return null;
   };
 
-  // Helper function to calculate result from scores
-  const calculateResult = (scoreFor: number, scoreAgainst: number): "won" | "lost" | "drew" => {
-    if (scoreFor > scoreAgainst) return "won";
-    if (scoreFor < scoreAgainst) return "lost";
-    return "drew";
-  };
-
   // Parse concatenated data (no tabs) using date patterns as anchors
   const parseConcatenatedData = (text: string): FixtureRow[] => {
     const primarySchoolName = getSchoolName(primarySchoolId);
@@ -348,118 +341,12 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       // Find Home/Away/Neutral keyword
       const haMatch = afterRugby.match(/(Home|Away|Neutral)/i);
       let homeAway: "home" | "away" = "home";
-      let afterHomeAway = afterRugby;
       
-      if (haMatch && haMatch.index !== undefined) {
+      if (haMatch) {
         const haValue = haMatch[1].toLowerCase();
         // "Neutral" and "Away" both mean primary school is away
         homeAway = (haValue === 'away' || haValue === 'neutral') ? "away" : "home";
-        afterHomeAway = afterRugby.substring(haMatch.index + haMatch[1].length);
       }
-      
-      // Extract scores from afterHomeAway
-      // Look for patterns like "Won 25-10", "Lost 10-25", "Drew 15-15", "Win5519", or just numbers
-      let scoreFor = "";
-      let scoreAgainst = "";
-      let result: "won" | "lost" | "drew" = "won";
-      
-      console.log('[Concat Parse Debug] afterHomeAway:', afterHomeAway);
-      
-      // Extract score values that might be in angle brackets like <15> or plain numbers
-      const extractScoreValue = (val: string): string => {
-        const bracketMatch = val.match(/<(\d+)>/);
-        if (bracketMatch) return bracketMatch[1];
-        return val;
-      };
-      
-      // Try to match result keyword followed by scores with separator
-      const resultScoreMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s*(\d+)\s*[-–:]\s*(\d+)/i);
-      // Also try result keyword with scores directly concatenated: "Win5519" or "Win 55 19"
-      const resultScoreNoSepMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s*(\d{1,3})(\d{1,3})(?!\d)/i);
-      // Also try result followed by <score><score> pattern
-      const resultBracketMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s*<(\d+)>\s*<(\d+)>/i);
-      // Try with space between scores
-      const resultScoreSpaceMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw|unofficial)\s+(\d+)\s+(\d+)(?!\d)/i);
-      
-      if (resultScoreMatch) {
-        console.log('[Concat Parse Debug] Matched with separator:', resultScoreMatch);
-        const resultKeyword = resultScoreMatch[1].toLowerCase();
-        scoreFor = resultScoreMatch[2];
-        scoreAgainst = resultScoreMatch[3];
-        
-        if (resultKeyword === 'won' || resultKeyword === 'win') {
-          result = "won";
-        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
-          result = "lost";
-        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
-          result = "drew";
-        } else if (resultKeyword === 'unofficial') {
-          // For unofficial, determine result from scores
-          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
-        }
-      } else if (resultBracketMatch) {
-        console.log('[Concat Parse Debug] Matched bracket format:', resultBracketMatch);
-        const resultKeyword = resultBracketMatch[1].toLowerCase();
-        scoreFor = resultBracketMatch[2];
-        scoreAgainst = resultBracketMatch[3];
-        
-        if (resultKeyword === 'won' || resultKeyword === 'win') {
-          result = "won";
-        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
-          result = "lost";
-        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
-          result = "drew";
-        } else {
-          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
-        }
-      } else if (resultScoreSpaceMatch) {
-        console.log('[Concat Parse Debug] Matched with space:', resultScoreSpaceMatch);
-        const resultKeyword = resultScoreSpaceMatch[1].toLowerCase();
-        scoreFor = resultScoreSpaceMatch[2];
-        scoreAgainst = resultScoreSpaceMatch[3];
-        
-        if (resultKeyword === 'won' || resultKeyword === 'win') {
-          result = "won";
-        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
-          result = "lost";
-        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
-          result = "drew";
-        } else {
-          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
-        }
-      } else if (resultScoreNoSepMatch) {
-        // For concatenated scores like "Win5519", we need to intelligently split
-        console.log('[Concat Parse Debug] Matched no separator:', resultScoreNoSepMatch);
-        const resultKeyword = resultScoreNoSepMatch[1].toLowerCase();
-        const combinedScores = resultScoreNoSepMatch[2] + resultScoreNoSepMatch[3];
-        
-        // If we have 4 digits, split 2-2; if 3 digits, try 2-1 or 1-2
-        // The regex already captured them in groups 2 and 3
-        scoreFor = resultScoreNoSepMatch[2];
-        scoreAgainst = resultScoreNoSepMatch[3];
-        
-        if (resultKeyword === 'won' || resultKeyword === 'win') {
-          result = "won";
-        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
-          result = "lost";
-        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
-          result = "drew";
-        } else {
-          result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
-        }
-      } else {
-        // Try to match just score pattern like "25-10" or "25 - 10" or "25 10"
-        const scoreOnlyMatch = afterHomeAway.match(/(\d+)\s*[-–:\s]\s*(\d+)/);
-        if (scoreOnlyMatch) {
-          const score1 = parseInt(scoreOnlyMatch[1]);
-          const score2 = parseInt(scoreOnlyMatch[2]);
-          scoreFor = scoreOnlyMatch[1];
-          scoreAgainst = scoreOnlyMatch[2];
-          result = calculateResult(score1, score2);
-        }
-      }
-      
-      console.log('[Concat Parse Debug] Parsed scores:', { scoreFor, scoreAgainst, result });
       
       // Now extract opponent from schools section
       // The schools section contains: homeSchool + awaySchool
@@ -520,9 +407,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         homeAway,
         opponentName: matchedSchool?.name || opponentName,
         opponentId: matchedSchool?.id || "",
-        result,
-        scoreFor,
-        scoreAgainst,
+        result: "won",
+        scoreFor: "",
+        scoreAgainst: "",
         tournamentId: "",
       });
     }
@@ -536,74 +423,13 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     if (lines.length < 2) return [];
 
     const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
-
-    console.log('[Quick Paste Debug] Headers detected:', headers);
-    console.log('[Quick Paste Debug] Raw first line:', lines[0]);
     
-    // Find indices for known columns
     const colIndex = {
       matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
       homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
       awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
       homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
-      // Score columns - check various possible header names (more flexible matching)
-      homeScore: headers.findIndex(h => 
-        h.includes('home_score') || h.includes('home score') || h.includes('home_pts') || 
-        h.includes('home pts') || h === 'hs' || h.includes('homescore')
-      ),
-      awayScore: headers.findIndex(h => 
-        h.includes('away_score') || h.includes('away score') || h.includes('away_pts') || 
-        h.includes('away pts') || h === 'as' || h.includes('awayscore')
-      ),
-      scoreFor: headers.findIndex(h => 
-        h.includes('score_for') || h === 'for' || h.includes('pts for') || 
-        h.includes('points for') || h === 'pf' || h.includes('pts_for') ||
-        h.includes('points_for') || h === 'f' || h === 'scored'
-      ),
-      scoreAgainst: headers.findIndex(h => 
-        h.includes('score_against') || h === 'against' || h === 'agst' || 
-        h.includes('pts against') || h.includes('points against') || h === 'pa' || 
-        h.includes('pts_against') || h.includes('points_against') || h === 'a' || h === 'conceded'
-      ),
-      result: headers.findIndex(h => 
-        h === 'result' || h === 'outcome' || h === 'w/l/d' || h === 'w/l' || 
-        h.includes('result') || h === 'wld' || h === 'won/lost'
-      ),
-      // Also check for score in format "score" which might contain "25-10"
-      score: headers.findIndex(h => h === 'score' || h === 'final_score' || h === 'final score' || h === 'scores'),
     };
-
-    // Auto-detect score columns by analyzing first data row for numeric values
-    // Look for columns that have numeric values and aren't already identified
-    const firstDataValues = lines[1]?.split('\t').map(v => v.trim()) || [];
-    const numericColumns: number[] = [];
-    
-    firstDataValues.forEach((val, idx) => {
-      // Check if this column contains a numeric value (score-like)
-      const isNumeric = /^\d+$/.test(val) || /^\d+\s*[-–:]\s*\d+$/.test(val);
-      const isAlreadyUsed = Object.values(colIndex).includes(idx);
-      if (isNumeric && !isAlreadyUsed) {
-        numericColumns.push(idx);
-      }
-    });
-
-    console.log('[Quick Paste Debug] Column indices:', colIndex);
-    console.log('[Quick Paste Debug] Auto-detected numeric columns:', numericColumns);
-    console.log('[Quick Paste Debug] All headers with indices:', headers.map((h, i) => `${i}: "${h}"`).join(', '));
-    console.log('[Quick Paste Debug] First data row:', firstDataValues);
-
-    // If we haven't found score columns by header, try to use auto-detected numeric columns
-    // Assuming the last two numeric columns are "For" and "Against"
-    let autoScoreFor = -1;
-    let autoScoreAgainst = -1;
-    if (colIndex.scoreFor === -1 && colIndex.scoreAgainst === -1 && 
-        colIndex.homeScore === -1 && colIndex.awayScore === -1 && 
-        colIndex.score === -1 && numericColumns.length >= 2) {
-      // Take the last two numeric columns as For and Against
-      autoScoreFor = numericColumns[numericColumns.length - 2];
-      autoScoreAgainst = numericColumns[numericColumns.length - 1];
-      console.log('[Quick Paste Debug] Using auto-detected score columns:', autoScoreFor, autoScoreAgainst);
-    }
 
     const parsedRows: FixtureRow[] = [];
     const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
@@ -611,10 +437,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split('\t').map(v => v.trim());
       if (values.length < 2) continue;
-      
-      if (i === 1) {
-        console.log('[Quick Paste Debug] First row values:', values);
-      }
 
       let matchDate = "";
       let year = defaultYear;
@@ -654,108 +476,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         }
       }
 
-      // Extract scores
-      let scoreFor = "";
-      let scoreAgainst = "";
-      let result: "won" | "lost" | "drew" = "won";
-
-      // Log score column detection for first row
-      if (i === 1) {
-        console.log('[Quick Paste Debug] Score column indices:', {
-          scoreFor: colIndex.scoreFor,
-          scoreAgainst: colIndex.scoreAgainst,
-          homeScore: colIndex.homeScore,
-          awayScore: colIndex.awayScore,
-          result: colIndex.result,
-          score: colIndex.score,
-          autoScoreFor,
-          autoScoreAgainst,
-        });
-      }
-
-      // Helper to extract numeric score from value (handles <15> format and plain numbers)
-      const extractScore = (val: string | undefined): string => {
-        if (!val) return "";
-        // Check for angle bracket format like <15>
-        const bracketMatch = val.match(/<(\d+)>/);
-        if (bracketMatch) return bracketMatch[1];
-        // Check for plain number
-        const numMatch = val.match(/^(\d+)$/);
-        if (numMatch) return numMatch[1];
-        return "";
-      };
-
-      // Try to get scores from score_for/score_against columns first
-      if (colIndex.scoreFor >= 0 && colIndex.scoreAgainst >= 0) {
-        const forVal = values[colIndex.scoreFor];
-        const againstVal = values[colIndex.scoreAgainst];
-        if (i === 1) console.log('[Quick Paste Debug] scoreFor/scoreAgainst values:', forVal, againstVal);
-        scoreFor = extractScore(forVal);
-        scoreAgainst = extractScore(againstVal);
-      }
-      
-      // If no score_for/score_against, try home_score/away_score and map based on homeAway
-      if (!scoreFor && !scoreAgainst && colIndex.homeScore >= 0 && colIndex.awayScore >= 0) {
-        const homeScoreVal = values[colIndex.homeScore];
-        const awayScoreVal = values[colIndex.awayScore];
-        if (i === 1) console.log('[Quick Paste Debug] homeScore/awayScore values:', homeScoreVal, awayScoreVal, 'homeAway:', homeAway);
-        
-        if (homeAway === "home") {
-          scoreFor = extractScore(homeScoreVal);
-          scoreAgainst = extractScore(awayScoreVal);
-        } else {
-          scoreFor = extractScore(awayScoreVal);
-          scoreAgainst = extractScore(homeScoreVal);
-        }
-      }
-
-      // If still no scores, try to parse a combined "score" column like "25-10"
-      if (!scoreFor && !scoreAgainst && colIndex.score >= 0 && values[colIndex.score]) {
-        const scoreVal = values[colIndex.score];
-        if (i === 1) console.log('[Quick Paste Debug] Combined score value:', scoreVal);
-        const scoreMatch = scoreVal.match(/(\d+)\s*[-–:]\s*(\d+)/);
-        if (scoreMatch) {
-          scoreFor = scoreMatch[1];
-          scoreAgainst = scoreMatch[2];
-        }
-      }
-
-      // Also check if we have individual scoreFor or scoreAgainst columns (not both)
-      if (!scoreFor && colIndex.scoreFor >= 0 && values[colIndex.scoreFor]) {
-        scoreFor = extractScore(values[colIndex.scoreFor]);
-      }
-      if (!scoreAgainst && colIndex.scoreAgainst >= 0 && values[colIndex.scoreAgainst]) {
-        scoreAgainst = extractScore(values[colIndex.scoreAgainst]);
-      }
-
-      // FALLBACK: Use auto-detected numeric columns if still no scores
-      if (!scoreFor && !scoreAgainst && autoScoreFor >= 0 && autoScoreAgainst >= 0) {
-        const forVal = values[autoScoreFor];
-        const againstVal = values[autoScoreAgainst];
-        if (i === 1) console.log('[Quick Paste Debug] Using auto-detected score values:', forVal, againstVal);
-        scoreFor = extractScore(forVal);
-        scoreAgainst = extractScore(againstVal);
-      }
-
-      // Calculate result from scores if we have them
-      if (scoreFor && scoreAgainst) {
-        result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
-        if (i === 1) console.log('[Quick Paste Debug] Calculated result:', result, 'from scores:', scoreFor, scoreAgainst);
-      } else if (colIndex.result >= 0 && values[colIndex.result]) {
-        // Fallback to result column if no scores
-        const resultVal = values[colIndex.result].toLowerCase();
-        if (i === 1) console.log('[Quick Paste Debug] Result column value:', resultVal);
-        if (resultVal.includes('won') || resultVal === 'w' || resultVal === 'win') {
-          result = "won";
-        } else if (resultVal.includes('lost') || resultVal === 'l' || resultVal === 'lose' || resultVal === 'loss') {
-          result = "lost";
-        } else if (resultVal.includes('drew') || resultVal.includes('draw') || resultVal === 'd') {
-          result = "drew";
-        }
-      }
-
-      if (i === 1) console.log('[Quick Paste Debug] Final parsed scores:', { scoreFor, scoreAgainst, result });
-
       const matchedSchool = fuzzyMatchSchool(opponentName);
 
       parsedRows.push({
@@ -765,9 +485,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         homeAway,
         opponentName: matchedSchool?.name || opponentName,
         opponentId: matchedSchool?.id || "",
-        result,
-        scoreFor,
-        scoreAgainst,
+        result: "won",
+        scoreFor: "",
+        scoreAgainst: "",
         tournamentId: "",
       });
     }
