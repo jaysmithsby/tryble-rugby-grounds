@@ -269,6 +269,13 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     return null;
   };
 
+  // Helper function to calculate result from scores
+  const calculateResult = (scoreFor: number, scoreAgainst: number): "won" | "lost" | "drew" => {
+    if (scoreFor > scoreAgainst) return "won";
+    if (scoreFor < scoreAgainst) return "lost";
+    return "drew";
+  };
+
   // Parse concatenated data (no tabs) using date patterns as anchors
   const parseConcatenatedData = (text: string): FixtureRow[] => {
     const primarySchoolName = getSchoolName(primarySchoolId);
@@ -341,11 +348,51 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       // Find Home/Away/Neutral keyword
       const haMatch = afterRugby.match(/(Home|Away|Neutral)/i);
       let homeAway: "home" | "away" = "home";
+      let afterHomeAway = afterRugby;
       
-      if (haMatch) {
+      if (haMatch && haMatch.index !== undefined) {
         const haValue = haMatch[1].toLowerCase();
         // "Neutral" and "Away" both mean primary school is away
         homeAway = (haValue === 'away' || haValue === 'neutral') ? "away" : "home";
+        afterHomeAway = afterRugby.substring(haMatch.index + haMatch[1].length);
+      }
+      
+      // Extract scores from afterHomeAway
+      // Look for patterns like "Won 25-10", "Lost 10-25", "Drew 15-15", or just numbers "25 10" or "25-10"
+      let scoreFor = "";
+      let scoreAgainst = "";
+      let result: "won" | "lost" | "drew" = "won";
+      
+      // Try to match result keyword followed by scores
+      const resultScoreMatch = afterHomeAway.match(/(won|lost|drew|win|loss|draw)\s*(\d+)\s*[-–:]\s*(\d+)/i);
+      if (resultScoreMatch) {
+        const resultKeyword = resultScoreMatch[1].toLowerCase();
+        const score1 = resultScoreMatch[2];
+        const score2 = resultScoreMatch[3];
+        
+        if (resultKeyword === 'won' || resultKeyword === 'win') {
+          result = "won";
+          scoreFor = score1;
+          scoreAgainst = score2;
+        } else if (resultKeyword === 'lost' || resultKeyword === 'loss') {
+          result = "lost";
+          scoreFor = score1;
+          scoreAgainst = score2;
+        } else if (resultKeyword === 'drew' || resultKeyword === 'draw') {
+          result = "drew";
+          scoreFor = score1;
+          scoreAgainst = score2;
+        }
+      } else {
+        // Try to match just score pattern like "25-10" or "25 - 10" or "25 10"
+        const scoreOnlyMatch = afterHomeAway.match(/(\d+)\s*[-–:\s]\s*(\d+)/);
+        if (scoreOnlyMatch) {
+          const score1 = parseInt(scoreOnlyMatch[1]);
+          const score2 = parseInt(scoreOnlyMatch[2]);
+          scoreFor = scoreOnlyMatch[1];
+          scoreAgainst = scoreOnlyMatch[2];
+          result = calculateResult(score1, score2);
+        }
       }
       
       // Now extract opponent from schools section
@@ -407,9 +454,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         homeAway,
         opponentName: matchedSchool?.name || opponentName,
         opponentId: matchedSchool?.id || "",
-        result: "won",
-        scoreFor: "",
-        scoreAgainst: "",
+        result,
+        scoreFor,
+        scoreAgainst,
         tournamentId: "",
       });
     }
@@ -429,6 +476,12 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
       awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
       homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
+      // Score columns - check various possible header names
+      homeScore: headers.findIndex(h => h.includes('home_score') || h === 'home score'),
+      awayScore: headers.findIndex(h => h.includes('away_score') || h === 'away score'),
+      scoreFor: headers.findIndex(h => h.includes('score_for') || h === 'for' || h === 'pts for' || h === 'points for'),
+      scoreAgainst: headers.findIndex(h => h.includes('score_against') || h === 'against' || h === 'agst' || h === 'pts against' || h === 'points against'),
+      result: headers.findIndex(h => h === 'result' || h === 'outcome' || h === 'w/l/d'),
     };
 
     const parsedRows: FixtureRow[] = [];
@@ -476,6 +529,52 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         }
       }
 
+      // Extract scores
+      let scoreFor = "";
+      let scoreAgainst = "";
+      let result: "won" | "lost" | "drew" = "won";
+
+      // Try to get scores from score_for/score_against columns first
+      if (colIndex.scoreFor >= 0 && colIndex.scoreAgainst >= 0) {
+        const forVal = values[colIndex.scoreFor];
+        const againstVal = values[colIndex.scoreAgainst];
+        if (forVal && !isNaN(parseInt(forVal))) {
+          scoreFor = forVal;
+        }
+        if (againstVal && !isNaN(parseInt(againstVal))) {
+          scoreAgainst = againstVal;
+        }
+      }
+      
+      // If no score_for/score_against, try home_score/away_score and map based on homeAway
+      if (!scoreFor && !scoreAgainst && colIndex.homeScore >= 0 && colIndex.awayScore >= 0) {
+        const homeScoreVal = values[colIndex.homeScore];
+        const awayScoreVal = values[colIndex.awayScore];
+        
+        if (homeAway === "home") {
+          if (homeScoreVal && !isNaN(parseInt(homeScoreVal))) scoreFor = homeScoreVal;
+          if (awayScoreVal && !isNaN(parseInt(awayScoreVal))) scoreAgainst = awayScoreVal;
+        } else {
+          if (awayScoreVal && !isNaN(parseInt(awayScoreVal))) scoreFor = awayScoreVal;
+          if (homeScoreVal && !isNaN(parseInt(homeScoreVal))) scoreAgainst = homeScoreVal;
+        }
+      }
+
+      // Calculate result from scores if we have them
+      if (scoreFor && scoreAgainst) {
+        result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
+      } else if (colIndex.result >= 0 && values[colIndex.result]) {
+        // Fallback to result column if no scores
+        const resultVal = values[colIndex.result].toLowerCase();
+        if (resultVal.includes('won') || resultVal === 'w' || resultVal === 'win') {
+          result = "won";
+        } else if (resultVal.includes('lost') || resultVal === 'l' || resultVal === 'lose' || resultVal === 'loss') {
+          result = "lost";
+        } else if (resultVal.includes('drew') || resultVal.includes('draw') || resultVal === 'd') {
+          result = "drew";
+        }
+      }
+
       const matchedSchool = fuzzyMatchSchool(opponentName);
 
       parsedRows.push({
@@ -485,9 +584,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         homeAway,
         opponentName: matchedSchool?.name || opponentName,
         opponentId: matchedSchool?.id || "",
-        result: "won",
-        scoreFor: "",
-        scoreAgainst: "",
+        result,
+        scoreFor,
+        scoreAgainst,
         tournamentId: "",
       });
     }
