@@ -607,17 +607,25 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         });
       }
 
+      // Helper to extract numeric score from value (handles <15> format and plain numbers)
+      const extractScore = (val: string | undefined): string => {
+        if (!val) return "";
+        // Check for angle bracket format like <15>
+        const bracketMatch = val.match(/<(\d+)>/);
+        if (bracketMatch) return bracketMatch[1];
+        // Check for plain number
+        const numMatch = val.match(/^(\d+)$/);
+        if (numMatch) return numMatch[1];
+        return "";
+      };
+
       // Try to get scores from score_for/score_against columns first
       if (colIndex.scoreFor >= 0 && colIndex.scoreAgainst >= 0) {
         const forVal = values[colIndex.scoreFor];
         const againstVal = values[colIndex.scoreAgainst];
         if (i === 1) console.log('[Quick Paste Debug] scoreFor/scoreAgainst values:', forVal, againstVal);
-        if (forVal && !isNaN(parseInt(forVal))) {
-          scoreFor = forVal;
-        }
-        if (againstVal && !isNaN(parseInt(againstVal))) {
-          scoreAgainst = againstVal;
-        }
+        scoreFor = extractScore(forVal);
+        scoreAgainst = extractScore(againstVal);
       }
       
       // If no score_for/score_against, try home_score/away_score and map based on homeAway
@@ -627,11 +635,11 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         if (i === 1) console.log('[Quick Paste Debug] homeScore/awayScore values:', homeScoreVal, awayScoreVal, 'homeAway:', homeAway);
         
         if (homeAway === "home") {
-          if (homeScoreVal && !isNaN(parseInt(homeScoreVal))) scoreFor = homeScoreVal;
-          if (awayScoreVal && !isNaN(parseInt(awayScoreVal))) scoreAgainst = awayScoreVal;
+          scoreFor = extractScore(homeScoreVal);
+          scoreAgainst = extractScore(awayScoreVal);
         } else {
-          if (awayScoreVal && !isNaN(parseInt(awayScoreVal))) scoreFor = awayScoreVal;
-          if (homeScoreVal && !isNaN(parseInt(homeScoreVal))) scoreAgainst = homeScoreVal;
+          scoreFor = extractScore(awayScoreVal);
+          scoreAgainst = extractScore(homeScoreVal);
         }
       }
 
@@ -648,16 +656,10 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
 
       // Also check if we have individual scoreFor or scoreAgainst columns (not both)
       if (!scoreFor && colIndex.scoreFor >= 0 && values[colIndex.scoreFor]) {
-        const forVal = values[colIndex.scoreFor];
-        if (!isNaN(parseInt(forVal))) {
-          scoreFor = forVal;
-        }
+        scoreFor = extractScore(values[colIndex.scoreFor]);
       }
       if (!scoreAgainst && colIndex.scoreAgainst >= 0 && values[colIndex.scoreAgainst]) {
-        const againstVal = values[colIndex.scoreAgainst];
-        if (!isNaN(parseInt(againstVal))) {
-          scoreAgainst = againstVal;
-        }
+        scoreAgainst = extractScore(values[colIndex.scoreAgainst]);
       }
 
       // FALLBACK: Use auto-detected numeric columns if still no scores
@@ -665,12 +667,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         const forVal = values[autoScoreFor];
         const againstVal = values[autoScoreAgainst];
         if (i === 1) console.log('[Quick Paste Debug] Using auto-detected score values:', forVal, againstVal);
-        if (forVal && !isNaN(parseInt(forVal))) {
-          scoreFor = forVal;
-        }
-        if (againstVal && !isNaN(parseInt(againstVal))) {
-          scoreAgainst = againstVal;
-        }
+        scoreFor = extractScore(forVal);
+        scoreAgainst = extractScore(againstVal);
       }
 
       // Calculate result from scores if we have them
