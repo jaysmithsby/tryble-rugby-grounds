@@ -470,25 +470,44 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     if (lines.length < 2) return [];
 
     const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
-    
+
     console.log('[Quick Paste Debug] Headers detected:', headers);
+    console.log('[Quick Paste Debug] Raw first line:', lines[0]);
     
     const colIndex = {
       matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
       homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
       awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
       homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
-      // Score columns - check various possible header names
-      homeScore: headers.findIndex(h => h.includes('home_score') || h === 'home score' || h === 'home_pts' || h === 'home pts'),
-      awayScore: headers.findIndex(h => h.includes('away_score') || h === 'away score' || h === 'away_pts' || h === 'away pts'),
-      scoreFor: headers.findIndex(h => h.includes('score_for') || h === 'for' || h === 'pts for' || h === 'points for' || h === 'pf' || h === 'pts_for'),
-      scoreAgainst: headers.findIndex(h => h.includes('score_against') || h === 'against' || h === 'agst' || h === 'pts against' || h === 'points against' || h === 'pa' || h === 'pts_against'),
-      result: headers.findIndex(h => h === 'result' || h === 'outcome' || h === 'w/l/d' || h === 'w/l' || h.includes('won') || h.includes('result')),
+      // Score columns - check various possible header names (more flexible matching)
+      homeScore: headers.findIndex(h => 
+        h.includes('home_score') || h.includes('home score') || h.includes('home_pts') || 
+        h.includes('home pts') || h === 'hs' || h.includes('homescore')
+      ),
+      awayScore: headers.findIndex(h => 
+        h.includes('away_score') || h.includes('away score') || h.includes('away_pts') || 
+        h.includes('away pts') || h === 'as' || h.includes('awayscore')
+      ),
+      scoreFor: headers.findIndex(h => 
+        h.includes('score_for') || h === 'for' || h.includes('pts for') || 
+        h.includes('points for') || h === 'pf' || h.includes('pts_for') ||
+        h.includes('points_for') || h === 'f' || h === 'scored'
+      ),
+      scoreAgainst: headers.findIndex(h => 
+        h.includes('score_against') || h === 'against' || h === 'agst' || 
+        h.includes('pts against') || h.includes('points against') || h === 'pa' || 
+        h.includes('pts_against') || h.includes('points_against') || h === 'a' || h === 'conceded'
+      ),
+      result: headers.findIndex(h => 
+        h === 'result' || h === 'outcome' || h === 'w/l/d' || h === 'w/l' || 
+        h.includes('result') || h === 'wld' || h === 'won/lost'
+      ),
       // Also check for score in format "score" which might contain "25-10"
-      score: headers.findIndex(h => h === 'score' || h === 'final_score' || h === 'final score'),
+      score: headers.findIndex(h => h === 'score' || h === 'final_score' || h === 'final score' || h === 'scores'),
     };
 
     console.log('[Quick Paste Debug] Column indices:', colIndex);
+    console.log('[Quick Paste Debug] All headers with indices:', headers.map((h, i) => `${i}: "${h}"`).join(', '));
 
     const parsedRows: FixtureRow[] = [];
     const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
