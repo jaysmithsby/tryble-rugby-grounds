@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -18,11 +18,35 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Check, ChevronsUpDown, X, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { saProvinces } from "@/data/saProvinces";
 
 const formSchema = z.object({
   name: z.string().min(1, "Tournament name is required"),
@@ -49,6 +73,11 @@ export function CreateTournamentDialog({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [sponsorLogoUrl, setSponsorLogoUrl] = useState<string>("");
+  const [hostSchoolOpen, setHostSchoolOpen] = useState(false);
+  const [hostSchoolSearch, setHostSchoolSearch] = useState("");
+  const [participatingSearch, setParticipatingSearch] = useState("");
+  const [newSchoolName, setNewSchoolName] = useState("");
+  const [showAddSchool, setShowAddSchool] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -85,6 +114,22 @@ export function CreateTournamentDialog({
       console.error("Error fetching schools:", error);
     }
   };
+
+  // Filtered schools for host school search
+  const filteredHostSchools = useMemo(() => {
+    if (!hostSchoolSearch) return schools;
+    return schools.filter((school) =>
+      school.toLowerCase().includes(hostSchoolSearch.toLowerCase())
+    );
+  }, [schools, hostSchoolSearch]);
+
+  // Filtered schools for participating schools search
+  const filteredParticipatingSchools = useMemo(() => {
+    if (!participatingSearch) return schools;
+    return schools.filter((school) =>
+      school.toLowerCase().includes(participatingSearch.toLowerCase())
+    );
+  }, [schools, participatingSearch]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -130,6 +175,28 @@ export function CreateTournamentDialog({
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleAddNewSchool = () => {
+    if (!newSchoolName.trim()) return;
+    
+    // Add to the schools list locally
+    if (!schools.includes(newSchoolName.trim())) {
+      setSchools((prev) => [...prev, newSchoolName.trim()].sort());
+      
+      // Also add it to participating schools
+      const current = form.getValues("participating_schools") || [];
+      if (!current.includes(newSchoolName.trim())) {
+        form.setValue("participating_schools", [...current, newSchoolName.trim()]);
+      }
+    }
+    
+    setNewSchoolName("");
+    setShowAddSchool(false);
+    toast({
+      title: "School added",
+      description: `"${newSchoolName.trim()}" has been added to the list`,
+    });
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -194,15 +261,64 @@ export function CreateTournamentDialog({
                 )}
               />
 
+              {/* Host School - Searchable Combobox */}
               <FormField
                 control={form.control}
                 name="host_school"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Host School / Organizer</FormLabel>
-                    <FormControl>
-                      <Input placeholder="St John's College" {...field} />
-                    </FormControl>
+                    <Popover open={hostSchoolOpen} onOpenChange={setHostSchoolOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={hostSchoolOpen}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value || "Select host school..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 z-[100]" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search schools..."
+                            value={hostSchoolSearch}
+                            onValueChange={setHostSchoolSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No school found.</CommandEmpty>
+                            <CommandGroup className="max-h-60 overflow-auto">
+                              {filteredHostSchools.map((school) => (
+                                <CommandItem
+                                  key={school}
+                                  value={school}
+                                  onSelect={() => {
+                                    field.onChange(school);
+                                    setHostSchoolOpen(false);
+                                    setHostSchoolSearch("");
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      field.value === school ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {school}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -223,15 +339,30 @@ export function CreateTournamentDialog({
                   )}
                 />
 
+                {/* Province - Select Dropdown */}
                 <FormField
                   control={form.control}
                   name="province"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Province</FormLabel>
-                      <FormControl>
-                        <Input placeholder="KwaZulu-Natal" {...field} />
-                      </FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select province" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="z-[100]">
+                          {saProvinces.map((province) => (
+                            <SelectItem key={province} value={province}>
+                              {province}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -285,17 +416,56 @@ export function CreateTournamentDialog({
                 )}
               />
 
+              {/* Participating Schools - Searchable Multi-select */}
               <FormField
                 control={form.control}
                 name="participating_schools"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Participating Schools</FormLabel>
-                    <ScrollArea className="h-48 border border-border rounded-md p-4">
+                    
+                    {/* Selected schools as badges */}
+                    {field.value && field.value.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {field.value.map((school) => (
+                          <Badge
+                            key={school}
+                            variant="secondary"
+                            className="gap-1 pr-1"
+                          >
+                            {school}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                field.onChange(
+                                  field.value.filter((s) => s !== school)
+                                );
+                              }}
+                              className="ml-1 rounded-full hover:bg-muted p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Search input */}
+                    <div className="relative">
+                      <Input
+                        placeholder="Search schools to add..."
+                        value={participatingSearch}
+                        onChange={(e) => setParticipatingSearch(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Filtered schools list with checkboxes */}
+                    <ScrollArea className="h-48 border border-border rounded-md p-4 bg-background">
                       <div className="space-y-2">
-                        {schools.map((school) => (
+                        {filteredParticipatingSchools.map((school) => (
                           <div key={school} className="flex items-center space-x-2">
                             <Checkbox
+                              id={`school-${school}`}
                               checked={field.value?.includes(school)}
                               onCheckedChange={(checked) => {
                                 const current = field.value || [];
@@ -308,11 +478,69 @@ export function CreateTournamentDialog({
                                 }
                               }}
                             />
-                            <label className="text-sm cursor-pointer">{school}</label>
+                            <label
+                              htmlFor={`school-${school}`}
+                              className="text-sm cursor-pointer flex-1"
+                            >
+                              {school}
+                            </label>
                           </div>
                         ))}
+                        {filteredParticipatingSchools.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No schools found matching "{participatingSearch}"
+                          </p>
+                        )}
                       </div>
                     </ScrollArea>
+
+                    {/* Add new school option */}
+                    {!showAddSchool ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddSchool(true)}
+                        className="mt-2 gap-1"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add New School
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          placeholder="Enter new school name..."
+                          value={newSchoolName}
+                          onChange={(e) => setNewSchoolName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddNewSchool();
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAddNewSchool}
+                          disabled={!newSchoolName.trim()}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowAddSchool(false);
+                            setNewSchoolName("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+
                     <p className="text-xs text-muted-foreground">
                       {field.value?.length || 0} school(s) selected
                     </p>
