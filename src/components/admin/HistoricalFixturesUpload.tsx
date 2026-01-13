@@ -471,18 +471,24 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
 
     const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
     
+    console.log('[Quick Paste Debug] Headers detected:', headers);
+    
     const colIndex = {
       matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
       homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
       awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
       homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
       // Score columns - check various possible header names
-      homeScore: headers.findIndex(h => h.includes('home_score') || h === 'home score'),
-      awayScore: headers.findIndex(h => h.includes('away_score') || h === 'away score'),
-      scoreFor: headers.findIndex(h => h.includes('score_for') || h === 'for' || h === 'pts for' || h === 'points for'),
-      scoreAgainst: headers.findIndex(h => h.includes('score_against') || h === 'against' || h === 'agst' || h === 'pts against' || h === 'points against'),
-      result: headers.findIndex(h => h === 'result' || h === 'outcome' || h === 'w/l/d'),
+      homeScore: headers.findIndex(h => h.includes('home_score') || h === 'home score' || h === 'home_pts' || h === 'home pts'),
+      awayScore: headers.findIndex(h => h.includes('away_score') || h === 'away score' || h === 'away_pts' || h === 'away pts'),
+      scoreFor: headers.findIndex(h => h.includes('score_for') || h === 'for' || h === 'pts for' || h === 'points for' || h === 'pf' || h === 'pts_for'),
+      scoreAgainst: headers.findIndex(h => h.includes('score_against') || h === 'against' || h === 'agst' || h === 'pts against' || h === 'points against' || h === 'pa' || h === 'pts_against'),
+      result: headers.findIndex(h => h === 'result' || h === 'outcome' || h === 'w/l/d' || h === 'w/l' || h.includes('won') || h.includes('result')),
+      // Also check for score in format "score" which might contain "25-10"
+      score: headers.findIndex(h => h === 'score' || h === 'final_score' || h === 'final score'),
     };
+
+    console.log('[Quick Paste Debug] Column indices:', colIndex);
 
     const parsedRows: FixtureRow[] = [];
     const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
@@ -490,6 +496,10 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split('\t').map(v => v.trim());
       if (values.length < 2) continue;
+      
+      if (i === 1) {
+        console.log('[Quick Paste Debug] First row values:', values);
+      }
 
       let matchDate = "";
       let year = defaultYear;
@@ -534,10 +544,23 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       let scoreAgainst = "";
       let result: "won" | "lost" | "drew" = "won";
 
+      // Log score column detection for first row
+      if (i === 1) {
+        console.log('[Quick Paste Debug] Score column indices:', {
+          scoreFor: colIndex.scoreFor,
+          scoreAgainst: colIndex.scoreAgainst,
+          homeScore: colIndex.homeScore,
+          awayScore: colIndex.awayScore,
+          result: colIndex.result,
+          score: colIndex.score,
+        });
+      }
+
       // Try to get scores from score_for/score_against columns first
       if (colIndex.scoreFor >= 0 && colIndex.scoreAgainst >= 0) {
         const forVal = values[colIndex.scoreFor];
         const againstVal = values[colIndex.scoreAgainst];
+        if (i === 1) console.log('[Quick Paste Debug] scoreFor/scoreAgainst values:', forVal, againstVal);
         if (forVal && !isNaN(parseInt(forVal))) {
           scoreFor = forVal;
         }
@@ -550,6 +573,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       if (!scoreFor && !scoreAgainst && colIndex.homeScore >= 0 && colIndex.awayScore >= 0) {
         const homeScoreVal = values[colIndex.homeScore];
         const awayScoreVal = values[colIndex.awayScore];
+        if (i === 1) console.log('[Quick Paste Debug] homeScore/awayScore values:', homeScoreVal, awayScoreVal, 'homeAway:', homeAway);
         
         if (homeAway === "home") {
           if (homeScoreVal && !isNaN(parseInt(homeScoreVal))) scoreFor = homeScoreVal;
@@ -560,12 +584,39 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         }
       }
 
+      // If still no scores, try to parse a combined "score" column like "25-10"
+      if (!scoreFor && !scoreAgainst && colIndex.score >= 0 && values[colIndex.score]) {
+        const scoreVal = values[colIndex.score];
+        if (i === 1) console.log('[Quick Paste Debug] Combined score value:', scoreVal);
+        const scoreMatch = scoreVal.match(/(\d+)\s*[-–:]\s*(\d+)/);
+        if (scoreMatch) {
+          scoreFor = scoreMatch[1];
+          scoreAgainst = scoreMatch[2];
+        }
+      }
+
+      // Also check if we have individual scoreFor or scoreAgainst columns (not both)
+      if (!scoreFor && colIndex.scoreFor >= 0 && values[colIndex.scoreFor]) {
+        const forVal = values[colIndex.scoreFor];
+        if (!isNaN(parseInt(forVal))) {
+          scoreFor = forVal;
+        }
+      }
+      if (!scoreAgainst && colIndex.scoreAgainst >= 0 && values[colIndex.scoreAgainst]) {
+        const againstVal = values[colIndex.scoreAgainst];
+        if (!isNaN(parseInt(againstVal))) {
+          scoreAgainst = againstVal;
+        }
+      }
+
       // Calculate result from scores if we have them
       if (scoreFor && scoreAgainst) {
         result = calculateResult(parseInt(scoreFor), parseInt(scoreAgainst));
+        if (i === 1) console.log('[Quick Paste Debug] Calculated result:', result, 'from scores:', scoreFor, scoreAgainst);
       } else if (colIndex.result >= 0 && values[colIndex.result]) {
         // Fallback to result column if no scores
         const resultVal = values[colIndex.result].toLowerCase();
+        if (i === 1) console.log('[Quick Paste Debug] Result column value:', resultVal);
         if (resultVal.includes('won') || resultVal === 'w' || resultVal === 'win') {
           result = "won";
         } else if (resultVal.includes('lost') || resultVal === 'l' || resultVal === 'lose' || resultVal === 'loss') {
@@ -574,6 +625,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
           result = "drew";
         }
       }
+
+      if (i === 1) console.log('[Quick Paste Debug] Final parsed scores:', { scoreFor, scoreAgainst, result });
 
       const matchedSchool = fuzzyMatchSchool(opponentName);
 
