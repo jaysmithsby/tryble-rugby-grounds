@@ -15,16 +15,39 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Trophy, MessageCircle, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import paarlGimJersey from "@/assets/jerseys/paarl_gim.png";
-import paulRoosJersey from "@/assets/jerseys/paul_roos.png";
-import glenwoodJersey from "@/assets/jerseys/glenwood.png";
-import maritzburgJersey from "@/assets/jerseys/maritzburg.png";
+import { format } from "date-fns";
+
+interface FixtureWithSchools {
+  id: string;
+  match_date: string;
+  venue: string;
+  status: string;
+  home_score: number | null;
+  away_score: number | null;
+  is_derby: boolean | null;
+  home_school: {
+    id: string;
+    name: string;
+    slug: string;
+    jersey_url: string | null;
+  };
+  away_school: {
+    id: string;
+    name: string;
+    slug: string;
+    jersey_url: string | null;
+  };
+}
 
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
   const [userSchoolName, setUserSchoolName] = useState<string | null>(null);
+  const [upcomingFixtures, setUpcomingFixtures] = useState<FixtureWithSchools[]>([]);
+  const [recentFixtures, setRecentFixtures] = useState<FixtureWithSchools[]>([]);
+  const [userSchoolFixture, setUserSchoolFixture] = useState<FixtureWithSchools | null>(null);
+  const [fixturesLoading, setFixturesLoading] = useState(true);
   const navigate = useNavigate();
 
   // Handle prediction submission
@@ -33,6 +56,141 @@ const Home = () => {
       ...prev,
       [matchId]: { team, margin }
     }));
+  };
+
+  // Fetch fixtures from database
+  const fetchFixtures = async (schoolName?: string | null) => {
+    setFixturesLoading(true);
+    try {
+      const now = new Date().toISOString();
+      
+      // Fetch upcoming fixtures (status = 'upcoming' or match_date > now)
+      const { data: upcoming, error: upcomingError } = await supabase
+        .from("fixtures")
+        .select(`
+          id,
+          match_date,
+          venue,
+          status,
+          home_score,
+          away_score,
+          is_derby,
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
+        `)
+        .eq("is_visible", true)
+        .eq("status", "upcoming")
+        .gte("match_date", now)
+        .order("match_date", { ascending: true })
+        .limit(10);
+
+      if (upcomingError) {
+        console.error("Error fetching upcoming fixtures:", upcomingError);
+      } else {
+        const formattedUpcoming = (upcoming || []).map(f => ({
+          ...f,
+          home_school: f.home_school as unknown as FixtureWithSchools['home_school'],
+          away_school: f.away_school as unknown as FixtureWithSchools['away_school'],
+        }));
+        setUpcomingFixtures(formattedUpcoming);
+      }
+
+      // Fetch recent completed fixtures (last 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recent, error: recentError } = await supabase
+        .from("fixtures")
+        .select(`
+          id,
+          match_date,
+          venue,
+          status,
+          home_score,
+          away_score,
+          is_derby,
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
+        `)
+        .eq("is_visible", true)
+        .eq("status", "completed")
+        .gte("match_date", sevenDaysAgo)
+        .lte("match_date", now)
+        .order("match_date", { ascending: false })
+        .limit(10);
+
+      if (recentError) {
+        console.error("Error fetching recent fixtures:", recentError);
+      } else {
+        const formattedRecent = (recent || []).map(f => ({
+          ...f,
+          home_school: f.home_school as unknown as FixtureWithSchools['home_school'],
+          away_school: f.away_school as unknown as FixtureWithSchools['away_school'],
+        }));
+        setRecentFixtures(formattedRecent);
+      }
+
+      // Fetch user's school fixture for this weekend if they have a school
+      if (schoolName) {
+        // First get the school ID
+        const { data: schoolData } = await supabase
+          .from("schools")
+          .select("id")
+          .eq("name", schoolName)
+          .maybeSingle();
+
+        if (schoolData) {
+          // Get current weekend dates (Friday 00:00 to Sunday 23:59)
+          const today = new Date();
+          const dayOfWeek = today.getDay();
+          const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
+          const daysSinceFriday = dayOfWeek >= 5 ? dayOfWeek - 5 : 7 - (5 - dayOfWeek);
+          
+          const friday = new Date(today);
+          if (dayOfWeek >= 5) {
+            friday.setDate(today.getDate() - daysSinceFriday);
+          } else {
+            friday.setDate(today.getDate() + daysUntilFriday);
+          }
+          friday.setHours(0, 0, 0, 0);
+
+          const sunday = new Date(friday);
+          sunday.setDate(friday.getDate() + 2);
+          sunday.setHours(23, 59, 59, 999);
+
+          const { data: schoolFixture } = await supabase
+            .from("fixtures")
+            .select(`
+              id,
+              match_date,
+              venue,
+              status,
+              home_score,
+              away_score,
+              is_derby,
+              home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
+              away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
+            `)
+            .eq("is_visible", true)
+            .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+            .gte("match_date", friday.toISOString())
+            .lte("match_date", sunday.toISOString())
+            .order("match_date", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (schoolFixture) {
+            setUserSchoolFixture({
+              ...schoolFixture,
+              home_school: schoolFixture.home_school as unknown as FixtureWithSchools['home_school'],
+              away_school: schoolFixture.away_school as unknown as FixtureWithSchools['away_school'],
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching fixtures:", error);
+    } finally {
+      setFixturesLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -47,11 +205,11 @@ const Home = () => {
           .from("profiles")
           .select("school_name")
           .eq("id", user.id)
-          .single()
+          .maybeSingle()
           .then(({ data }) => {
-            if (data?.school_name) {
-              setUserSchoolName(data.school_name);
-            }
+            const schoolName = data?.school_name || null;
+            setUserSchoolName(schoolName);
+            fetchFixtures(schoolName);
           });
       }
       setLoading(false);
@@ -68,11 +226,11 @@ const Home = () => {
           .from("profiles")
           .select("school_name")
           .eq("id", session.user.id)
-          .single()
+          .maybeSingle()
           .then(({ data }) => {
-            if (data?.school_name) {
-              setUserSchoolName(data.school_name);
-            }
+            const schoolName = data?.school_name || null;
+            setUserSchoolName(schoolName);
+            fetchFixtures(schoolName);
           });
       }
     });
@@ -85,6 +243,26 @@ const Home = () => {
     navigate("/");
   };
 
+  // Helper to format match time
+  const formatMatchTime = (matchDate: string, status: string) => {
+    const date = new Date(matchDate);
+    const dayName = format(date, "EEE");
+    const time = format(date, "HH:mm");
+    if (status === "completed") {
+      return `Completed - ${dayName} ${time}`;
+    }
+    return `${dayName} ${time}`;
+  };
+
+  // Helper to get short name (first 2 letters or abbreviation)
+  const getShortName = (name: string) => {
+    const words = name.split(" ");
+    if (words.length >= 2) {
+      return words.map(w => w[0]).join("").slice(0, 3).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -95,150 +273,6 @@ const Home = () => {
       </div>
     );
   }
-
-  // User's school (simulated)
-  const userSchool = "Paul Roos";
-  const userSchoolShort = "PR";
-
-  // Simulated followed teams
-  const followedTeams = ["Paul Roos", "Paarl Gimnasium", "Glenwood", "Maritzburg College"];
-
-  // Simulated pools the user belongs to
-  const userPools = [
-    { name: "School Friends", teams: ["Paul Roos", "Paarl Gimnasium", "Glenwood"] },
-    { name: "League A", teams: ["Maritzburg College", "Glenwood", "Paul Roos"] },
-    { name: "Rugby Pros", teams: ["Paul Roos", "Paarl Gimnasium", "Maritzburg College"] }
-  ];
-
-  // Get all teams from user's pools
-  const poolTeams = [...new Set(userPools.flatMap(pool => pool.teams))];
-
-  // Helper function to check if fixture should be shown
-  const shouldShowFixture = (homeTeam: string, awayTeam: string) => {
-    return followedTeams.includes(homeTeam) || followedTeams.includes(awayTeam) ||
-           poolTeams.includes(homeTeam) || poolTeams.includes(awayTeam);
-  };
-
-  // Helper function to get pools a fixture applies to
-  const getApplicablePools = (homeTeam: string, awayTeam: string) => {
-    return userPools
-      .filter(pool => pool.teams.includes(homeTeam) || pool.teams.includes(awayTeam))
-      .map(pool => pool.name);
-  };
-
-  // User's school fixture (can be upcoming or completed)
-  const schoolFixture = {
-    userSchool: "Paul Roos",
-    userSchoolShort: "PR",
-    userSchoolIcon: paulRoosJersey,
-    userSchoolSlug: "paul-roos",
-    opponentSchool: "Paarl Gimnasium",
-    opponentSchoolShort: "PG",
-    opponentSchoolIcon: paarlGimJersey,
-    opponentSchoolSlug: "paarl-gim",
-    time: "Completed - Sat 15:00",
-    venue: "RDS",
-    isCompleted: true,
-    matchDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
-  };
-
-  const allFixtures = [
-    {
-      homeTeam: "Glenwood",
-      awayTeam: "Maritzburg College",
-      homeTeamShort: "GW",
-      awayTeamShort: "MC",
-      homeTeamIcon: glenwoodJersey,
-      awayTeamIcon: maritzburgJersey,
-      homeSchoolSlug: "glenwood",
-      awaySchoolSlug: "maritzburg-college",
-      time: "Sat 13:00",
-      venue: "Goldstones",
-      matchId: "match-1"
-    },
-    {
-      homeTeam: "Paul Roos",
-      awayTeam: "Paarl Gimnasium",
-      homeTeamShort: "PR",
-      awayTeamShort: "PG",
-      homeTeamIcon: paulRoosJersey,
-      awayTeamIcon: paarlGimJersey,
-      homeSchoolSlug: "paul-roos",
-      awaySchoolSlug: "paarl-gim",
-      time: "Sun 14:00",
-      venue: "Markötter",
-      matchId: "match-2"
-    },
-    {
-      homeTeam: "Glenwood",
-      awayTeam: "Paul Roos",
-      homeTeamShort: "GW",
-      awayTeamShort: "PR",
-      homeTeamIcon: glenwoodJersey,
-      awayTeamIcon: paulRoosJersey,
-      homeSchoolSlug: "glenwood",
-      awaySchoolSlug: "paul-roos",
-      time: "Sun 16:00",
-      venue: "Goldstones",
-      matchId: "match-3"
-    },
-    {
-      homeTeam: "Maritzburg College",
-      awayTeam: "Paarl Gimnasium",
-      homeTeamShort: "MC",
-      awayTeamShort: "PG",
-      homeTeamIcon: maritzburgJersey,
-      awayTeamIcon: paarlGimJersey,
-      homeSchoolSlug: "maritzburg-college",
-      awaySchoolSlug: "paarl-gim",
-      time: "Mon 15:00",
-      venue: "Goldstones",
-      matchId: "match-4"
-    }
-  ];
-
-  // Filter fixtures based on followed teams and pools
-  const dummyFixtures = allFixtures
-    .filter(f => shouldShowFixture(f.homeTeam, f.awayTeam))
-    .map(fixture => ({
-      ...fixture,
-      appliesTo: getApplicablePools(fixture.homeTeam, fixture.awayTeam)
-    }));
-
-  const allRecentFixtures = [
-    {
-      homeTeam: "St. Mary's College",
-      awayTeam: "Newbridge College",
-      homeTeamShort: "SMC",
-      awayTeamShort: "NC",
-      completedTime: "Completed - Fri 18:00",
-      venue: "Templeville Road",
-      matchDate: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 hours ago (within 48hr window)
-    },
-    {
-      homeTeam: "Castleknock College",
-      awayTeam: "Presentation College",
-      homeTeamShort: "CC",
-      awayTeamShort: "PC",
-      completedTime: "Completed - Fri 16:00",
-      venue: "Somerton Park",
-      matchDate: new Date(Date.now() - 40 * 60 * 60 * 1000), // 40 hours ago (within 48hr window)
-    },
-    {
-      homeTeam: "Roscrea College",
-      awayTeam: "CBC Cork",
-      homeTeamShort: "RC",
-      awayTeamShort: "CBC",
-      completedTime: "Completed - Thu 15:00",
-      venue: "Roscrea",
-      matchDate: new Date(Date.now() - 60 * 60 * 60 * 1000), // 60 hours ago (outside window)
-    },
-  ];
-
-  // Filter recent fixtures based on followed teams and pools
-  const recentFixtures = allRecentFixtures.filter(f => 
-    shouldShowFixture(f.homeTeam, f.awayTeam)
-  );
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -270,30 +304,59 @@ const Home = () => {
         <WeeklySummaryWidget />
 
         {/* Your School's Fixture - Special Highlight */}
-        <div className="space-y-3">
-          <SchoolFixtureCard {...schoolFixture} priority />
-        </div>
+        {userSchoolFixture && userSchoolName && (
+          <div className="space-y-3">
+            <SchoolFixtureCard
+              userSchool={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.name : userSchoolFixture.away_school.name}
+              userSchoolShort={getShortName(userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.name : userSchoolFixture.away_school.name)}
+              userSchoolIcon={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.jersey_url : userSchoolFixture.away_school.jersey_url}
+              userSchoolSlug={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.slug : userSchoolFixture.away_school.slug}
+              opponentSchool={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.name : userSchoolFixture.home_school.name}
+              opponentSchoolShort={getShortName(userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.name : userSchoolFixture.home_school.name)}
+              opponentSchoolIcon={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.jersey_url : userSchoolFixture.home_school.jersey_url}
+              opponentSchoolSlug={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.slug : userSchoolFixture.home_school.slug}
+              time={formatMatchTime(userSchoolFixture.match_date, userSchoolFixture.status)}
+              venue={userSchoolFixture.venue}
+              matchId={userSchoolFixture.id}
+              priority
+            />
+          </div>
+        )}
 
         {/* Upcoming Fixtures */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold px-1">Upcoming Fixtures</h2>
-          {dummyFixtures.length > 0 ? (
+          {fixturesLoading ? (
+            <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
+              <p className="text-muted-foreground">Loading fixtures...</p>
+            </div>
+          ) : upcomingFixtures.length > 0 ? (
             <div className="space-y-3">
-              {dummyFixtures.map((fixture, index) => (
+              {upcomingFixtures.map((fixture, index) => (
                 <FixtureCard 
-                  key={index} 
-                  {...fixture}
+                  key={fixture.id}
+                  homeTeam={fixture.home_school.name}
+                  awayTeam={fixture.away_school.name}
+                  homeTeamShort={getShortName(fixture.home_school.name)}
+                  awayTeamShort={getShortName(fixture.away_school.name)}
+                  homeTeamIcon={fixture.home_school.jersey_url}
+                  awayTeamIcon={fixture.away_school.jersey_url}
+                  homeSchoolSlug={fixture.home_school.slug}
+                  awaySchoolSlug={fixture.away_school.slug}
+                  time={formatMatchTime(fixture.match_date, fixture.status)}
+                  venue={fixture.venue}
+                  matchId={fixture.id}
                   priority={index < 2}
-                  isPredicted={!!predictions[fixture.matchId]}
-                  predictedTeam={predictions[fixture.matchId]?.team}
-                  predictedMargin={predictions[fixture.matchId]?.margin}
-                  onPredictionMade={(team, margin) => handlePredictionMade(fixture.matchId, team, margin)}
+                  isPredicted={!!predictions[fixture.id]}
+                  predictedTeam={predictions[fixture.id]?.team}
+                  predictedMargin={predictions[fixture.id]?.margin}
+                  onPredictionMade={(team, margin) => handlePredictionMade(fixture.id, team, margin)}
                 />
               ))}
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No matches yet — check back soon!</p>
+              <p className="text-muted-foreground">No upcoming matches — check back soon!</p>
             </div>
           )}
         </div>
@@ -301,10 +364,28 @@ const Home = () => {
         {/* Recent Matches - Submit Score */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold px-1">Recent Matches – Submit Score</h2>
-          {recentFixtures.length > 0 ? (
+          {fixturesLoading ? (
+            <div className="text-center py-8 bg-gradient-card rounded-lg border border-border/40">
+              <p className="text-muted-foreground">Loading recent matches...</p>
+            </div>
+          ) : recentFixtures.length > 0 ? (
             <div className="space-y-3">
               {recentFixtures.map((fixture, index) => (
-                <RecentFixtureCard key={index} {...fixture} priority={index === 0} />
+                <RecentFixtureCard
+                  key={fixture.id}
+                  homeTeam={fixture.home_school.name}
+                  awayTeam={fixture.away_school.name}
+                  homeTeamShort={getShortName(fixture.home_school.name)}
+                  awayTeamShort={getShortName(fixture.away_school.name)}
+                  homeTeamIcon={fixture.home_school.jersey_url}
+                  awayTeamIcon={fixture.away_school.jersey_url}
+                  homeSchoolSlug={fixture.home_school.slug}
+                  awaySchoolSlug={fixture.away_school.slug}
+                  completedTime={formatMatchTime(fixture.match_date, fixture.status)}
+                  venue={fixture.venue}
+                  matchDate={new Date(fixture.match_date)}
+                  priority={index === 0}
+                />
               ))}
             </div>
           ) : (
