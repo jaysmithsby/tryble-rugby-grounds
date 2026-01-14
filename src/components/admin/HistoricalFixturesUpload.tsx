@@ -177,6 +177,73 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     );
   }, [schools, primarySearchQuery]);
 
+  // Create a new school and return its ID
+  const createNewSchool = async (name: string): Promise<string | null> => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return null;
+
+    try {
+      const slug = trimmedName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+
+      const { data, error } = await supabase
+        .from("schools")
+        .insert({
+          name: trimmedName,
+          slug,
+          status: "verified",
+          is_visible: true,
+        })
+        .select("id, name, province")
+        .single();
+
+      if (error) throw error;
+
+      // Add the new school to local state
+      setSchools(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      
+      toast({
+        title: "School created",
+        description: `"${trimmedName}" has been added to the database.`,
+      });
+
+      return data.id;
+    } catch (error: any) {
+      console.error("Error creating school:", error);
+      toast({
+        title: "Failed to create school",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleCreatePrimarySchool = async () => {
+    if (!primarySearchQuery.trim()) return;
+    
+    const newId = await createNewSchool(primarySearchQuery);
+    if (newId) {
+      setPrimarySchoolId(newId);
+      setPrimarySchoolOpen(false);
+      setPrimarySearchQuery("");
+    }
+  };
+
+  const handleCreateOpponentSchool = async (rowId: string, schoolName: string) => {
+    if (!schoolName.trim()) return;
+    
+    const newId = await createNewSchool(schoolName);
+    if (newId) {
+      updateRow(rowId, "opponentId", newId);
+      updateRow(rowId, "opponentName", schoolName.trim());
+      setActiveOpponentDropdown(null);
+      setOpponentSearchQueries(prev => ({ ...prev, [rowId]: "" }));
+    }
+  };
+
   const getFilteredOpponents = (query: string) => {
     if (!query) return schools.filter(s => s.id !== primarySchoolId);
     return schools.filter(school =>
@@ -941,9 +1008,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
               value={searchQuery}
               onValueChange={(val) => {
                 setOpponentSearchQueries(prev => ({ ...prev, [row.id]: val }));
-                // Update opponent name for free text entry
-                updateRow(row.id, "opponentName", val);
-                updateRow(row.id, "opponentId", "");
               }}
             />
             <CommandList>
@@ -969,20 +1033,13 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                   </CommandItem>
                 ))}
               </CommandGroup>
-              {searchQuery && filteredOpponents.length === 0 && (
+              {searchQuery && !filteredOpponents.some(s => 
+                s.name.toLowerCase() === searchQuery.toLowerCase()
+              ) && (
                 <CommandGroup>
                   <CommandItem
-                    value={`create-${searchQuery}`}
-                    onSelect={() => {
-                      updateRow(row.id, "opponentId", "");
-                      updateRow(row.id, "opponentName", searchQuery);
-                      setActiveOpponentDropdown(null);
-                      setOpponentSearchQueries(prev => ({ ...prev, [row.id]: "" }));
-                      toast({
-                        title: "New school will be created",
-                        description: `"${searchQuery}" will be added to the database when you upload.`,
-                      });
-                    }}
+                    value={`create-now-${searchQuery}`}
+                    onSelect={() => handleCreateOpponentSchool(row.id, searchQuery)}
                     className="text-primary"
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -1049,8 +1106,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                         value={primarySearchQuery}
                         onValueChange={setPrimarySearchQuery}
                       />
-                      <CommandList>
-                        <CommandEmpty>No school found.</CommandEmpty>
+                    <CommandList>
                         <CommandGroup>
                           {filteredPrimarySchools.map((school) => (
                             <CommandItem
@@ -1077,6 +1133,23 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
                             </CommandItem>
                           ))}
                         </CommandGroup>
+                        {primarySearchQuery && !filteredPrimarySchools.some(s => 
+                          s.name.toLowerCase() === primarySearchQuery.toLowerCase()
+                        ) && (
+                          <CommandGroup>
+                            <CommandItem
+                              value={`create-primary-${primarySearchQuery}`}
+                              onSelect={handleCreatePrimarySchool}
+                              className="text-primary"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              <span>Create "{primarySearchQuery}" as new school</span>
+                            </CommandItem>
+                          </CommandGroup>
+                        )}
+                        {filteredPrimarySchools.length === 0 && !primarySearchQuery && (
+                          <CommandEmpty>No school found. Type to search or create new.</CommandEmpty>
+                        )}
                       </CommandList>
                     </Command>
                   </PopoverContent>
