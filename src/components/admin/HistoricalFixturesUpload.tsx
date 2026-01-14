@@ -417,6 +417,158 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     return parsedRows;
   };
 
+  // Parse markdown table format: | No | Date | Union | Opponent | Venue | Result | PF | PA | Notes |
+  const parseMarkdownTableData = (text: string): FixtureRow[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const parsedRows: FixtureRow[] = [];
+    
+    // Find header line
+    let headerIndex = -1;
+    let headers: string[] = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes('|') && (line.toLowerCase().includes('date') || line.toLowerCase().includes('opponent'))) {
+        headerIndex = i;
+        headers = line.split('|').map(h => h.trim().toLowerCase()).filter(h => h);
+        break;
+      }
+    }
+    
+    if (headerIndex === -1) return [];
+    
+    // Find column indices
+    const colIndex = {
+      no: headers.findIndex(h => h === 'no' || h === '#'),
+      date: headers.findIndex(h => h === 'date'),
+      union: headers.findIndex(h => h === 'union'),
+      opponent: headers.findIndex(h => h === 'opponent'),
+      venue: headers.findIndex(h => h === 'venue'),
+      result: headers.findIndex(h => h === 'result'),
+      pf: headers.findIndex(h => h === 'pf' || h === 'for' || h === 'points for'),
+      pa: headers.findIndex(h => h === 'pa' || h === 'against' || h === 'points against'),
+      notes: headers.findIndex(h => h === 'notes' || h === 'tournament'),
+    };
+    
+    // Parse data rows (skip header and separator lines)
+    for (let i = headerIndex + 1; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Skip separator lines (| -- | -- | etc.)
+      if (line.includes('--') || line.includes('---')) continue;
+      
+      // Skip empty lines
+      if (!line.includes('|')) continue;
+      
+      const values = line.split('|').map(v => v.trim()).filter((v, idx, arr) => {
+        // Filter out empty first/last elements from | borders
+        return !(idx === 0 && v === '') && !(idx === arr.length - 1 && v === '');
+      });
+      
+      // Re-split properly to handle the pipe borders
+      const allValues = line.split('|').map(v => v.trim());
+      // Remove empty first and last if they exist
+      if (allValues[0] === '') allValues.shift();
+      if (allValues[allValues.length - 1] === '') allValues.pop();
+      
+      if (allValues.length < 4) continue; // Need at least date, opponent, venue, result
+      
+      // Skip if first value is separator
+      if (allValues[0].includes('-')) continue;
+      
+      // Parse date (format: Mon.03Mar, Fri.07Mar, etc.)
+      let matchDate = "";
+      let year = defaultYear;
+      const dateValue = colIndex.date >= 0 ? allValues[colIndex.date] : allValues[1];
+      
+      if (dateValue) {
+        // Parse format: Mon.03Mar or Sat.15Mar
+        const dateMatch = dateValue.match(/(?:\w+\.)?(\d{1,2})([A-Za-z]{3})/);
+        if (dateMatch) {
+          const day = parseInt(dateMatch[1], 10);
+          const monthStr = dateMatch[2].toLowerCase();
+          const months: Record<string, number> = {
+            'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+            'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+          };
+          const month = months[monthStr];
+          if (month !== undefined) {
+            const parsedDate = new Date(parseInt(defaultYear), month, day, 14, 0, 0);
+            if (!isNaN(parsedDate.getTime())) {
+              matchDate = parsedDate.toISOString();
+              year = defaultYear;
+            }
+          }
+        }
+      }
+      
+      // Parse opponent
+      const opponentName = colIndex.opponent >= 0 ? allValues[colIndex.opponent] : allValues[3];
+      const matchedSchool = fuzzyMatchSchool(opponentName);
+      
+      // Parse venue: H = Home, A = Away, F = Festival/Neutral
+      const venueValue = colIndex.venue >= 0 ? allValues[colIndex.venue] : allValues[4];
+      let homeAway: "home" | "away" = "home";
+      if (venueValue) {
+        const v = venueValue.toUpperCase();
+        if (v === 'A' || v === 'AWAY') {
+          homeAway = "away";
+        } else if (v === 'F' || v === 'FESTIVAL' || v === 'N' || v === 'NEUTRAL') {
+          homeAway = "away"; // Festival/Neutral = away for the primary school
+        }
+        // H or HOME = home (default)
+      }
+      
+      // Parse result: Won, Lost, Drew
+      const resultValue = colIndex.result >= 0 ? allValues[colIndex.result] : allValues[5];
+      let result: "won" | "lost" | "drew" = "won";
+      if (resultValue) {
+        const r = resultValue.toLowerCase();
+        if (r === 'lost' || r === 'l') {
+          result = "lost";
+        } else if (r === 'drew' || r === 'draw' || r === 'd') {
+          result = "drew";
+        }
+        // Won or W = won (default)
+      }
+      
+      // Parse scores: PF (Points For) and PA (Points Against)
+      const pfValue = colIndex.pf >= 0 ? allValues[colIndex.pf] : allValues[6];
+      const paValue = colIndex.pa >= 0 ? allValues[colIndex.pa] : allValues[7];
+      const scoreFor = pfValue ? pfValue.replace(/\D/g, '') : "";
+      const scoreAgainst = paValue ? paValue.replace(/\D/g, '') : "";
+      
+      // Parse notes/tournament
+      const notesValue = colIndex.notes >= 0 ? allValues[colIndex.notes] : (allValues[8] || "");
+      let tournamentId = "";
+      if (notesValue) {
+        // Try to match tournament from notes
+        const matchedTournament = tournaments.find(t => 
+          normalizeSchoolName(t.name).includes(normalizeSchoolName(notesValue)) ||
+          normalizeSchoolName(notesValue).includes(normalizeSchoolName(t.name))
+        );
+        if (matchedTournament) {
+          tournamentId = matchedTournament.id;
+        }
+      }
+      
+      parsedRows.push({
+        id: generateId(),
+        year,
+        matchDate,
+        homeAway,
+        opponentName: matchedSchool?.name || opponentName,
+        opponentId: matchedSchool?.id || "",
+        result,
+        scoreFor,
+        scoreAgainst,
+        tournamentId,
+      });
+    }
+    
+    return parsedRows;
+  };
+
   // Parse tab-separated data
   const parseTabSeparatedData = (text: string): FixtureRow[] => {
     const lines = text.split('\n');
@@ -429,6 +581,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
       awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
       homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
+      result: headers.findIndex(h => h === 'result'),
+      pf: headers.findIndex(h => h === 'pf' || h === 'for'),
+      pa: headers.findIndex(h => h === 'pa' || h === 'against'),
     };
 
     const parsedRows: FixtureRow[] = [];
@@ -476,6 +631,18 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         }
       }
 
+      // Parse result if available
+      let result: "won" | "lost" | "drew" = "won";
+      if (colIndex.result >= 0 && values[colIndex.result]) {
+        const r = values[colIndex.result].toLowerCase();
+        if (r === 'lost' || r === 'l') result = "lost";
+        else if (r === 'drew' || r === 'draw' || r === 'd') result = "drew";
+      }
+
+      // Parse scores
+      const scoreFor = colIndex.pf >= 0 && values[colIndex.pf] ? values[colIndex.pf].replace(/\D/g, '') : "";
+      const scoreAgainst = colIndex.pa >= 0 && values[colIndex.pa] ? values[colIndex.pa].replace(/\D/g, '') : "";
+
       const matchedSchool = fuzzyMatchSchool(opponentName);
 
       parsedRows.push({
@@ -485,9 +652,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         homeAway,
         opponentName: matchedSchool?.name || opponentName,
         opponentId: matchedSchool?.id || "",
-        result: "won",
-        scoreFor: "",
-        scoreAgainst: "",
+        result,
+        scoreFor,
+        scoreAgainst,
         tournamentId: "",
       });
     }
@@ -518,18 +685,25 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     const text = pasteText.trim();
     let parsedRows: FixtureRow[] = [];
     
-    // Check if tabs exist - use tab parser
-    if (text.includes('\t')) {
+    // Detect format and use appropriate parser
+    // Check for markdown table format (pipe characters with headers like Date, Opponent, Venue, Result)
+    const isMarkdownTable = text.includes('|') && 
+      (text.toLowerCase().includes('opponent') || text.toLowerCase().includes('venue') || text.toLowerCase().includes('result'));
+    
+    if (isMarkdownTable) {
+      parsedRows = parseMarkdownTableData(text);
+    } else if (text.includes('\t')) {
+      // Tab-separated format
       parsedRows = parseTabSeparatedData(text);
     } else {
-      // No tabs - use concatenated data parser
+      // Fallback - concatenated data parser
       parsedRows = parseConcatenatedData(text);
     }
 
     if (parsedRows.length === 0) {
       toast({
         title: "No fixtures parsed",
-        description: "Could not parse any fixtures from the pasted data. Make sure dates are in YYYY-MM-DD format.",
+        description: "Could not parse any fixtures from the pasted data. Try using markdown table format with columns: Date, Opponent, Venue, Result, PF, PA, Notes",
         variant: "destructive",
       });
       return;
