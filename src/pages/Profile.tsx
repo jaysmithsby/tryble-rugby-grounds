@@ -19,7 +19,9 @@ import {
   School,
   CheckCircle2,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Globe,
+  MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
@@ -32,12 +34,14 @@ interface ProfileData {
   schoolName: string;
   contactMethod: string;
   userType: string;
+  province: string | null;
 }
 
 interface UserPool {
   id: string;
   name: string;
   invite_code: string;
+  type: 'custom' | 'global' | 'school' | 'province';
 }
 
 const Profile = () => {
@@ -67,6 +71,7 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Fetch custom pools user has joined
       const { data, error } = await supabase
         .from("pool_members")
         .select(`
@@ -81,15 +86,16 @@ const Profile = () => {
 
       if (error) throw error;
 
-      const userPools: UserPool[] = (data || [])
+      const customPools: UserPool[] = (data || [])
         .filter((item: any) => item.pools)
         .map((item: any) => ({
           id: item.pools.id,
           name: item.pools.name,
-          invite_code: item.pools.invite_code
+          invite_code: item.pools.invite_code,
+          type: 'custom' as const
         }));
 
-      setPools(userPools);
+      setPools(customPools);
     } catch (error) {
       console.error("Error fetching user pools:", error);
     } finally {
@@ -108,7 +114,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, school_name, contact_method, user_type")
+        .select("first_name, school_name, contact_method, user_type, province")
         .eq("id", user.id)
         .single();
 
@@ -118,7 +124,8 @@ const Profile = () => {
         firstName: data.first_name,
         schoolName: data.school_name,
         contactMethod: data.contact_method,
-        userType: data.user_type
+        userType: data.user_type,
+        province: data.province
       });
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -312,33 +319,81 @@ const Profile = () => {
           <CardContent>
             {poolsLoading ? (
               <div className="text-center py-4 text-muted-foreground">Loading pools...</div>
-            ) : pools.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground mb-3">You haven't joined any pools yet</p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => navigate("/leaderboard")}
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Join or Create a Pool
-                </Button>
-              </div>
             ) : (
               <div className="space-y-2">
-                {pools.map((pool) => (
+                {/* Global Leaderboard */}
+                <button
+                  onClick={() => navigate("/leaderboard?tab=global")}
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Global</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </button>
+
+                {/* School Leaderboard */}
+                {profile?.schoolName && (
                   <button
-                    key={pool.id}
-                    onClick={() => navigate(`/pool/${pool.id}`)}
+                    onClick={() => navigate("/leaderboard?tab=school")}
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors group"
                   >
                     <div className="flex items-center gap-3">
-                      <Users className="w-5 h-5 text-primary" />
-                      <span className="font-medium">{pool.name}</span>
+                      <School className="w-5 h-5 text-primary" />
+                      <span className="font-medium">{profile.schoolName}</span>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                   </button>
-                ))}
+                )}
+
+                {/* Province Leaderboard */}
+                {profile?.province && (
+                  <button
+                    onClick={() => navigate("/leaderboard?tab=province")}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-primary" />
+                      <span className="font-medium">{profile.province}</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  </button>
+                )}
+
+                {/* Custom Pools */}
+                {pools.length > 0 && (
+                  <>
+                    <div className="border-t border-border/40 my-3" />
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Custom Pools</p>
+                    {pools.map((pool) => (
+                      <button
+                        key={pool.id}
+                        onClick={() => navigate(`/pool/${pool.id}`)}
+                        className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Users className="w-5 h-5 text-primary" />
+                          <span className="font-medium">{pool.name}</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {/* Join/Create Pool CTA */}
+                <div className="border-t border-border/40 mt-3 pt-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full"
+                    onClick={() => navigate("/leaderboard?tab=pools")}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Join or Create a Pool
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
