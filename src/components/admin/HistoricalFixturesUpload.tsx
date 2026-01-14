@@ -263,6 +263,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
   const removeRow = (id: string) => {
     if (rows.length > 1) {
       setRows(prev => prev.filter(row => row.id !== id));
+      // Clear errors when a row is removed so user can retry submission
+      setErrors([]);
     }
   };
 
@@ -270,6 +272,10 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     setRows(prev => prev.map(row => 
       row.id === id ? { ...row, [field]: value } : row
     ));
+    // Clear errors when user edits a row so they can retry submission
+    if (errors.length > 0) {
+      setErrors([]);
+    }
   };
 
   const resetForm = () => {
