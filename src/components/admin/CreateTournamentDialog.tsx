@@ -78,6 +78,8 @@ export function CreateTournamentDialog({
   const [participatingSearch, setParticipatingSearch] = useState("");
   const [newSchoolName, setNewSchoolName] = useState("");
   const [showAddSchool, setShowAddSchool] = useState(false);
+  const [newHostSchoolName, setNewHostSchoolName] = useState("");
+  const [showAddHostSchool, setShowAddHostSchool] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -199,6 +201,28 @@ export function CreateTournamentDialog({
     });
   };
 
+  const handleAddNewHostSchool = () => {
+    if (!newHostSchoolName.trim()) return;
+    
+    const schoolName = newHostSchoolName.trim();
+    
+    // Add to the schools list locally
+    if (!schools.includes(schoolName)) {
+      setSchools((prev) => [...prev, schoolName].sort());
+    }
+    
+    // Set it as the host school
+    form.setValue("host_school", schoolName);
+    
+    setNewHostSchoolName("");
+    setShowAddHostSchool(false);
+    setHostSchoolOpen(false);
+    toast({
+      title: "School added",
+      description: `"${schoolName}" has been added and set as host`,
+    });
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
@@ -293,7 +317,26 @@ export function CreateTournamentDialog({
                             onValueChange={setHostSchoolSearch}
                           />
                           <CommandList>
-                            <CommandEmpty>No school found.</CommandEmpty>
+                            <CommandEmpty>
+                              <div className="p-2">
+                                <p className="text-sm text-muted-foreground mb-2">No school found.</p>
+                                {!showAddHostSchool && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setShowAddHostSchool(true);
+                                      setNewHostSchoolName(hostSchoolSearch);
+                                    }}
+                                    className="w-full gap-1"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Add "{hostSchoolSearch}"
+                                  </Button>
+                                )}
+                              </div>
+                            </CommandEmpty>
                             <CommandGroup className="max-h-60 overflow-auto">
                               {filteredHostSchools.map((school) => (
                                 <CommandItem
@@ -315,6 +358,59 @@ export function CreateTournamentDialog({
                                 </CommandItem>
                               ))}
                             </CommandGroup>
+                            {/* Add New School option at bottom */}
+                            <div className="border-t border-border p-2">
+                              {!showAddHostSchool ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowAddHostSchool(true)}
+                                  className="w-full gap-1 justify-start"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Add New School
+                                </Button>
+                              ) : (
+                                <div className="flex flex-col gap-2">
+                                  <Input
+                                    placeholder="Enter new school name..."
+                                    value={newHostSchoolName}
+                                    onChange={(e) => setNewHostSchoolName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleAddNewHostSchool();
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={handleAddNewHostSchool}
+                                      disabled={!newHostSchoolName.trim()}
+                                      className="flex-1"
+                                    >
+                                      Add & Select
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setShowAddHostSchool(false);
+                                        setNewHostSchoolName("");
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </CommandList>
                         </Command>
                       </PopoverContent>
