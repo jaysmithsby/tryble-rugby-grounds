@@ -34,6 +34,11 @@ interface ProfileData {
   userType: string;
 }
 
+interface UserPool {
+  id: string;
+  name: string;
+  invite_code: string;
+}
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -42,6 +47,8 @@ const Profile = () => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailUpdates, setEmailUpdates] = useState(false);
+  const [pools, setPools] = useState<UserPool[]>([]);
+  const [poolsLoading, setPoolsLoading] = useState(true);
 
   // Mock data - replace with real data from backend
   const stats = {
@@ -50,16 +57,45 @@ const Profile = () => {
     currentStreak: 3
   };
 
-
-  const pools = [
-    { id: "1", name: "Michaelhouse vs Grey" },
-    { id: "2", name: "Top Schools SA" },
-    { id: "3", name: "KZN Region" },
-  ];
-
   useEffect(() => {
     fetchProfile();
+    fetchUserPools();
   }, []);
+
+  const fetchUserPools = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("pool_members")
+        .select(`
+          pool_id,
+          pools (
+            id,
+            name,
+            invite_code
+          )
+        `)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      const userPools: UserPool[] = (data || [])
+        .filter((item: any) => item.pools)
+        .map((item: any) => ({
+          id: item.pools.id,
+          name: item.pools.name,
+          invite_code: item.pools.invite_code
+        }));
+
+      setPools(userPools);
+    } catch (error) {
+      console.error("Error fetching user pools:", error);
+    } finally {
+      setPoolsLoading(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -259,27 +295,52 @@ const Profile = () => {
 
         {/* Groups & Pools */}
         <Card className="mb-6 bg-gradient-card border-border/40">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               🎯 Your Pools
             </CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate("/leaderboard")}
+              className="text-primary hover:text-primary/80"
+            >
+              View All
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {pools.map((pool) => (
-                <button
-                  key={pool.id}
-                  onClick={() => toast({ title: "Pool clicked", description: pool.name })}
-                  className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors group"
+            {poolsLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading pools...</div>
+            ) : pools.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground mb-3">You haven't joined any pools yet</p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate("/leaderboard")}
                 >
-                  <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-primary" />
-                    <span className="font-medium">{pool.name}</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                </button>
-              ))}
-            </div>
+                  <Users className="w-4 h-4 mr-2" />
+                  Join or Create a Pool
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pools.map((pool) => (
+                  <button
+                    key={pool.id}
+                    onClick={() => navigate(`/pool/${pool.id}`)}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-primary" />
+                      <span className="font-medium">{pool.name}</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
