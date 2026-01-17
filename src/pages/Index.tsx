@@ -4,7 +4,6 @@ import Features from "@/components/Features";
 import AppPreview from "@/components/AppPreview";
 import Safety from "@/components/Safety";
 import SocialProof from "@/components/SocialProof";
-import Sponsor from "@/components/Sponsor";
 import Footer from "@/components/Footer";
 
 const Index = () => {
@@ -16,7 +15,6 @@ const Index = () => {
       <AppPreview />
       <Safety />
       <SocialProof />
-      <Sponsor />
       <Footer />
     </div>
   );
