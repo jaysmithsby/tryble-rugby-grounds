@@ -339,6 +339,7 @@ export type Database = {
           id: string
           parent_email: string | null
           province: string | null
+          school_changed_at: string | null
           school_name: string
           updated_at: string
           user_type: string
@@ -357,6 +358,7 @@ export type Database = {
           id: string
           parent_email?: string | null
           province?: string | null
+          school_changed_at?: string | null
           school_name: string
           updated_at?: string
           user_type: string
@@ -375,6 +377,7 @@ export type Database = {
           id?: string
           parent_email?: string | null
           province?: string | null
+          school_changed_at?: string | null
           school_name?: string
           updated_at?: string
           user_type?: string
