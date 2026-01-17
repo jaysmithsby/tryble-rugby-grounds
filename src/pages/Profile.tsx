@@ -28,6 +28,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { allBadges } from "@/data/badgesData";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ChangeSchoolDialog } from "@/components/profile/ChangeSchoolDialog";
 
 interface ProfileData {
   firstName: string;
@@ -35,6 +36,7 @@ interface ProfileData {
   contactMethod: string;
   userType: string;
   province: string | null;
+  schoolChangedAt: string | null;
 }
 
 interface UserPool {
@@ -53,6 +55,7 @@ const Profile = () => {
   const [emailUpdates, setEmailUpdates] = useState(false);
   const [pools, setPools] = useState<UserPool[]>([]);
   const [poolsLoading, setPoolsLoading] = useState(true);
+  const [changeSchoolOpen, setChangeSchoolOpen] = useState(false);
 
   // Mock data - replace with real data from backend
   const stats = {
@@ -114,7 +117,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, school_name, contact_method, user_type, province")
+        .select("first_name, school_name, contact_method, user_type, province, school_changed_at")
         .eq("id", user.id)
         .single();
 
@@ -125,7 +128,8 @@ const Profile = () => {
         schoolName: data.school_name,
         contactMethod: data.contact_method,
         userType: data.user_type,
-        province: data.province
+        province: data.province,
+        schoolChangedAt: data.school_changed_at
       });
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -409,10 +413,18 @@ const Profile = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Change School */}
-            <button className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted/20 transition-colors">
+            <button 
+              onClick={() => setChangeSchoolOpen(true)}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted/20 transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <School className="w-5 h-5 text-muted-foreground" />
-                <span>Change School</span>
+                <div className="text-left">
+                  <span>Change School</span>
+                  {profile?.schoolChangedAt && (
+                    <p className="text-xs text-muted-foreground">Already used</p>
+                  )}
+                </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </button>
@@ -494,6 +506,17 @@ const Profile = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Change School Dialog */}
+      {profile && (
+        <ChangeSchoolDialog
+          open={changeSchoolOpen}
+          onOpenChange={setChangeSchoolOpen}
+          currentSchool={profile.schoolName}
+          hasChangedSchool={!!profile.schoolChangedAt}
+          onSchoolChanged={fetchProfile}
+        />
+      )}
 
       {/* Bottom Navigation */}
       <BottomNav />
