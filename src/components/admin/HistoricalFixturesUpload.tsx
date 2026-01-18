@@ -177,16 +177,47 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     );
   }, [schools, primarySearchQuery]);
 
+  // Generate a unique slug, appending suffix if needed
+  const generateUniqueSlug = async (name: string): Promise<string> => {
+    const baseSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-');
+    
+    // Check if base slug exists
+    const { data: existing } = await supabase
+      .from("schools")
+      .select("slug")
+      .eq("slug", baseSlug)
+      .maybeSingle();
+    
+    if (!existing) return baseSlug;
+    
+    // Find a unique variant with suffix
+    let suffix = 2;
+    while (suffix < 100) {
+      const candidateSlug = `${baseSlug}-${suffix}`;
+      const { data: check } = await supabase
+        .from("schools")
+        .select("slug")
+        .eq("slug", candidateSlug)
+        .maybeSingle();
+      
+      if (!check) return candidateSlug;
+      suffix++;
+    }
+    
+    // Fallback: append timestamp
+    return `${baseSlug}-${Date.now()}`;
+  };
+
   // Create a new school and return its ID
   const createNewSchool = async (name: string): Promise<string | null> => {
     const trimmedName = name.trim();
     if (!trimmedName) return null;
 
     try {
-      const slug = trimmedName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-');
+      const slug = await generateUniqueSlug(trimmedName);
 
       const { data, error } = await supabase
         .from("schools")
@@ -301,22 +332,95 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       .trim();
   };
 
+  // Abbreviation expansions for better matching
+  const expandAbbreviations = (name: string): string[] => {
+    const normalized = normalizeSchoolName(name);
+    const variations = [normalized];
+    
+    // Common abbreviation mappings
+    const abbreviations: Record<string, string[]> = {
+      'hs': ['high school', 'high'],
+      'high school': ['hs'],
+      'high': ['hs', 'high school'],
+      'ps': ['primary school', 'primary'],
+      'primary school': ['ps'],
+      'vs': ['volkskool'],
+      'volkskool': ['vs'],
+      'coll': ['college'],
+      'college': ['coll'],
+      'tech': ['technical'],
+      'technical': ['tech'],
+      'hoer': ['hoërskool', 'hoerskool'],
+      'hoerskool': ['hoer', 'hoërskool'],
+      'laer': ['laerskool'],
+      'laerskool': ['laer'],
+    };
+    
+    for (const [abbr, expansions] of Object.entries(abbreviations)) {
+      if (normalized.includes(abbr)) {
+        for (const expansion of expansions) {
+          variations.push(normalized.replace(abbr, expansion));
+        }
+      }
+    }
+    
+    return variations;
+  };
+
   // Fuzzy match school name to existing schools
   const fuzzyMatchSchool = (name: string): { id: string; name: string } | null => {
     if (!name || !name.trim()) return null;
     
     const normalizedName = normalizeSchoolName(name);
+    const nameVariations = expandAbbreviations(name);
     
-    // Exact match on normalized names
-    const exactMatch = schools.find(s => normalizeSchoolName(s.name) === normalizedName);
-    if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
+    // Exact match on normalized names (including abbreviation expansions)
+    for (const variation of nameVariations) {
+      const exactMatch = schools.find(s => normalizeSchoolName(s.name) === variation);
+      if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
+    }
+    
+    // Check if any school's variations match our variations
+    for (const school of schools) {
+      const schoolVariations = expandAbbreviations(school.name);
+      for (const nameVar of nameVariations) {
+        for (const schoolVar of schoolVariations) {
+          if (nameVar === schoolVar) {
+            return { id: school.id, name: school.name };
+          }
+        }
+      }
+    }
     
     // Partial match (school name contains or is contained in search)
-    const partialMatch = schools.find(s => {
-      const normalizedSchool = normalizeSchoolName(s.name);
-      return normalizedSchool.includes(normalizedName) || normalizedName.includes(normalizedSchool);
-    });
-    if (partialMatch) return { id: partialMatch.id, name: partialMatch.name };
+    for (const variation of nameVariations) {
+      const partialMatch = schools.find(s => {
+        const normalizedSchool = normalizeSchoolName(s.name);
+        return normalizedSchool.includes(variation) || variation.includes(normalizedSchool);
+      });
+      if (partialMatch) return { id: partialMatch.id, name: partialMatch.name };
+    }
+    
+    // Slug-based matching (catch cases like "Grey HS" vs "Grey High School")
+    const inputSlug = normalizedName.replace(/\s+/g, '-');
+    for (const school of schools) {
+      const schoolSlug = normalizeSchoolName(school.name).replace(/\s+/g, '-');
+      // Check if slugs share a significant prefix
+      if (inputSlug.length >= 5 && schoolSlug.length >= 5) {
+        if (schoolSlug.startsWith(inputSlug.substring(0, 5)) || 
+            inputSlug.startsWith(schoolSlug.substring(0, 5))) {
+          // Additional check: ensure they share key words
+          const inputWords = normalizedName.split(' ').filter(w => w.length > 2);
+          const schoolWords = normalizeSchoolName(school.name).split(' ').filter(w => w.length > 2);
+          const sharedWords = inputWords.filter(iw => 
+            schoolWords.some(sw => sw === iw || sw.includes(iw) || iw.includes(sw))
+          );
+          if (sharedWords.length >= 1) {
+            return { id: school.id, name: school.name };
+          }
+        }
+      }
+    }
     
     // Word-based scoring match
     const searchWords = normalizedName.split(' ').filter(w => w.length > 2);
@@ -866,10 +970,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
       // Create new schools if needed
       const createdSchoolIds: Record<string, string> = {};
       for (const newSchool of newSchoolsToCreate) {
-        const slug = newSchool.name
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-');
+        // Generate unique slug to prevent duplicate key errors
+        const slug = await generateUniqueSlug(newSchool.name);
 
         const { data, error } = await supabase
           .from("schools")
