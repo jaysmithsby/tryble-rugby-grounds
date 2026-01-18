@@ -61,13 +61,49 @@ const Home = () => {
   };
 
   // Fetch fixtures from database
-  const fetchFixtures = async (schoolName?: string | null) => {
+  const fetchFixtures = async (userId: string, schoolName?: string | null) => {
     setFixturesLoading(true);
     try {
       const now = effectiveDate.toISOString();
       
-      // Fetch upcoming fixtures (status = 'upcoming' or match_date > now)
-      const { data: upcoming, error: upcomingError } = await supabase
+      // First, fetch the user's pools and their schools
+      const { data: poolMemberships } = await supabase
+        .from("pool_members")
+        .select("pool_id")
+        .eq("user_id", userId);
+
+      let poolSchoolNames: string[] = [];
+      if (poolMemberships && poolMemberships.length > 0) {
+        const poolIds = poolMemberships.map(pm => pm.pool_id);
+        const { data: pools } = await supabase
+          .from("pools")
+          .select("schools")
+          .in("id", poolIds)
+          .eq("is_active", true);
+        
+        if (pools) {
+          // Flatten all school names from all pools
+          poolSchoolNames = pools
+            .flatMap(p => p.schools || [])
+            .filter((name, index, self) => self.indexOf(name) === index); // Dedupe
+        }
+      }
+
+      // Get school IDs for the pool schools
+      let poolSchoolIds: string[] = [];
+      if (poolSchoolNames.length > 0) {
+        const { data: schoolsData } = await supabase
+          .from("schools")
+          .select("id, name")
+          .in("name", poolSchoolNames);
+        
+        if (schoolsData) {
+          poolSchoolIds = schoolsData.map(s => s.id);
+        }
+      }
+
+      // Fetch upcoming fixtures that involve pool schools
+      let upcomingQuery = supabase
         .from("fixtures")
         .select(`
           id,
@@ -77,6 +113,8 @@ const Home = () => {
           home_score,
           away_score,
           is_derby,
+          home_school_id,
+          away_school_id,
           home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
           away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
         `)
@@ -85,13 +123,29 @@ const Home = () => {
         .eq("year", seasonYear)
         .gte("match_date", now)
         .order("match_date", { ascending: true })
-        .limit(10);
+        .limit(20);
+
+      const { data: allUpcoming, error: upcomingError } = await upcomingQuery;
 
       if (upcomingError) {
         console.error("Error fetching upcoming fixtures:", upcomingError);
       } else {
-        const formattedUpcoming = (upcoming || []).map(f => ({
-          ...f,
+        // Filter to only fixtures involving pool schools (if user has pools)
+        let filteredUpcoming = (allUpcoming || []);
+        if (poolSchoolIds.length > 0) {
+          filteredUpcoming = filteredUpcoming.filter(f => 
+            poolSchoolIds.includes(f.home_school_id) || poolSchoolIds.includes(f.away_school_id)
+          );
+        }
+        
+        const formattedUpcoming = filteredUpcoming.slice(0, 10).map(f => ({
+          id: f.id,
+          match_date: f.match_date,
+          venue: f.venue,
+          status: f.status,
+          home_score: f.home_score,
+          away_score: f.away_score,
+          is_derby: f.is_derby,
           home_school: f.home_school as unknown as FixtureWithSchools['home_school'],
           away_school: f.away_school as unknown as FixtureWithSchools['away_school'],
         }));
@@ -200,7 +254,7 @@ const Home = () => {
           .then(({ data }) => {
             const schoolName = data?.school_name || null;
             setUserSchoolName(schoolName);
-            fetchFixtures(schoolName);
+            fetchFixtures(user.id, schoolName);
           });
       }
       setLoading(false);
@@ -221,7 +275,7 @@ const Home = () => {
           .then(({ data }) => {
             const schoolName = data?.school_name || null;
             setUserSchoolName(schoolName);
-            fetchFixtures(schoolName);
+            fetchFixtures(session.user.id, schoolName);
           });
       }
     });
@@ -232,7 +286,7 @@ const Home = () => {
   // Refetch fixtures when effective date changes (simulation mode)
   useEffect(() => {
     if (user && userSchoolName !== undefined) {
-      fetchFixtures(userSchoolName);
+      fetchFixtures(user.id, userSchoolName);
     }
   }, [effectiveDate, seasonYear]);
 
