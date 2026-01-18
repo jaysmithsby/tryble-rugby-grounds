@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { SchoolRequestModal } from "@/components/auth/SchoolRequestModal";
+import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 
 interface StepSchoolProps {
   schoolName: string;
@@ -13,26 +13,13 @@ interface StepSchoolProps {
 
 const StepSchool = ({ schoolName: initialSchool, onNext, onBack }: StepSchoolProps) => {
   const [schoolName, setSchoolName] = useState(initialSchool);
-  const [schools, setSchools] = useState<{ id: string; name: string; status: string }[]>([]);
-  const [filteredSchools, setFilteredSchools] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [filteredSchools, setFilteredSchools] = useState<{ id: string; name: string; status?: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchSchools();
-  }, []);
-
-  const fetchSchools = async () => {
-    const { data, error } = await supabase
-      .from("schools")
-      .select("id, name, status")
-      .eq("status", "verified")
-      .order("name");
-
-    if (!error && data) {
-      setSchools(data);
-    }
-  };
+  const { schools } = useSchoolsQuery<{ id: string; name: string; status?: string }>({
+    select: "id, name, status",
+  });
 
   const handleInputChange = (value: string) => {
     setSchoolName(value);

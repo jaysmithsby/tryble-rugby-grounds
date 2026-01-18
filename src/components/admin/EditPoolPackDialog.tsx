@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
+import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 
 interface School {
   id: string;
@@ -56,7 +57,6 @@ export const EditPoolPackDialog = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<string>("draft");
-  const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [metadata, setMetadata] = useState({
@@ -65,6 +65,11 @@ export const EditPoolPackDialog = ({
     tags: "",
   });
   const [loading, setLoading] = useState(false);
+
+  // Use the simulation-aware hook
+  const { schools, refetch } = useSchoolsQuery<School>({
+    select: "id, name, province, icon_url",
+  });
 
   useEffect(() => {
     if (open && pack) {
@@ -79,25 +84,9 @@ export const EditPoolPackDialog = ({
           ? pack.metadata.tags.join(", ")
           : "",
       });
-      loadSchools();
+      refetch();
     }
   }, [open, pack]);
-
-  const loadSchools = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, province, icon_url")
-        .eq("status", "verified")
-        .order("name");
-
-      if (error) throw error;
-      setSchools(data || []);
-    } catch (error: any) {
-      toast.error("Failed to load schools");
-      console.error("Error loading schools:", error);
-    }
-  };
 
   const toggleSchool = (schoolName: string) => {
     if (selectedSchools.includes(schoolName)) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { useVerifiedSchoolNames } from "@/hooks/useSchoolsQuery";
 
 const downloadTemplate = () => {
   const template = `name,description,status,province,competitive_level,tags,schools
@@ -63,7 +64,9 @@ export const BulkImportPoolPacksDialog = ({
   const [parsedPacks, setParsedPacks] = useState<ParsedPack[]>([]);
   const [step, setStep] = useState<"upload" | "preview">("upload");
   const [loading, setLoading] = useState(false);
-  const [validSchools, setValidSchools] = useState<string[]>([]);
+
+  // Use the simulation-aware hook for valid school names
+  const { schoolNames: validSchools, isSimulationMode } = useVerifiedSchoolNames();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -81,15 +84,7 @@ export const BulkImportPoolPacksDialog = ({
   const parseCSV = async (file: File) => {
     setLoading(true);
     try {
-      // Load valid schools from database
-      const { data: schools, error: schoolsError } = await supabase
-        .from("schools")
-        .select("name")
-        .eq("status", "verified");
-
-      if (schoolsError) throw schoolsError;
-      const schoolNames = schools?.map((s) => s.name) || [];
-      setValidSchools(schoolNames);
+      // Use validSchools from the hook (simulation-aware)
 
       // Parse CSV
       Papa.parse(file, {
@@ -119,9 +114,9 @@ export const BulkImportPoolPacksDialog = ({
               errors.push(`Maximum 10 schools allowed (has ${schools.length})`);
             }
 
-            // Validate schools exist
+            // Validate schools exist (uses validSchools from hook)
             const invalidSchools = schools.filter(
-              (s: string) => !schoolNames.includes(s)
+              (s: string) => !validSchools.includes(s)
             );
             if (invalidSchools.length > 0) {
               errors.push(

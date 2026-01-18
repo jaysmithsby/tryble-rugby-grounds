@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { AlertTriangle, School, Search, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 
 interface ChangeSchoolDialogProps {
   open: boolean;
@@ -39,17 +40,21 @@ export const ChangeSchoolDialog = ({
   const { toast } = useToast();
   const [step, setStep] = useState<"warning" | "select">("warning");
   const [searchQuery, setSearchQuery] = useState("");
-  const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [filteredSchools, setFilteredSchools] = useState<SchoolOption[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Use the simulation-aware hook instead of direct query
+  const { schools, loading } = useSchoolsQuery<SchoolOption>({
+    select: "id, name, province",
+  });
+
+  // Refetch when dialog opens in select step
   useEffect(() => {
     if (open && step === "select") {
-      fetchSchools();
+      setFilteredSchools(schools);
     }
-  }, [open, step]);
+  }, [open, step, schools]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -65,31 +70,6 @@ export const ChangeSchoolDialog = ({
       );
     }
   }, [searchQuery, schools]);
-
-  const fetchSchools = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, province")
-        .eq("status", "active")
-        .eq("is_visible", true)
-        .order("name");
-
-      if (error) throw error;
-      setSchools(data || []);
-      setFilteredSchools(data || []);
-    } catch (error) {
-      console.error("Error fetching schools:", error);
-      toast({
-        variant: "destructive",
-        title: "Error loading schools",
-        description: "Please try again later",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleConfirmChange = async () => {
     if (!selectedSchool) return;
