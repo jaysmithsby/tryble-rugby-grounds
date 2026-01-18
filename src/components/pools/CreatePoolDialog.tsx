@@ -10,8 +10,10 @@ import { Users, X, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizePoolName } from "@/lib/profanityFilter";
+import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 
 interface School {
+  id: string;
   name: string;
   icon_url: string | null;
 }
@@ -33,31 +35,19 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
   const [poolName, setPoolName] = useState("");
   const [votingMode, setVotingMode] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [availableSchools, setAvailableSchools] = useState<School[]>([]);
   const [poolTemplates, setPoolTemplates] = useState<PoolTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Use the simulation-aware hook
+  const { schools: availableSchools } = useSchoolsQuery<School>({
+    select: "id, name, icon_url",
+  });
+
   useEffect(() => {
-    loadSchools();
     loadTemplates();
   }, []);
-
-  const loadSchools = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("name, icon_url")
-        .eq("status", "verified")
-        .order("name");
-
-      if (error) throw error;
-      setAvailableSchools(data || []);
-    } catch (error) {
-      console.error("Error loading schools:", error);
-    }
-  };
 
   const loadTemplates = async () => {
     try {
