@@ -12,7 +12,7 @@ import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { TriviaCarousel } from "@/components/home/TriviaCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, MessageCircle, Award } from "lucide-react";
+import { Trophy, MessageCircle, Award, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -49,6 +49,7 @@ const Home = () => {
   const [recentFixtures, setRecentFixtures] = useState<FixtureWithSchools[]>([]);
   const [userSchoolFixture, setUserSchoolFixture] = useState<FixtureWithSchools | null>(null);
   const [fixturesLoading, setFixturesLoading] = useState(true);
+  const [hasNoPools, setHasNoPools] = useState(false);
   const navigate = useNavigate();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
 
@@ -73,7 +74,10 @@ const Home = () => {
         .eq("user_id", userId);
 
       let poolSchoolNames: string[] = [];
-      if (poolMemberships && poolMemberships.length > 0) {
+      const userHasPools = poolMemberships && poolMemberships.length > 0;
+      setHasNoPools(!userHasPools);
+      
+      if (userHasPools) {
         const poolIds = poolMemberships.map(pm => pm.pool_id);
         const { data: pools } = await supabase
           .from("pools")
@@ -406,9 +410,24 @@ const Home = () => {
                 />
               ))}
             </div>
+          ) : hasNoPools ? (
+            <div className="text-center py-10 bg-gradient-card rounded-lg border border-border/40">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Pools Yet</h3>
+              <p className="text-muted-foreground mb-4 px-4">
+                Join or create a pool to see fixtures you can predict on!
+              </p>
+              <Button 
+                onClick={() => navigate("/leaderboard")} 
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Go to Pools
+              </Button>
+            </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No upcoming matches — check back soon!</p>
+              <p className="text-muted-foreground">No upcoming matches for your pools — check back soon!</p>
             </div>
           )}
         </div>
