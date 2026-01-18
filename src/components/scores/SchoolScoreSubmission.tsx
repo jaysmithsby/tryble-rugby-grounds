@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, Trophy, CheckCircle2, AlertCircle, Swords } from "lucide-react";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
+import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 
 interface FixtureWithSchools {
   id: string;
@@ -36,6 +37,7 @@ interface SchoolScoreSubmissionProps {
 
 export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionProps) => {
   const { toast } = useToast();
+  const { effectiveDate, getSASTTime, weekendRange, seasonYear } = useEffectiveDate();
   const [homeScore, setHomeScore] = useState<string>("");
   const [awayScore, setAwayScore] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,16 +57,10 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [userSchoolName]);
+  }, [userSchoolName, effectiveDate]);
 
   const checkSubmissionWindow = () => {
-    const now = new Date();
-    
-    // Get SAST time (UTC+2)
-    const sastOffset = 2 * 60;
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const sastTime = new Date(utcTime + (sastOffset * 60000));
-    
+    const sastTime = getSASTTime();
     const dayOfWeek = sastTime.getDay();
     const hour = sastTime.getHours();
 
@@ -122,23 +118,9 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
         return;
       }
 
-      // Get the current weekend's date range (Friday to Sunday)
-      const now = new Date();
-      const sastOffset = 2 * 60;
-      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-      const sastTime = new Date(utcTime + (sastOffset * 60000));
-      const dayOfWeek = sastTime.getDay();
-      
-      // Calculate start of current weekend (Friday 00:00)
-      const startOfWeekend = new Date(sastTime);
-      const daysBackToFriday = (dayOfWeek + 7 - 5) % 7;
-      startOfWeekend.setDate(sastTime.getDate() - daysBackToFriday);
-      startOfWeekend.setHours(0, 0, 0, 0);
-      
-      // Calculate end of weekend (Sunday 23:59)
-      const endOfWeekend = new Date(startOfWeekend);
-      endOfWeekend.setDate(startOfWeekend.getDate() + 2);
-      endOfWeekend.setHours(23, 59, 59, 999);
+      // Use weekend range from simulation context
+      const startOfWeekend = weekendRange.start;
+      const endOfWeekend = weekendRange.end;
 
       // Fetch fixture for the user's school this weekend
       const { data: fixtureData, error: fixtureError } = await supabase
@@ -154,6 +136,7 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
           away_school_id
         `)
         .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+        .eq('year', seasonYear)
         .gte('match_date', startOfWeekend.toISOString())
         .lte('match_date', endOfWeekend.toISOString())
         .order('match_date', { ascending: true })

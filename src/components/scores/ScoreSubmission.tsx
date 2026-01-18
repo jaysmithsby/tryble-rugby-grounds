@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, Trophy, CheckCircle2, AlertCircle } from "lucide-react";
+import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 
 export const ScoreSubmission = () => {
   const { toast } = useToast();
+  const { effectiveDate, getSASTTime, isWithinSubmissionWindow } = useEffectiveDate();
   const [score, setScore] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWithinWindow, setIsWithinWindow] = useState(false);
@@ -26,16 +28,10 @@ export const ScoreSubmission = () => {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [effectiveDate]);
 
   const checkSubmissionWindow = () => {
-    const now = new Date();
-    
-    // Get SAST time (UTC+2)
-    const sastOffset = 2 * 60; // minutes
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const sastTime = new Date(utcTime + (sastOffset * 60000));
-    
+    const sastTime = getSASTTime();
     const dayOfWeek = sastTime.getDay();
     const hour = sastTime.getHours();
 
