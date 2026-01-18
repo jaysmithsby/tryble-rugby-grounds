@@ -179,7 +179,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
     setStep("configure");
   };
 
-  const isConfigureValid = poolName.trim().length >= 3 && (votingMode || selectedSchools.length >= 5);
+  const isConfigureValid = poolName.trim().length >= 3 && (votingMode || (selectedSchools.length >= 5 && selectedSchools.length <= 10));
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
