@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, Search, FileQuestion } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, Search, FileQuestion, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +17,7 @@ import { PoolPacksTable } from "./PoolPacksTable";
 import { CreatePoolPackDialog } from "./CreatePoolPackDialog";
 import { EditPoolPackDialog } from "./EditPoolPackDialog";
 import { SchoolRequestsTable } from "./SchoolRequestsTable";
+import { TestingCenter } from "./TestingCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface AdminLayoutProps {
@@ -66,7 +67,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <Tabs defaultValue="fixtures" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-9 lg:w-auto">
             <TabsTrigger value="fixtures" className="gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Fixtures</span>
@@ -98,6 +99,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="testing" className="gap-2">
+              <FlaskConical className="h-4 w-4" />
+              <span className="hidden sm:inline">Testing</span>
             </TabsTrigger>
           </TabsList>
 
@@ -208,6 +213,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           <TabsContent value="analytics" className="space-y-4">
             <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="testing" className="space-y-4">
+            <TestingCenter />
           </TabsContent>
         </Tabs>
       </div>

@@ -16,6 +16,7 @@ import { Trophy, MessageCircle, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
+import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 
 interface FixtureWithSchools {
   id: string;
@@ -49,6 +50,7 @@ const Home = () => {
   const [userSchoolFixture, setUserSchoolFixture] = useState<FixtureWithSchools | null>(null);
   const [fixturesLoading, setFixturesLoading] = useState(true);
   const navigate = useNavigate();
+  const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
 
   // Handle prediction submission
   const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number) => {
@@ -62,7 +64,7 @@ const Home = () => {
   const fetchFixtures = async (schoolName?: string | null) => {
     setFixturesLoading(true);
     try {
-      const now = new Date().toISOString();
+      const now = effectiveDate.toISOString();
       
       // Fetch upcoming fixtures (status = 'upcoming' or match_date > now)
       const { data: upcoming, error: upcomingError } = await supabase
@@ -80,6 +82,7 @@ const Home = () => {
         `)
         .eq("is_visible", true)
         .eq("status", "upcoming")
+        .eq("year", seasonYear)
         .gte("match_date", now)
         .order("match_date", { ascending: true })
         .limit(10);
@@ -95,8 +98,8 @@ const Home = () => {
         setUpcomingFixtures(formattedUpcoming);
       }
 
-      // Fetch recent completed fixtures (last 7 days)
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      // Fetch recent completed fixtures (last 7 days from effective date)
+      const sevenDaysAgo = new Date(effectiveDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: recent, error: recentError } = await supabase
         .from("fixtures")
         .select(`
@@ -112,6 +115,7 @@ const Home = () => {
         `)
         .eq("is_visible", true)
         .eq("status", "completed")
+        .eq("year", seasonYear)
         .gte("match_date", sevenDaysAgo)
         .lte("match_date", now)
         .order("match_date", { ascending: false })
@@ -138,23 +142,9 @@ const Home = () => {
           .maybeSingle();
 
         if (schoolData) {
-          // Get current weekend dates (Friday 00:00 to Sunday 23:59)
-          const today = new Date();
-          const dayOfWeek = today.getDay();
-          const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
-          const daysSinceFriday = dayOfWeek >= 5 ? dayOfWeek - 5 : 7 - (5 - dayOfWeek);
-          
-          const friday = new Date(today);
-          if (dayOfWeek >= 5) {
-            friday.setDate(today.getDate() - daysSinceFriday);
-          } else {
-            friday.setDate(today.getDate() + daysUntilFriday);
-          }
-          friday.setHours(0, 0, 0, 0);
-
-          const sunday = new Date(friday);
-          sunday.setDate(friday.getDate() + 2);
-          sunday.setHours(23, 59, 59, 999);
+          // Use weekend range from simulation context
+          const friday = weekendRange.start;
+          const sunday = weekendRange.end;
 
           const { data: schoolFixture } = await supabase
             .from("fixtures")
@@ -170,6 +160,7 @@ const Home = () => {
               away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
             `)
             .eq("is_visible", true)
+            .eq("year", seasonYear)
             .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
             .gte("match_date", friday.toISOString())
             .lte("match_date", sunday.toISOString())
@@ -237,6 +228,13 @@ const Home = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  // Refetch fixtures when effective date changes (simulation mode)
+  useEffect(() => {
+    if (user && userSchoolName !== undefined) {
+      fetchFixtures(userSchoolName);
+    }
+  }, [effectiveDate, seasonYear]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

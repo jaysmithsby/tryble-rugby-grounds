@@ -771,6 +771,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_prediction_points: {
+        Args: { p_fixture_id: string }
+        Returns: number
+      }
       check_all_members_voted: {
         Args: { pool_id_param: string }
         Returns: boolean
@@ -794,6 +798,17 @@ export type Database = {
       is_pool_member: {
         Args: { _pool_id: string; _user_id: string }
         Returns: boolean
+      }
+      process_fixtures_in_range: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: {
+          processed_fixtures: number
+          processed_predictions: number
+        }[]
+      }
+      rollup_week_scores: {
+        Args: { p_week: number; p_year: number }
+        Returns: number
       }
     }
     Enums: {
