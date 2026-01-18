@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink } from "lucide-react";
+import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkYearCorrectionDialog } from "./BulkYearCorrectionDialog";
 
 type SortField = 'date' | 'home' | 'away' | 'venue' | 'tournament' | 'status' | 'visible';
 type SortDirection = 'asc' | 'desc';
@@ -42,6 +44,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkYearDialogOpen, setBulkYearDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSchools();
@@ -214,6 +218,39 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     setYearFilter("all");
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredAndSortedFixtures.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredAndSortedFixtures.map((f) => f.id)));
+    }
+  };
+
+  const toggleSelectFixture = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const getSelectedFixturesWithNames = () => {
+    return filteredAndSortedFixtures
+      .filter((f) => selectedIds.has(f.id))
+      .map((f) => ({
+        ...f,
+        homeName: schools.get(f.home_school_id) || "Unknown",
+        awayName: schools.get(f.away_school_id) || "Unknown",
+      }));
+  };
+
+  const handleBulkYearSuccess = () => {
+    setSelectedIds(new Set());
+    fetchFixtures();
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'upcoming':
@@ -273,15 +310,42 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         </Select>
       </div>
 
-      {/* Results count */}
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredAndSortedFixtures.length} of {fixtures.length} fixtures
+      {/* Results count and bulk actions */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredAndSortedFixtures.length} of {fixtures.length} fixtures
+          {selectedIds.size > 0 && (
+            <span className="ml-2 text-primary">
+              ({selectedIds.size} selected)
+            </span>
+          )}
+        </div>
+        {selectedIds.size > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkYearDialogOpen(true)}
+            className="gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            Fix Year ({selectedIds.size})
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[40px]">
+                <Checkbox
+                  checked={
+                    filteredAndSortedFixtures.length > 0 &&
+                    selectedIds.size === filteredAndSortedFixtures.length
+                  }
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead 
                 className="cursor-pointer select-none hover:bg-muted/50"
                 onClick={() => handleSort('date')}
@@ -353,7 +417,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           <TableBody>
             {filteredAndSortedFixtures.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8">
+                <TableCell colSpan={11} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <p>
                       {fixtures.length === 0 
@@ -383,7 +447,13 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                   : null;
                 
                 return (
-                <TableRow key={fixture.id}>
+                <TableRow key={fixture.id} className={selectedIds.has(fixture.id) ? "bg-muted/30" : ""}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(fixture.id)}
+                      onCheckedChange={() => toggleSelectFixture(fixture.id)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                     {format(new Date(fixture.match_date), 'MMM dd, yyyy')}
                   </TableCell>
@@ -453,6 +523,13 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      <BulkYearCorrectionDialog
+        open={bulkYearDialogOpen}
+        onOpenChange={setBulkYearDialogOpen}
+        selectedFixtures={getSelectedFixturesWithNames()}
+        onSuccess={handleBulkYearSuccess}
+      />
     </div>
   );
 }
