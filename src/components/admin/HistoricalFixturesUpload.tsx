@@ -103,6 +103,10 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
   const [activeOpponentDropdown, setActiveOpponentDropdown] = useState<string | null>(null);
   const [opponentSearchQueries, setOpponentSearchQueries] = useState<Record<string, string>>({});
   
+  // Tournament dropdown states
+  const [activeTournamentDropdown, setActiveTournamentDropdown] = useState<string | null>(null);
+  const [tournamentSearchQueries, setTournamentSearchQueries] = useState<Record<string, string>>({});
+  
   // Quick Paste state
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -315,11 +319,117 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     setDefaultYear(currentYear.toString());
     setRows([createEmptyRow()]);
     setOpponentSearchQueries({});
+    setTournamentSearchQueries({});
     setSubmitted(false);
     setSubmittedCount(0);
     setErrors([]);
     setPasteText("");
     setParseInfo(null);
+  };
+
+  // Fuzzy match tournament name
+  const fuzzyMatchTournament = (name: string, year: string): { id: string; name: string } | null => {
+    if (!name || !name.trim()) return null;
+    
+    const normalized = normalizeSchoolName(name);
+    const yearSuffix = ` ${year}`;
+    
+    // Try to match with year suffix
+    for (const tournament of tournaments) {
+      const tournamentNorm = normalizeSchoolName(tournament.name);
+      // Check if tournament name matches with or without year
+      if (tournamentNorm === normalized || 
+          tournamentNorm === normalized + yearSuffix.trim() ||
+          tournamentNorm.replace(/ \d{4}$/, '') === normalized) {
+        return { id: tournament.id, name: tournament.name };
+      }
+    }
+    
+    // Partial match
+    for (const tournament of tournaments) {
+      const tournamentNorm = normalizeSchoolName(tournament.name).replace(/ \d{4}$/, '');
+      if (tournamentNorm.includes(normalized) || normalized.includes(tournamentNorm)) {
+        return { id: tournament.id, name: tournament.name };
+      }
+    }
+    
+    return null;
+  };
+
+  // Create a new tournament/festival and return its ID
+  const createNewTournament = async (name: string, year: string): Promise<string | null> => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return null;
+
+    // Append year if not already present
+    const yearPattern = /\d{4}$/;
+    const tournamentName = yearPattern.test(trimmedName) 
+      ? trimmedName 
+      : `${trimmedName} ${year}`;
+
+    try {
+      // Get primary school name for host
+      const primarySchool = schools.find(s => s.id === primarySchoolId);
+      const hostSchool = primarySchool?.name || "TBD";
+
+      const { data, error } = await supabase
+        .from("tournaments")
+        .insert({
+          name: tournamentName,
+          host_school: hostSchool,
+          venue: hostSchool,
+          start_date: new Date(parseInt(year), 0, 1).toISOString(),
+          end_date: new Date(parseInt(year), 11, 31).toISOString(),
+          is_active: false,
+        })
+        .select("id, name")
+        .single();
+
+      if (error) throw error;
+
+      // Add the new tournament to local state
+      setTournaments(prev => [data, ...prev]);
+      
+      toast({
+        title: "Festival created",
+        description: `"${tournamentName}" has been added to the database.`,
+      });
+
+      return data.id;
+    } catch (error: any) {
+      console.error("Error creating tournament:", error);
+      toast({
+        title: "Failed to create festival",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleCreateTournament = async (rowId: string, tournamentName: string) => {
+    if (!tournamentName.trim()) return;
+    
+    const row = rows.find(r => r.id === rowId);
+    const year = row?.year || defaultYear;
+    
+    const newId = await createNewTournament(tournamentName, year);
+    if (newId) {
+      updateRow(rowId, "tournamentId", newId);
+      setActiveTournamentDropdown(null);
+      setTournamentSearchQueries(prev => ({ ...prev, [rowId]: "" }));
+    }
+  };
+
+  const getFilteredTournaments = (query: string) => {
+    if (!query) return tournaments;
+    return tournaments.filter(tournament =>
+      tournament.name.toLowerCase().includes(query.toLowerCase())
+    );
+  };
+
+  const getTournamentName = (id: string) => {
+    return tournaments.find(t => t.id === id)?.name || "";
   };
 
   // Normalize school name for better matching
@@ -1167,6 +1277,103 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
     );
   };
 
+  const renderTournamentCombobox = (row: FixtureRow) => {
+    const searchQuery = tournamentSearchQueries[row.id] || "";
+    const filteredTournaments = getFilteredTournaments(searchQuery);
+    const isOpen = activeTournamentDropdown === row.id;
+
+    return (
+      <Popover open={isOpen} onOpenChange={(open) => setActiveTournamentDropdown(open ? row.id : null)}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={isOpen}
+            className="w-full justify-between h-9 text-sm"
+          >
+            <span className="truncate">
+              {row.tournamentId && row.tournamentId !== "none" 
+                ? getTournamentName(row.tournamentId) 
+                : "None"}
+            </span>
+            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search or create festival..."
+              value={searchQuery}
+              onValueChange={(val) => {
+                setTournamentSearchQueries(prev => ({ ...prev, [row.id]: val }));
+              }}
+            />
+            <CommandList>
+              <CommandGroup>
+                <CommandItem
+                  value="none"
+                  onSelect={() => {
+                    updateRow(row.id, "tournamentId", "none");
+                    setActiveTournamentDropdown(null);
+                    setTournamentSearchQueries(prev => ({ ...prev, [row.id]: "" }));
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      !row.tournamentId || row.tournamentId === "none" ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <span className="text-muted-foreground">None</span>
+                </CommandItem>
+                {filteredTournaments.slice(0, 10).map((tournament) => (
+                  <CommandItem
+                    key={tournament.id}
+                    value={tournament.id}
+                    onSelect={() => {
+                      updateRow(row.id, "tournamentId", tournament.id);
+                      setActiveTournamentDropdown(null);
+                      setTournamentSearchQueries(prev => ({ ...prev, [row.id]: "" }));
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        row.tournamentId === tournament.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <span className="truncate">{tournament.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              {searchQuery && !filteredTournaments.some(t => 
+                t.name.toLowerCase() === searchQuery.toLowerCase()
+              ) && (
+                <CommandGroup>
+                  <CommandItem
+                    value={`create-festival-${searchQuery}`}
+                    onSelect={() => handleCreateTournament(row.id, searchQuery)}
+                    className="text-primary"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="truncate">
+                      Create "{searchQuery} {row.year}" as new festival
+                    </span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+              {filteredTournaments.length === 0 && !searchQuery && (
+                <div className="p-2 text-center text-sm text-muted-foreground">
+                  Type to search or create festival
+                </div>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) handleClose();
@@ -1500,22 +1707,7 @@ match_date	home_school	away_school	sport	venue	home_away	round_name
                     />
 
                     {/* Tournament */}
-                    <Select
-                      value={row.tournamentId}
-                      onValueChange={(val) => updateRow(row.id, "tournamentId", val)}
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {tournaments.map((tournament) => (
-                          <SelectItem key={tournament.id} value={tournament.id}>
-                            {tournament.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {renderTournamentCombobox(row)}
 
                     {/* Delete Row */}
                     <Button
