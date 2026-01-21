@@ -133,15 +133,39 @@ const Leaderboard = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        toast({ title: "Please sign in first", variant: "destructive" });
+        return;
+      }
 
-      const { data: pool, error: poolError } = await supabase
-        .from("pools")
+      // Use the SECURITY DEFINER function to lookup pool by invite code
+      const { data: poolData, error: poolError } = await supabase
+        .rpc("get_pool_by_invite_code", { code: joinPoolCode.toUpperCase() });
+
+      if (poolError || !poolData || poolData.length === 0) {
+        throw new Error("Invalid pool code");
+      }
+
+      const pool = poolData[0];
+
+      if (!pool.is_active) {
+        throw new Error("This pool is no longer active");
+      }
+
+      // Check if already a member
+      const { data: existingMember } = await supabase
+        .from("pool_members")
         .select("id")
-        .eq("invite_code", joinPoolCode.toUpperCase())
-        .single();
+        .eq("pool_id", pool.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (poolError) throw new Error("Invalid pool code");
+      if (existingMember) {
+        toast({ title: "You're already a member of this pool!" });
+        setJoinPoolCode("");
+        navigate(`/pool/${pool.id}`);
+        return;
+      }
 
       const { error } = await supabase
         .from("pool_members")
@@ -152,7 +176,7 @@ const Leaderboard = () => {
 
       if (error) throw error;
 
-      toast({ title: "Joined pool successfully!" });
+      toast({ title: "Joined pool successfully! 🎉" });
       setJoinPoolCode("");
       loadUserPools();
     } catch (error: any) {

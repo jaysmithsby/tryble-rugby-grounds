@@ -874,6 +874,15 @@ export type Database = {
         Returns: undefined
       }
       get_next_friday_8pm: { Args: { from_time: string }; Returns: string }
+      get_pool_by_invite_code: {
+        Args: { code: string }
+        Returns: {
+          creator_id: string
+          id: string
+          is_active: boolean
+          name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
