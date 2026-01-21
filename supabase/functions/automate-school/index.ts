@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const WEBHOOK_URL = "https://jamesie.app.n8n.cloud/webhook/57f3e119-d4c1-4438-b9a2-67eeec53c463";
 
@@ -14,6 +15,47 @@ serve(async (req) => {
   }
 
   try {
+    // Create Supabase client with auth context
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
+
+    // Verify user is authenticated
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      console.error('Authentication error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify user is an admin
+    const { data: roles, error: rolesError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (rolesError || !roles) {
+      console.error('Authorization error: User is not an admin');
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { school_name } = await req.json();
 
     if (!school_name) {
@@ -23,14 +65,23 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Fetching data for school: ${school_name}`);
+    // Validate and sanitize school_name input
+    const sanitizedSchoolName = String(school_name).trim().slice(0, 200);
+    if (!sanitizedSchoolName) {
+      return new Response(
+        JSON.stringify({ error: "Invalid school_name" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Admin ${user.id} fetching data for school: ${sanitizedSchoolName}`);
 
     const response = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ school_name }),
+      body: JSON.stringify({ school_name: sanitizedSchoolName }),
     });
 
     if (!response.ok) {
