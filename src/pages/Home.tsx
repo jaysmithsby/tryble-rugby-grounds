@@ -45,6 +45,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
   const [userSchoolName, setUserSchoolName] = useState<string | null>(null);
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
   const [upcomingFixtures, setUpcomingFixtures] = useState<FixtureWithSchools[]>([]);
   const [recentFixtures, setRecentFixtures] = useState<FixtureWithSchools[]>([]);
   const [userSchoolFixture, setUserSchoolFixture] = useState<FixtureWithSchools | null>(null);
@@ -249,15 +250,17 @@ const Home = () => {
         navigate("/auth");
       } else {
         setUser(user);
-        // Fetch user's school from profile
+        // Fetch user's profile info
         supabase
           .from("profiles")
-          .select("school_name")
+          .select("school_name, display_name, first_name")
           .eq("id", user.id)
           .maybeSingle()
           .then(({ data }) => {
             const schoolName = data?.school_name || null;
+            const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
+            setUserDisplayName(displayName);
             fetchFixtures(user.id, schoolName);
           });
       }
@@ -270,15 +273,17 @@ const Home = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
-        // Fetch user's school from profile
+        // Fetch user's profile info
         supabase
           .from("profiles")
-          .select("school_name")
+          .select("school_name, display_name, first_name")
           .eq("id", session.user.id)
           .maybeSingle()
           .then(({ data }) => {
             const schoolName = data?.school_name || null;
+            const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
+            setUserDisplayName(displayName);
             fetchFixtures(session.user.id, schoolName);
           });
       }
@@ -334,12 +339,12 @@ const Home = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-6 h-6 text-primary" />
             <span className="text-2xl font-bold text-primary">Tryble</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             <button
               onClick={handleSignOut}
@@ -349,6 +354,21 @@ const Home = () => {
             </button>
           </div>
         </div>
+        {/* User welcome banner */}
+        {(userDisplayName || userSchoolName) && (
+          <div className="container mx-auto px-4 pb-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Welcome,</span>
+              <span className="font-semibold text-foreground">{userDisplayName || 'Fan'}</span>
+              {userSchoolName && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-primary font-medium">{userSchoolName}</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
