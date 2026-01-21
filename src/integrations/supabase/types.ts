@@ -41,6 +41,54 @@ export type Database = {
         }
         Relationships: []
       }
+      advertisements: {
+        Row: {
+          campaign_name: string
+          clicks: number | null
+          created_at: string | null
+          display_order: number | null
+          expires_at: string | null
+          id: string
+          image_url: string
+          impressions: number | null
+          is_active: boolean | null
+          link_url: string
+          sponsor_name: string
+          starts_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_name: string
+          clicks?: number | null
+          created_at?: string | null
+          display_order?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url: string
+          impressions?: number | null
+          is_active?: boolean | null
+          link_url: string
+          sponsor_name: string
+          starts_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_name?: string
+          clicks?: number | null
+          created_at?: string | null
+          display_order?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string
+          impressions?: number | null
+          is_active?: boolean | null
+          link_url?: string
+          sponsor_name?: string
+          starts_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fixtures: {
         Row: {
           away_school_id: string
@@ -142,6 +190,48 @@ export type Database = {
           submitted_at?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      news_articles: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          link_url: string | null
+          starts_at: string | null
+          summary: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          link_url?: string | null
+          starts_at?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          link_url?: string | null
+          starts_at?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -791,6 +881,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_ad_click: { Args: { ad_id: string }; Returns: undefined }
+      increment_ad_impression: { Args: { ad_id: string }; Returns: undefined }
       is_pool_creator: {
         Args: { _pool_id: string; _user_id: string }
         Returns: boolean

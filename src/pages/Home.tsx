@@ -5,7 +5,7 @@ import { User } from "@supabase/supabase-js";
 import { BottomNav } from "@/components/BottomNav";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
-import { DerbyBanner } from "@/components/home/DerbyBanner";
+import { HomeCarousel } from "@/components/home/HomeCarousel";
 import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/home/FixtureCard";
 import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
@@ -353,8 +353,8 @@ const Home = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        {/* This Week's Derby Banner */}
-        <DerbyBanner />
+        {/* Dynamic Carousel: Derbies, News, Ads */}
+        <HomeCarousel unpickedFixturesCount={upcomingFixtures.filter(f => !predictions[f.id]).length} />
 
         {/* Weekly Summary Widget */}
         <WeeklySummaryWidget />

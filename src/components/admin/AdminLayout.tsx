@@ -1,9 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, Search, FileQuestion, FlaskConical } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, FileQuestion, FlaskConical, Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SchoolsTable } from "./SchoolsTable";
 import { EditSchoolDialog } from "./EditSchoolDialog";
 import { CreateSchoolDialog } from "./CreateSchoolDialog";
@@ -19,6 +17,8 @@ import { EditPoolPackDialog } from "./EditPoolPackDialog";
 import { SchoolRequestsTable } from "./SchoolRequestsTable";
 import { TestingCenter } from "./TestingCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AdsTable } from "./AdsTable";
+import { NewsTable } from "./NewsTable";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -67,7 +67,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <Tabs defaultValue="fixtures" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-10 lg:w-auto">
             <TabsTrigger value="fixtures" className="gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Fixtures</span>
@@ -95,6 +95,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <TabsTrigger value="ads" className="gap-2">
               <Megaphone className="h-4 w-4" />
               <span className="hidden sm:inline">Ads</span>
+            </TabsTrigger>
+            <TabsTrigger value="news" className="gap-2">
+              <Newspaper className="h-4 w-4" />
+              <span className="hidden sm:inline">News</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -174,41 +178,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </TabsContent>
 
           <TabsContent value="ads" className="space-y-4">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">Ads & Sponsors Manager</h2>
-                <p className="text-muted-foreground mt-1">Manage sponsor banners, ad placements, and campaign analytics</p>
-              </div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Advertisements Manager</h2>
+              <p className="text-muted-foreground mt-1">Manage sponsor banners, ad placements, and campaign analytics</p>
             </div>
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by campaign name, sponsor, or tournament..."
-                    disabled
-                    className="pl-10"
-                  />
-                </div>
-                <Select disabled>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="archived">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="rounded-lg border border-border bg-card p-12 text-center">
-                <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-xl font-semibold mb-2">No Ad Campaigns Yet</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Manage sponsor banners, ad placements, and campaign analytics. This feature is coming soon.
-                </p>
-              </div>
+            <AdsTable />
+          </TabsContent>
+
+          <TabsContent value="news" className="space-y-4">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-foreground">News Manager</h2>
+              <p className="text-muted-foreground mt-1">Create and manage news articles for the home carousel</p>
             </div>
+            <NewsTable />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
