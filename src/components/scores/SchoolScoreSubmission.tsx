@@ -3,9 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Trophy, CheckCircle2, AlertCircle, Swords } from "lucide-react";
+import { Clock, Trophy, CheckCircle2, AlertCircle } from "lucide-react";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 
@@ -299,128 +298,180 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
   };
 
   return (
-    <Card className="bg-gradient-card border-border/40">
-      <CardHeader>
+    <Card className="bg-gradient-card border-border/40 overflow-hidden">
+      <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-accent" />
-          Enter First Team Score
+          Weekend Score Submission
         </CardTitle>
         <CardDescription>
-          Submit the final score for your school's fixture
+          Submit your school's first team score (Friday 5 PM - Sunday 11:59 PM SAST)
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {/* Fixture Display */}
-        <div className="mb-4 p-4 bg-muted/20 rounded-lg border border-border/30">
-          <div className="flex items-center justify-between gap-4">
-            {/* Home Team */}
-            <div className="flex-1 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <SchoolJerseyImage
-                  src={fixture.home_school.jersey_url}
-                  alt={fixture.home_school.name}
-                  fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
-                  size="md"
-                />
-                <span className={`text-sm font-semibold ${fixture.isUserHomeTeam ? 'text-primary' : 'text-foreground'}`}>
-                  {fixture.home_school.name}
-                </span>
-              </div>
-            </div>
-
-            {/* VS */}
-            <div className="flex flex-col items-center gap-1">
-              <Swords className="w-5 h-5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">vs</span>
-            </div>
-
-            {/* Away Team */}
-            <div className="flex-1 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <SchoolJerseyImage
-                  src={fixture.away_school.jersey_url}
-                  alt={fixture.away_school.name}
-                  fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
-                  size="md"
-                />
-                <span className={`text-sm font-semibold ${!fixture.isUserHomeTeam ? 'text-primary' : 'text-foreground'}`}>
-                  {fixture.away_school.name}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-3 text-center text-xs text-muted-foreground">
-            {formatMatchDate(fixture.match_date)} • {fixture.venue}
-          </div>
-        </div>
-
+      <CardContent className="pt-2">
         {hasSubmitted && submittedScores ? (
+          // Submitted state
           <div className="space-y-4">
             <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2 className="w-5 h-5 text-primary" />
                 <span className="font-semibold">Score Submitted</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                <span className="font-bold text-foreground">
-                  {fixture.home_school.name} {submittedScores.home} - {submittedScores.away} {fixture.away_school.name}
-                </span>
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              
+              {/* Match-up display with submitted scores */}
+              <div className="flex items-center justify-center gap-4 py-3">
+                <div className="flex flex-col items-center gap-2">
+                  <SchoolJerseyImage
+                    src={fixture.home_school.jersey_url}
+                    alt={fixture.home_school.name}
+                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                    size="lg"
+                  />
+                  <span className="text-xs font-medium text-center max-w-[80px] truncate">
+                    {fixture.home_school.name}
+                  </span>
+                  <span className="text-2xl font-bold text-primary">{submittedScores.home}</span>
+                </div>
+                
+                <div className="text-muted-foreground font-medium px-2">-</div>
+                
+                <div className="flex flex-col items-center gap-2">
+                  <SchoolJerseyImage
+                    src={fixture.away_school.jersey_url}
+                    alt={fixture.away_school.name}
+                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                    size="lg"
+                  />
+                  <span className="text-xs font-medium text-center max-w-[80px] truncate">
+                    {fixture.away_school.name}
+                  </span>
+                  <span className="text-2xl font-bold text-primary">{submittedScores.away}</span>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground text-center mt-2">
                 Thank you for submitting the score!
               </p>
             </div>
           </div>
         ) : isWithinWindow ? (
+          // Active submission form
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="homeScore" className="text-xs">
-                  {fixture.home_school.name}
-                </Label>
-                <Input
-                  id="homeScore"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={homeScore}
-                  onChange={(e) => setHomeScore(e.target.value)}
-                  placeholder="0"
-                  required
-                  className="text-center text-lg font-bold"
-                />
+            {/* Match-up with score inputs */}
+            <div className="bg-muted/20 rounded-xl p-4 border border-border/30">
+              <div className="flex items-stretch justify-center gap-3">
+                {/* Home Team */}
+                <div className="flex-1 flex flex-col items-center gap-2 max-w-[140px]">
+                  <SchoolJerseyImage
+                    src={fixture.home_school.jersey_url}
+                    alt={fixture.home_school.name}
+                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                    size="lg"
+                    variant={fixture.isUserHomeTeam ? "accent" : "primary"}
+                  />
+                  <span className={`text-xs font-semibold text-center line-clamp-2 ${fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
+                    {fixture.home_school.name}
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={homeScore}
+                    onChange={(e) => setHomeScore(e.target.value)}
+                    placeholder="0"
+                    required
+                    className="text-center text-2xl font-bold h-14 w-20 bg-background/80"
+                  />
+                </div>
+
+                {/* VS divider */}
+                <div className="flex flex-col items-center justify-center px-1">
+                  <span className="text-lg font-bold text-muted-foreground">vs</span>
+                </div>
+
+                {/* Away Team */}
+                <div className="flex-1 flex flex-col items-center gap-2 max-w-[140px]">
+                  <SchoolJerseyImage
+                    src={fixture.away_school.jersey_url}
+                    alt={fixture.away_school.name}
+                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                    size="lg"
+                    variant={!fixture.isUserHomeTeam ? "accent" : "primary"}
+                  />
+                  <span className={`text-xs font-semibold text-center line-clamp-2 ${!fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
+                    {fixture.away_school.name}
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={awayScore}
+                    onChange={(e) => setAwayScore(e.target.value)}
+                    placeholder="0"
+                    required
+                    className="text-center text-2xl font-bold h-14 w-20 bg-background/80"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="awayScore" className="text-xs">
-                  {fixture.away_school.name}
-                </Label>
-                <Input
-                  id="awayScore"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={awayScore}
-                  onChange={(e) => setAwayScore(e.target.value)}
-                  placeholder="0"
-                  required
-                  className="text-center text-lg font-bold"
-                />
+              
+              <div className="mt-3 text-center text-xs text-muted-foreground">
+                {formatMatchDate(fixture.match_date)} • {fixture.venue}
               </div>
             </div>
+
             <Button
               type="submit"
               disabled={isSubmitting || !homeScore || !awayScore}
               className="w-full"
+              size="lg"
             >
-              {isSubmitting ? "Submitting..." : "Submit Score"}
+              {isSubmitting ? "Submitting..." : "Confirm Score"}
             </Button>
+            
             <p className="text-xs text-muted-foreground text-center">
               Submissions close Sunday 11:59 PM SAST
             </p>
           </form>
         ) : (
+          // Window closed state
           <div className="space-y-4">
+            {/* Show the fixture match-up even when closed */}
+            <div className="bg-muted/10 rounded-xl p-4 border border-border/30">
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center gap-2">
+                  <SchoolJerseyImage
+                    src={fixture.home_school.jersey_url}
+                    alt={fixture.home_school.name}
+                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                    size="lg"
+                    variant={fixture.isUserHomeTeam ? "accent" : "primary"}
+                  />
+                  <span className={`text-xs font-semibold text-center max-w-[80px] truncate ${fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
+                    {fixture.home_school.name}
+                  </span>
+                </div>
+
+                <span className="text-lg font-bold text-muted-foreground px-2">vs</span>
+
+                <div className="flex flex-col items-center gap-2">
+                  <SchoolJerseyImage
+                    src={fixture.away_school.jersey_url}
+                    alt={fixture.away_school.name}
+                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                    size="lg"
+                    variant={!fixture.isUserHomeTeam ? "accent" : "primary"}
+                  />
+                  <span className={`text-xs font-semibold text-center max-w-[80px] truncate ${!fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
+                    {fixture.away_school.name}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-3 text-center text-xs text-muted-foreground">
+                {formatMatchDate(fixture.match_date)} • {fixture.venue}
+              </div>
+            </div>
+
             <div className="p-4 bg-muted/10 border border-border/30 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-5 h-5 text-muted-foreground" />
@@ -430,6 +481,7 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
                 Score submissions are only open Friday 5 PM through Sunday 11:59 PM (SAST).
               </p>
             </div>
+            
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>Opens in: {timeUntilWindow}</span>
