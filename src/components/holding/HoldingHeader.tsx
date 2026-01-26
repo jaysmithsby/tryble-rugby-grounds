@@ -28,7 +28,7 @@ const HoldingHeader = ({ showBackButton = false }: HoldingHeaderProps) => {
           )}
           {!showBackButton && (
             <Link to="/" className="flex items-center gap-2">
-              <img src={trybalLogo} alt="Trybal" className="h-10" />
+              <img src={trybalLogo} alt="Trybal" className="h-16" />
             </Link>
           )}
         </div>
