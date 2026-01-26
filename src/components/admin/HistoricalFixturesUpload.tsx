@@ -66,7 +66,7 @@ interface FixtureRow {
   homeAway: "home" | "away";
   opponentName: string;
   opponentId: string;
-  result: "won" | "lost" | "drew";
+  result: "won" | "lost" | "drew" | "upcoming";
   scoreFor: string;
   scoreAgainst: string;
   tournamentId: string;
@@ -77,6 +77,7 @@ const RESULT_OPTIONS = [
   { value: "won", label: "Won", color: "text-green-600" },
   { value: "lost", label: "Lost", color: "text-red-600" },
   { value: "drew", label: "Drew", color: "text-orange-500" },
+  { value: "upcoming", label: "Upcoming", color: "text-blue-500" },
 ];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -118,13 +119,17 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
   const [errors, setErrors] = useState<string[]>([]);
 
   function createEmptyRow(): FixtureRow {
+    // Default to "upcoming" for future years (2026+)
+    const yearNum = parseInt(defaultYear);
+    const defaultResult = yearNum >= 2026 ? "upcoming" : "won";
+    
     return {
       id: generateId(),
       year: defaultYear,
       homeAway: "home",
       opponentName: "",
       opponentId: "",
-      result: "won",
+      result: defaultResult,
       scoreFor: "",
       scoreAgainst: "",
       tournamentId: "",
@@ -292,7 +297,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
   };
 
   const addRow = () => {
-    setRows(prev => [...prev, { ...createEmptyRow(), year: defaultYear }]);
+    const yearNum = parseInt(defaultYear);
+    const defaultResult = yearNum >= 2026 ? "upcoming" : "won";
+    setRows(prev => [...prev, { ...createEmptyRow(), year: defaultYear, result: defaultResult }]);
   };
 
   const removeRow = (id: string) => {
@@ -1031,7 +1038,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         validationErrors.push(`Row ${rowNum}: Opponent is required`);
       }
       
-      if (!row.scoreFor || !row.scoreAgainst) {
+      // Only require scores for completed fixtures (not upcoming)
+      if (row.result !== "upcoming" && (!row.scoreFor || !row.scoreAgainst)) {
         validationErrors.push(`Row ${rowNum}: Score is required`);
       }
       
@@ -1116,15 +1124,16 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
 
         if (!opponentId) continue;
 
-        const scoreFor = parseInt(row.scoreFor);
-        const scoreAgainst = parseInt(row.scoreAgainst);
+        const isUpcoming = row.result === "upcoming";
+        const scoreFor = isUpcoming ? null : parseInt(row.scoreFor);
+        const scoreAgainst = isUpcoming ? null : parseInt(row.scoreAgainst);
         
         // Determine home/away and scores
         const isHome = row.homeAway === "home";
         const homeSchoolId = isHome ? primarySchoolId : opponentId;
         const awaySchoolId = isHome ? opponentId : primarySchoolId;
-        const homeScore = isHome ? scoreFor : scoreAgainst;
-        const awayScore = isHome ? scoreAgainst : scoreFor;
+        const homeScore = isUpcoming ? null : (isHome ? scoreFor : scoreAgainst);
+        const awayScore = isUpcoming ? null : (isHome ? scoreAgainst : scoreFor);
 
         // Determine venue based on home/away
         // If Home: venue is the primary school's name
@@ -1134,7 +1143,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         const venue = isHome ? primarySchoolName : opponentName;
 
         // Calculate status based on result
-        const status = "completed";
+        const status = isUpcoming ? "upcoming" : "completed";
 
         // Create match date (use middle of the year if no specific date)
         const year = parseInt(row.year);
@@ -1670,7 +1679,7 @@ match_date	home_school	away_school	sport	venue	home_away	round_name
                     {/* Result */}
                     <Select
                       value={row.result}
-                      onValueChange={(val) => updateRow(row.id, "result", val as "won" | "lost" | "drew")}
+                      onValueChange={(val) => updateRow(row.id, "result", val as "won" | "lost" | "drew" | "upcoming")}
                     >
                       <SelectTrigger className="h-9 text-sm">
                         <SelectValue />
