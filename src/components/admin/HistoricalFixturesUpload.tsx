@@ -311,9 +311,21 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
   };
 
   const updateRow = (id: string, field: keyof FixtureRow, value: string) => {
-    setRows(prev => prev.map(row => 
-      row.id === id ? { ...row, [field]: value } : row
-    ));
+    setRows(prev => prev.map(row => {
+      if (row.id !== id) return row;
+      
+      const updatedRow = { ...row, [field]: value };
+      
+      // Auto-switch to "upcoming" when year is changed to 2026+
+      if (field === "year") {
+        const yearNum = parseInt(value);
+        if (yearNum >= 2026) {
+          updatedRow.result = "upcoming";
+        }
+      }
+      
+      return updatedRow;
+    }));
     // Clear errors when user edits a row so they can retry submission
     if (errors.length > 0) {
       setErrors([]);
@@ -813,17 +825,20 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         // H or HOME = home (default)
       }
       
-      // Parse result: Won, Lost, Drew
+      // Parse result: Won, Lost, Drew, or Upcoming (default for 2026+)
       const resultValue = colIndex.result >= 0 ? allValues[colIndex.result] : allValues[5];
-      let result: "won" | "lost" | "drew" = "won";
+      const yearNum = parseInt(year);
+      let result: "won" | "lost" | "drew" | "upcoming" = yearNum >= 2026 ? "upcoming" : "won";
       if (resultValue) {
         const r = resultValue.toLowerCase();
         if (r === 'lost' || r === 'l') {
           result = "lost";
         } else if (r === 'drew' || r === 'draw' || r === 'd') {
           result = "drew";
+        } else if (r === 'upcoming' || r === 'u') {
+          result = "upcoming";
         }
-        // Won or W = won (default)
+        // Won or W = won (default for historical), Upcoming for 2026+
       }
       
       // Parse scores: PF (Points For) and PA (Points Against)
@@ -925,12 +940,14 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
         }
       }
 
-      // Parse result if available
-      let result: "won" | "lost" | "drew" = "won";
+      // Parse result if available - default to "upcoming" for 2026+
+      const yearNum = parseInt(year);
+      let result: "won" | "lost" | "drew" | "upcoming" = yearNum >= 2026 ? "upcoming" : "won";
       if (colIndex.result >= 0 && values[colIndex.result]) {
         const r = values[colIndex.result].toLowerCase();
         if (r === 'lost' || r === 'l') result = "lost";
         else if (r === 'drew' || r === 'draw' || r === 'd') result = "drew";
+        else if (r === 'upcoming' || r === 'u') result = "upcoming";
       }
 
       // Parse scores
