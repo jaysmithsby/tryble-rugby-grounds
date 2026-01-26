@@ -44,9 +44,7 @@ const HoldingPage = () => {
         <div className="max-w-4xl mx-auto text-center space-y-8">
           {/* Logo/Crest */}
           <div className="flex justify-center mb-6">
-            <div className="w-48 h-48 md:w-56 md:h-56 rounded-2xl bg-white border-4 border-[#FFD60A]/50 flex items-center justify-center p-6">
-              <img src={trybalLogo} alt="Trybal" className="h-28 md:h-36 object-contain" />
-            </div>
+            <img src={trybalLogo} alt="Trybal" className="h-36 md:h-44 object-contain" />
           </div>
 
           {/* Main Heading */}
