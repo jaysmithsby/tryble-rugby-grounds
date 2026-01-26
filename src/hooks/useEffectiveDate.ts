@@ -1,5 +1,6 @@
 import { useSimulation } from "@/contexts/SimulationContext";
 import { getWeek, getYear } from "date-fns";
+import { useMemo } from "react";
 
 export function useEffectiveDate() {
   const simulation = useSimulation();
@@ -8,7 +9,12 @@ export function useEffectiveDate() {
   const weekNumber = getWeek(effectiveDate, { weekStartsOn: 1 });
   const seasonYear = getYear(effectiveDate);
   const isSimulation = simulation.isSimulationMode;
-  const weekendRange = simulation.getWeekendRange();
+  
+  // Memoize weekendRange to prevent infinite re-renders
+  // Only recalculate when effectiveDate changes (compared by timestamp)
+  const weekendRange = useMemo(() => {
+    return simulation.getWeekendRange();
+  }, [effectiveDate.getTime()]);
 
   // Get SAST time helper
   const getSASTTime = (date: Date = effectiveDate) => {
