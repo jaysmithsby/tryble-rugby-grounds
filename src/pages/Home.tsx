@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -62,8 +62,9 @@ const Home = () => {
     }));
   };
 
-  // Fetch fixtures from database
-  const fetchFixtures = async (userId: string, schoolName?: string | null) => {
+  // Fetch fixtures from database - memoized with useCallback for proper reactivity
+  const fetchFixtures = useCallback(async (userId: string, schoolName?: string | null) => {
+    console.log('[fetchFixtures] Called with seasonYear:', seasonYear, 'effectiveDate:', effectiveDate.toISOString());
     setFixturesLoading(true);
     try {
       const now = effectiveDate.toISOString();
@@ -93,6 +94,8 @@ const Home = () => {
             .filter((name, index, self) => self.indexOf(name) === index); // Dedupe
         }
       }
+      
+      console.log('[fetchFixtures] poolSchoolNames:', poolSchoolNames);
 
       // Get school IDs for the pool schools
       let poolSchoolIds: string[] = [];
@@ -104,6 +107,7 @@ const Home = () => {
         
         if (schoolsData) {
           poolSchoolIds = schoolsData.map(s => s.id);
+          console.log('[fetchFixtures] poolSchoolIds:', poolSchoolIds);
         }
       }
 
@@ -132,6 +136,8 @@ const Home = () => {
 
       const { data: allUpcoming, error: upcomingError } = await upcomingQuery;
 
+      console.log('[fetchFixtures] allUpcoming count:', allUpcoming?.length || 0);
+
       if (upcomingError) {
         console.error("Error fetching upcoming fixtures:", upcomingError);
       } else {
@@ -142,6 +148,8 @@ const Home = () => {
             poolSchoolIds.includes(f.home_school_id) || poolSchoolIds.includes(f.away_school_id)
           );
         }
+        
+        console.log('[fetchFixtures] filteredUpcoming count:', filteredUpcoming.length);
         
         const formattedUpcoming = filteredUpcoming.slice(0, 10).map(f => ({
           id: f.id,
@@ -241,7 +249,7 @@ const Home = () => {
     } finally {
       setFixturesLoading(false);
     }
-  };
+  }, [effectiveDate, seasonYear, weekendRange]);
 
   useEffect(() => {
     // Check if user is logged in
@@ -290,14 +298,14 @@ const Home = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, fetchFixtures]);
 
   // Refetch fixtures when effective date changes (simulation mode)
   useEffect(() => {
     if (user && userSchoolName !== undefined) {
       fetchFixtures(user.id, userSchoolName);
     }
-  }, [effectiveDate, seasonYear]);
+  }, [effectiveDate, seasonYear, fetchFixtures, user, userSchoolName]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
