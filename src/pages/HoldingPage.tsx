@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Shield, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
+import trybalLogo from "@/assets/trybal-logo.png";
 import { useState } from "react";
 import { toast } from "sonner";
 import HoldingFooter from "@/components/holding/HoldingFooter";
@@ -31,9 +32,8 @@ const HoldingPage = () => {
       {/* Header */}
       <header className="w-full border-b border-white/10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-8 w-8 text-[#FFD60A]" />
-            <span className="text-2xl font-bold text-white font-montserrat">Tryble</span>
+        <div className="flex items-center gap-2">
+            <img src={trybalLogo} alt="Trybal" className="h-10 brightness-0 invert" />
           </div>
           <ThemeToggle />
         </div>
@@ -44,9 +44,7 @@ const HoldingPage = () => {
         <div className="max-w-4xl mx-auto text-center space-y-8">
           {/* Logo/Crest */}
           <div className="flex justify-center mb-6">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-[#FFD60A]/10 border-2 border-[#FFD60A]/30 flex items-center justify-center">
-              <Shield className="h-12 w-12 md:h-16 md:w-16 text-[#FFD60A]" />
-            </div>
+            <img src={trybalLogo} alt="Trybal" className="h-20 md:h-28 brightness-0 invert" />
           </div>
 
           {/* Main Heading */}

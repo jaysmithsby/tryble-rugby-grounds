@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { Shield, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import trybalLogo from "@/assets/trybal-logo.png";
 
 interface HoldingHeaderProps {
   showBackButton?: boolean;
@@ -27,8 +28,7 @@ const HoldingHeader = ({ showBackButton = false }: HoldingHeaderProps) => {
           )}
           {!showBackButton && (
             <Link to="/" className="flex items-center gap-2">
-              <Shield className="h-8 w-8 text-[#FFD60A]" />
-              <span className="text-2xl font-bold text-white font-montserrat">Tryble</span>
+              <img src={trybalLogo} alt="Trybal" className="h-10 brightness-0 invert" />
             </Link>
           )}
         </div>
