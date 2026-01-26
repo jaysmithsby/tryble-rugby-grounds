@@ -32,8 +32,8 @@ const HoldingPage = () => {
       {/* Header */}
       <header className="w-full border-b border-white/10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-            <img src={trybalLogo} alt="Trybal" className="h-10 brightness-0 invert" />
+          <div className="flex items-center gap-2">
+            <img src={trybalLogo} alt="Trybal" className="h-10" />
           </div>
           <ThemeToggle />
         </div>
@@ -44,7 +44,9 @@ const HoldingPage = () => {
         <div className="max-w-4xl mx-auto text-center space-y-8">
           {/* Logo/Crest */}
           <div className="flex justify-center mb-6">
-            <img src={trybalLogo} alt="Trybal" className="h-20 md:h-28 brightness-0 invert" />
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-white border-4 border-[#FFD60A]/50 flex items-center justify-center p-4">
+              <img src={trybalLogo} alt="Trybal" className="h-16 md:h-20 object-contain" />
+            </div>
           </div>
 
           {/* Main Heading */}
