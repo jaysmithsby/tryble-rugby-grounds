@@ -155,6 +155,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fixtures_away_school_id_fkey"
+            columns: ["away_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixtures_home_school_id_fkey"
+            columns: ["home_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fixtures_tournament_id_fkey"
             columns: ["tournament_id"]
             isOneToOne: false
