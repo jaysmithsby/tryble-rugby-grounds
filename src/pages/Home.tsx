@@ -64,7 +64,6 @@ const Home = () => {
 
   // Fetch fixtures from database - memoized with useCallback for proper reactivity
   const fetchFixtures = useCallback(async (userId: string, schoolName?: string | null) => {
-    console.log('[fetchFixtures] Called with seasonYear:', seasonYear, 'effectiveDate:', effectiveDate.toISOString());
     setFixturesLoading(true);
     try {
       const now = effectiveDate.toISOString();
@@ -94,8 +93,6 @@ const Home = () => {
             .filter((name, index, self) => self.indexOf(name) === index); // Dedupe
         }
       }
-      
-      console.log('[fetchFixtures] poolSchoolNames:', poolSchoolNames);
 
       // Get school IDs for the pool schools
       let poolSchoolIds: string[] = [];
@@ -107,7 +104,6 @@ const Home = () => {
         
         if (schoolsData) {
           poolSchoolIds = schoolsData.map(s => s.id);
-          console.log('[fetchFixtures] poolSchoolIds:', poolSchoolIds);
         }
       }
 
@@ -136,8 +132,6 @@ const Home = () => {
 
       const { data: allUpcoming, error: upcomingError } = await upcomingQuery;
 
-      console.log('[fetchFixtures] allUpcoming count:', allUpcoming?.length || 0);
-
       if (upcomingError) {
         console.error("Error fetching upcoming fixtures:", upcomingError);
       } else {
@@ -148,8 +142,6 @@ const Home = () => {
             poolSchoolIds.includes(f.home_school_id) || poolSchoolIds.includes(f.away_school_id)
           );
         }
-        
-        console.log('[fetchFixtures] filteredUpcoming count:', filteredUpcoming.length);
         
         const formattedUpcoming = filteredUpcoming.slice(0, 10).map(f => ({
           id: f.id,
@@ -249,11 +241,17 @@ const Home = () => {
     } finally {
       setFixturesLoading(false);
     }
-  }, [effectiveDate, seasonYear, weekendRange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveDate.getTime(), seasonYear, weekendRange.start.getTime()]);
 
+  // Initial auth check and setup - runs once on mount
   useEffect(() => {
+    let isMounted = true;
+    
     // Check if user is logged in
     supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!isMounted) return;
+      
       if (!user) {
         navigate("/auth");
       } else {
@@ -265,11 +263,11 @@ const Home = () => {
           .eq("id", user.id)
           .maybeSingle()
           .then(({ data }) => {
+            if (!isMounted) return;
             const schoolName = data?.school_name || null;
             const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
             setUserDisplayName(displayName);
-            fetchFixtures(user.id, schoolName);
           });
       }
       setLoading(false);
@@ -288,24 +286,29 @@ const Home = () => {
           .eq("id", session.user.id)
           .maybeSingle()
           .then(({ data }) => {
+            if (!isMounted) return;
             const schoolName = data?.school_name || null;
             const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
             setUserDisplayName(displayName);
-            fetchFixtures(session.user.id, schoolName);
           });
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate, fetchFixtures]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
 
   // Refetch fixtures when effective date changes (simulation mode)
   useEffect(() => {
     if (user && userSchoolName !== undefined) {
       fetchFixtures(user.id, userSchoolName);
     }
-  }, [effectiveDate, seasonYear, fetchFixtures, user, userSchoolName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveDate.getTime(), seasonYear, fetchFixtures, user, userSchoolName]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
