@@ -53,6 +53,11 @@ const Home = () => {
   const [hasNoPools, setHasNoPools] = useState(false);
   const navigate = useNavigate();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
+  
+  // Store stable primitive timestamps for useCallback dependencies
+  const effectiveDateTimestamp = effectiveDate.getTime();
+  const weekendStartTimestamp = weekendRange.start.getTime();
+  const weekendEndTimestamp = weekendRange.end.getTime();
 
   // Handle prediction submission
   const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number) => {
@@ -62,11 +67,12 @@ const Home = () => {
     }));
   };
 
-  // Fetch fixtures from database - memoized with useCallback for proper reactivity
+  // Fetch fixtures from database - uses stable timestamp primitives as dependencies
   const fetchFixtures = useCallback(async (userId: string, schoolName?: string | null) => {
     setFixturesLoading(true);
     try {
-      const now = effectiveDate.toISOString();
+      // Create dates from stable timestamps inside the function
+      const now = new Date(effectiveDateTimestamp).toISOString();
       
       // First, fetch the user's pools and their schools
       const { data: poolMemberships } = await supabase
@@ -158,7 +164,7 @@ const Home = () => {
       }
 
       // Fetch recent completed fixtures (last 7 days from effective date)
-      const sevenDaysAgo = new Date(effectiveDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const sevenDaysAgo = new Date(effectiveDateTimestamp - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: recent, error: recentError } = await supabase
         .from("fixtures")
         .select(`
@@ -201,9 +207,9 @@ const Home = () => {
           .maybeSingle();
 
         if (schoolData) {
-          // Use weekend range from simulation context
-          const friday = weekendRange.start;
-          const sunday = weekendRange.end;
+          // Use stable timestamps to create dates inside the function
+          const friday = new Date(weekendStartTimestamp);
+          const sunday = new Date(weekendEndTimestamp);
 
           const { data: schoolFixture } = await supabase
             .from("fixtures")
@@ -241,8 +247,7 @@ const Home = () => {
     } finally {
       setFixturesLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveDate.getTime(), seasonYear, weekendRange.start.getTime()]);
+  }, [effectiveDateTimestamp, seasonYear, weekendStartTimestamp, weekendEndTimestamp]);
 
   // Initial auth check and setup - runs once on mount
   useEffect(() => {
@@ -302,13 +307,12 @@ const Home = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  // Refetch fixtures when effective date changes (simulation mode)
+  // Refetch fixtures when effective date changes (simulation mode) or user/school changes
   useEffect(() => {
     if (user && userSchoolName !== undefined) {
       fetchFixtures(user.id, userSchoolName);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveDate.getTime(), seasonYear, fetchFixtures, user, userSchoolName]);
+  }, [fetchFixtures, user, userSchoolName]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
