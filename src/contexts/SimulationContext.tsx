@@ -26,6 +26,18 @@ interface SimulationState {
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const [isSimulationMode, setIsSimulationModeState] = useState(false);
   const [simulatedDate, setSimulatedDateState] = useState(new Date(2025, 2, 1)); // March 1, 2025
+  // Stable current date that only updates periodically (every minute) to prevent infinite re-renders
+  const [stableCurrentDate, setStableCurrentDate] = useState(() => new Date());
+
+  // Update the current date every minute (not every render) when NOT in simulation mode
+  useEffect(() => {
+    if (!isSimulationMode) {
+      const interval = setInterval(() => {
+        setStableCurrentDate(new Date());
+      }, 60000); // Update every minute
+      return () => clearInterval(interval);
+    }
+  }, [isSimulationMode]);
 
   // Load state from localStorage on mount
   useEffect(() => {
@@ -62,8 +74,9 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     setSimulatedDateState(date);
   };
 
+  // Return stable date reference - simulation date when in sim mode, stable current date otherwise
   const getEffectiveDate = () => {
-    return isSimulationMode ? simulatedDate : new Date();
+    return isSimulationMode ? simulatedDate : stableCurrentDate;
   };
 
   const getEffectiveWeek = () => {

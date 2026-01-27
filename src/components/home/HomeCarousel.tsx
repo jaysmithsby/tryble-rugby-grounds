@@ -55,12 +55,18 @@ export const HomeCarousel = ({
   const [loading, setLoading] = useState(true);
   
   const { weekendRange } = useEffectiveDate();
-  const { start, end } = weekendRange;
+  
+  // Store stable primitive timestamps for useCallback dependencies
+  const startTimestamp = weekendRange.start.getTime();
+  const endTimestamp = weekendRange.end.getTime();
 
   const fetchCarouselData = useCallback(async () => {
     setLoading(true);
     
     const now = new Date().toISOString();
+    // Create dates from stable timestamps inside the function
+    const start = new Date(startTimestamp);
+    const end = new Date(endTimestamp);
     
     // Fetch all data in parallel
     const [derbiesRes, newsRes, adsRes] = await Promise.all([
@@ -120,7 +126,7 @@ export const HomeCarousel = ({
     }
     
     setLoading(false);
-  }, [start, end]);
+  }, [startTimestamp, endTimestamp]);
 
   useEffect(() => {
     fetchCarouselData();
