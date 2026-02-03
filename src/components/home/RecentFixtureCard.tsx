@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, CheckCircle2, Lock } from "lucide-react";
+import { CheckCircle2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
@@ -66,11 +66,7 @@ export const RecentFixtureCard = ({
   return (
     <Card className="bg-gradient-card border-border/40 shadow-card">
       <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{completedTime}</span>
-          </div>
+        <div className="flex items-center justify-end">
           <span className="text-xs text-muted-foreground">{venue}</span>
         </div>
 

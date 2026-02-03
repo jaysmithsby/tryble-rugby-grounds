@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
@@ -75,11 +75,7 @@ export const SchoolFixtureCard = ({
             <Star className="w-4 h-4 text-primary fill-primary" />
           </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">{time}</span>
-          </div>
+        <div className="flex items-center justify-end">
           <span className="text-sm font-medium text-muted-foreground">{venue}</span>
         </div>
 
