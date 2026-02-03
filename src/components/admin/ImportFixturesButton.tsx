@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Upload, Loader2 } from "lucide-react";
 import Papa from "papaparse";
 
-export function ImportFixturesButton() {
+interface ImportFixturesButtonProps {
+  onSuccess?: () => void;
+}
+
+export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -187,7 +191,7 @@ export function ImportFixturesButton() {
             description: successMessage,
           });
 
-          window.location.reload();
+          onSuccess?.();
         } catch (error: any) {
           console.error('Error importing fixtures:', error);
           toast({
