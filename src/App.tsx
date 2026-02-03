@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SimulationProvider } from "@/contexts/SimulationContext";
 import { SimulationBanner } from "@/components/SimulationBanner";
-import HoldingPage from "./pages/HoldingPage";
 import ForSchools from "./pages/ForSchools";
 import ForParents from "./pages/ForParents";
 import ForPlayers from "./pages/ForPlayers";
@@ -45,14 +44,13 @@ const App = () => (
           <BrowserRouter>
             <SimulationBanner />
             <Routes>
-              <Route path="/" element={<HoldingPage />} />
+              <Route path="/" element={<Index />} />
               <Route path="/for-schools" element={<ForSchools />} />
               <Route path="/for-parents" element={<ForParents />} />
               <Route path="/for-players" element={<ForPlayers />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/privacy-note" element={<PrivacyNote />} />
               <Route path="/terms" element={<Terms />} />
-              <Route path="/app" element={<Index />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/home" element={<Home />} />
