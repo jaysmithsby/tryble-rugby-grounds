@@ -7,6 +7,7 @@ import trybalLogo from "@/assets/trybal-logo.png";
 import { useState } from "react";
 import { toast } from "sonner";
 import HoldingFooter from "@/components/holding/HoldingFooter";
+import { supabase } from "@/integrations/supabase/client";
 
 const HoldingPage = () => {
   const navigate = useNavigate();
@@ -20,11 +21,25 @@ const HoldingPage = () => {
       return;
     }
     setIsSubmitting(true);
-    // Simulate submission - in production, this would save to database
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    toast.success("Thanks for joining! We'll be in touch soon.");
-    setEmail("");
-    setIsSubmitting(false);
+    
+    try {
+      const { error } = await supabase.functions.invoke("beta-signup", {
+        body: { email },
+      });
+
+      if (error) throw error;
+
+      toast.success("🏉 TRY! You're on the team! We'll be in touch before kickoff.", {
+        duration: 5000,
+        description: "Welcome to the Tryble community!",
+      });
+      setEmail("");
+    } catch (error) {
+      console.error("Beta signup error:", error);
+      toast.error("Knock-on! Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
