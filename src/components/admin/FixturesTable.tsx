@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Search, Loader2, Eye, EyeOff, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Calendar } from "lucide-react";
+import { Edit, Search, Loader2, Eye, EyeOff, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { BulkYearCorrectionDialog } from "./BulkYearCorrectionDialog";
 
 type SortField = 'date' | 'home' | 'away' | 'venue' | 'tournament' | 'status' | 'visible';
@@ -34,6 +35,7 @@ interface FixturesTableProps {
 
 export function FixturesTable({ onEdit }: FixturesTableProps) {
   const { toast } = useToast();
+  const [refreshing, setRefreshing] = useState(false);
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [schools, setSchools] = useState<Map<string, string>>(new Map());
   const [tournaments, setTournaments] = useState<Map<string, string>>(new Map());
@@ -83,9 +85,13 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   };
 
-  const fetchFixtures = async () => {
+  const fetchFixtures = async (isManualRefresh = false) => {
     try {
-      setLoading(true);
+      if (isManualRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from('fixtures')
         .select('*')
@@ -94,6 +100,13 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       if (error) throw error;
       console.log(`Loaded ${data?.length || 0} fixtures`);
       setFixtures(data || []);
+      
+      if (isManualRefresh) {
+        toast({
+          title: "Refreshed",
+          description: `Loaded ${data?.length || 0} fixtures`,
+        });
+      }
     } catch (error) {
       console.error('Error fetching fixtures:', error);
       toast({
@@ -103,7 +116,12 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleManualRefresh = () => {
+    fetchFixtures(true);
   };
 
   const toggleVisibility = async (fixture: any) => {
@@ -276,6 +294,19 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   return (
     <div className="space-y-4">
+      {/* Refresh Button */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          className="gap-2"
+        >
+          <RefreshCcw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </Button>
+      </div>
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -431,7 +462,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                         onClick={clearFilters}
                         className="gap-2"
                       >
-                        <RefreshCw className="h-4 w-4" />
+                        <RefreshCcw className="h-4 w-4" />
                         Clear filters
                       </Button>
                     )}

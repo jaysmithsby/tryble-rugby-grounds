@@ -32,6 +32,7 @@ interface EditFixtureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fixture: any;
+  onSuccess?: () => void;
 }
 
 interface School {
@@ -44,7 +45,7 @@ interface Tournament {
   name: string;
 }
 
-export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDialogProps) {
+export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: EditFixtureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
@@ -149,7 +150,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture }: EditFixtureDi
       });
 
       onOpenChange(false);
-      window.location.reload();
+      onSuccess?.();
     } catch (error: any) {
       console.error("Error updating fixture:", error);
       toast({

@@ -39,6 +39,7 @@ import {
 interface CreateFixtureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 interface School {
@@ -64,7 +65,7 @@ const PROVINCES = [
   "Western Cape",
 ];
 
-export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogProps) {
+export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFixtureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
@@ -271,7 +272,7 @@ export function CreateFixtureDialog({ open, onOpenChange }: CreateFixtureDialogP
 
       resetForm();
       onOpenChange(false);
-      window.location.reload();
+      onSuccess?.();
     } catch (error: any) {
       console.error("Error creating fixture:", error);
       toast({

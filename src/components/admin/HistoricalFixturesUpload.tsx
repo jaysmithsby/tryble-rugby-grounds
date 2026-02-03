@@ -47,6 +47,7 @@ import { format } from "date-fns";
 interface HistoricalFixturesUploadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 interface School {
@@ -85,7 +86,7 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 30 }, (_, i) => (currentYear - i).toString());
 
-export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixturesUploadProps) {
+export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: HistoricalFixturesUploadProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
@@ -1219,7 +1220,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange }: HistoricalFixtu
 
   const handleClose = () => {
     if (submitted) {
-      window.location.reload();
+      onSuccess?.();
     }
     resetForm();
     onOpenChange(false);

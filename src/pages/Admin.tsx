@@ -21,10 +21,12 @@ export default function Admin() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [historicalDialogOpen, setHistoricalDialogOpen] = useState(false);
   const [selectedFixture, setSelectedFixture] = useState<any>(null);
+  const [fixturesKey, setFixturesKey] = useState(0);
 
-  useEffect(() => {
-    checkAdminAccess();
-  }, []);
+  // Callback to trigger refresh of fixtures table
+  const handleFixtureChange = () => {
+    setFixturesKey(prev => prev + 1);
+  };
 
   const checkAdminAccess = async () => {
     try {
@@ -98,7 +100,7 @@ export default function Admin() {
             <p className="text-muted-foreground mt-1">Manage rugby fixtures and match results</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <ImportFixturesButton />
+            <ImportFixturesButton onSuccess={handleFixtureChange} />
             <Button 
               variant="outline" 
               onClick={() => setHistoricalDialogOpen(true)} 
@@ -114,22 +116,25 @@ export default function Admin() {
           </div>
         </div>
 
-        <FixturesTable onEdit={handleEditFixture} />
+        <FixturesTable key={fixturesKey} onEdit={handleEditFixture} />
 
         <CreateFixtureDialog 
           open={createDialogOpen} 
-          onOpenChange={setCreateDialogOpen} 
+          onOpenChange={setCreateDialogOpen}
+          onSuccess={handleFixtureChange}
         />
 
         <EditFixtureDialog
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
           fixture={selectedFixture}
+          onSuccess={handleFixtureChange}
         />
 
         <HistoricalFixturesUpload
           open={historicalDialogOpen}
           onOpenChange={setHistoricalDialogOpen}
+          onSuccess={handleFixtureChange}
         />
       </AdminLayout>
       <BottomNav />
