@@ -93,7 +93,7 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold">Welcome Back</h1>
-        <p className="text-muted-foreground">Sign in to continue to Tryble</p>
+        <p className="text-muted-foreground">Sign in to continue to Trybal</p>
       </div>
 
       <form onSubmit={handleSignIn} className="space-y-4">

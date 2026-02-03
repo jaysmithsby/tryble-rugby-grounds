@@ -9,7 +9,7 @@ const Sponsor = () => {
             Giving Back to School Rugby
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Tryble isn't just about predictions—we're committed to supporting grassroots rugby development across South Africa
+            Trybal isn't just about predictions—we're committed to supporting grassroots rugby development across South Africa
           </p>
         </div>
 

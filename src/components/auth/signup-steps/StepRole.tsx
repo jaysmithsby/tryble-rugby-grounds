@@ -49,7 +49,7 @@ const StepRole = ({ userType: initialType, onNext, onBack }: StepRoleProps) => {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold">What brings you to Tryble?</h2>
+        <h2 className="text-2xl font-bold">What brings you to Trybal?</h2>
         <p className="text-muted-foreground">Select your connection to school rugby</p>
       </div>
 

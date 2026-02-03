@@ -141,8 +141,8 @@ export const ChangeSchoolDialog = ({
                   </p>
                   <p className="text-muted-foreground">
                     If you believe there has been an error, please contact support at{" "}
-                    <a href="mailto:support@tryble.co.za" className="text-primary hover:underline">
-                      support@tryble.co.za
+                    <a href="mailto:support@trybal.co.za" className="text-primary hover:underline">
+                      support@trybal.co.za
                     </a>
                   </p>
                 </div>

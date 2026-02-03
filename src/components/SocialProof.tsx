@@ -61,7 +61,7 @@ const SocialProof = () => {
               </div>
             </div>
             <p className="text-muted-foreground italic">
-              "Love staying connected to my school's rugby team. Tryble makes it easy to follow fixtures and compete with fellow alumni."
+              "Love staying connected to my school's rugby team. Trybal makes it easy to follow fixtures and compete with fellow alumni."
             </p>
           </div>
         </div>

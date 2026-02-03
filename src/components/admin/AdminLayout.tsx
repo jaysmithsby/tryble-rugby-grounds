@@ -61,7 +61,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-            <p className="text-muted-foreground mt-2">Manage Tryble platform content and users</p>
+            <p className="text-muted-foreground mt-2">Manage Trybal platform content and users</p>
           </div>
           <ThemeToggle />
         </div>

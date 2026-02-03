@@ -20,7 +20,7 @@ const StepName = ({ firstName: initialName, onNext }: StepNameProps) => {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Welcome to Tryble</h1>
+        <h1 className="text-3xl font-bold">Welcome to Trybal</h1>
         <p className="text-muted-foreground">Let's get you started with predictions and rankings</p>
       </div>
 

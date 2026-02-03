@@ -446,7 +446,7 @@ export default function SchoolProfile() {
         {/* Community - Top Users */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Tryble Users</CardTitle>
+            <CardTitle>Top Trybal Users</CardTitle>
             <CardDescription>Best performers from {school.name}</CardDescription>
           </CardHeader>
           <CardContent>

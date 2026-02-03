@@ -20,7 +20,7 @@ const Terms = () => {
             <section className="bg-white/5 rounded-2xl p-6 border border-white/10">
               <h2 className="text-xl font-bold text-white mb-4">1. Acceptance of Terms</h2>
               <p>
-                By accessing or using Tryble, you agree to be bound by these Terms of Service.
+                By accessing or using Trybal, you agree to be bound by these Terms of Service.
                 If you are under 18 years of age, you must have parental or guardian consent
                 to use this platform.
               </p>
@@ -29,8 +29,8 @@ const Terms = () => {
             <section className="bg-white/5 rounded-2xl p-6 border border-white/10">
               <h2 className="text-xl font-bold text-white mb-4">2. Platform Purpose</h2>
               <p>
-                Tryble is a predictions platform for South African school rugby. It is designed
-                for entertainment and school community engagement only. Tryble does not involve:
+                Trybal is a predictions platform for South African school rugby. It is designed
+                for entertainment and school community engagement only. Trybal does not involve:
               </p>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Gambling or wagering of any kind</li>

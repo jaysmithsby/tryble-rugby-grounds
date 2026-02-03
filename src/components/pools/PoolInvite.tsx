@@ -12,7 +12,7 @@ interface PoolInviteProps {
 export const PoolInvite = ({ poolName, inviteCode }: PoolInviteProps) => {
   const { toast } = useToast();
   const inviteUrl = `${window.location.origin}/join-pool/${inviteCode}`;
-  const shareMessage = `🏉 Join my Tryble pool "${poolName}"!\n\nUse code: ${inviteCode}\nor click: ${inviteUrl}`;
+  const shareMessage = `🏉 Join my Trybal pool "${poolName}"!\n\nUse code: ${inviteCode}\nor click: ${inviteUrl}`;
   
   // Check if native share is available (mainly mobile)
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
@@ -21,8 +21,8 @@ export const PoolInvite = ({ poolName, inviteCode }: PoolInviteProps) => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Join ${poolName} on Tryble`,
-          text: `🏉 Join my Tryble pool "${poolName}"! Use code: ${inviteCode}`,
+          title: `Join ${poolName} on Trybal`,
+          text: `🏉 Join my Trybal pool "${poolName}"! Use code: ${inviteCode}`,
           url: inviteUrl,
         });
       } catch (err) {
@@ -40,12 +40,12 @@ export const PoolInvite = ({ poolName, inviteCode }: PoolInviteProps) => {
   };
 
   const shareViaTelegram = () => {
-    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(`🏉 Join my Tryble pool "${poolName}"! Use code: ${inviteCode}`)}`;
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(`🏉 Join my Trybal pool "${poolName}"! Use code: ${inviteCode}`)}`;
     window.open(telegramUrl, '_blank');
   };
 
   const shareViaTwitter = () => {
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🏉 Join my Tryble pool "${poolName}"!`)}&url=${encodeURIComponent(inviteUrl)}`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🏉 Join my Trybal pool "${poolName}"!`)}&url=${encodeURIComponent(inviteUrl)}`;
     window.open(twitterUrl, '_blank');
   };
 

@@ -6,7 +6,7 @@ const AppPreview = () => {
     <section className="py-24 px-6 bg-gradient-to-b from-secondary/30 to-background">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">See Tryble in Action</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">See Trybal in Action</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Clean, modern interface designed for school rugby enthusiasts
           </p>

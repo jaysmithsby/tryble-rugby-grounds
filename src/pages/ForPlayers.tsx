@@ -36,7 +36,7 @@ const ForPlayers = () => {
     },
     {
       icon: Users,
-      title: "Join Your Tryble",
+      title: "Join Your Trybal",
       points: [
         "Create or join custom prediction pools with friends.",
         "Invite your classmates with a simple code.",
@@ -100,7 +100,7 @@ const ForPlayers = () => {
               Ready to prove you're the real rugby brain?
             </h3>
             <p className="text-white/70 mb-6">
-              Tryble launches March 2026. Be one of the first to join!
+              Trybal launches March 2026. Be one of the first to join!
             </p>
             <div className="inline-flex items-center gap-2 bg-transparent border-2 border-[#FFD60A] text-[#FFD60A] px-8 py-4 rounded-2xl font-semibold">
               Coming Soon 🚀

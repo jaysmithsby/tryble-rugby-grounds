@@ -48,7 +48,7 @@ const HoldingFooter = () => {
         </div>
 
         <p className="text-center text-white/50 text-xs mt-6">
-          © 2025 Tryble. All rights reserved. Built for school rugby fans by school rugby fans.
+          © 2025 Trybal. All rights reserved. Built for school rugby fans by school rugby fans.
         </p>
       </div>
     </footer>

@@ -58,7 +58,7 @@ const ForSchools = () => {
               Partnering With Schools for a Safe, Proud Rugby Community
             </h1>
             <p className="text-lg text-white/70 max-w-2xl mx-auto">
-              Tryble is built with schools in mind. We prioritize safety, respect intellectual property,
+              Trybal is built with schools in mind. We prioritize safety, respect intellectual property,
               and provide tools for complete oversight.
             </p>
           </div>
@@ -98,7 +98,7 @@ const ForSchools = () => {
           {/* CTA */}
           <div className="text-center mt-16">
             <p className="text-white/70 mb-4">
-              Interested in partnering with Tryble?
+              Interested in partnering with Trybal?
             </p>
             <a
               href="mailto:schools@trybal.app"

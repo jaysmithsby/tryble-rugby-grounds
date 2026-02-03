@@ -103,7 +103,7 @@ const ResetPassword = () => {
         <header className="border-b border-border/40">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <button onClick={() => navigate("/")} className="text-2xl font-bold text-primary">
-              Tryble
+              Trybal
             </button>
           </div>
         </header>
@@ -128,7 +128,7 @@ const ResetPassword = () => {
       <header className="border-b border-border/40">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <button onClick={() => navigate("/")} className="text-2xl font-bold text-primary">
-            Tryble
+            Trybal
           </button>
         </div>
       </header>
