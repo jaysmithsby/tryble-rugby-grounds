@@ -30,7 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Processing beta signup for:", email);
 
     const emailResponse = await resend.emails.send({
-      from: "Tryble Beta <onboarding@resend.dev>",
+      from: "Trybal Beta <onboarding@resend.dev>",
       to: ["trybalrugby@gmail.com"],
       subject: "🏉 New Beta Signup Request!",
       html: `
@@ -55,13 +55,13 @@ const handler = async (req: Request): Promise<Response> => {
               <h1>New Beta Signup!</h1>
             </div>
             <div class="content">
-              <p style="margin: 0 0 10px 0; color: #95D5B2;">A new fan wants to join the Tryble community:</p>
+              <p style="margin: 0 0 10px 0; color: #95D5B2;">A new fan wants to join the Trybal community:</p>
               <div style="text-align: center;">
                 <span class="email-badge">${email}</span>
               </div>
             </div>
             <div class="footer">
-              <p>This signup was submitted via the Tryble beta landing page.</p>
+              <p>This signup was submitted via the Trybal beta landing page.</p>
               <p>🏆 Where School Pride Meets Predictions 🏆</p>
             </div>
           </div>

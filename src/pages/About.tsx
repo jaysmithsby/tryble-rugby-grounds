@@ -21,7 +21,7 @@ const About = () => {
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            About <span className="text-primary">Tryble</span>
+            About <span className="text-primary">Trybal</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Connecting school rugby communities through the thrill of prediction, building rivalries and friendships that last a lifetime.
@@ -36,7 +36,7 @@ const About = () => {
             <div>
               <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
               <p className="text-muted-foreground mb-4">
-                Tryble was born from a simple observation: school rugby in South Africa is more than just a sport—it's a tradition that unites communities, builds character, and creates memories that last generations.
+                Trybal was born from a simple observation: school rugby in South Africa is more than just a sport—it's a tradition that unites communities, builds character, and creates memories that last generations.
               </p>
               <p className="text-muted-foreground mb-4">
                 Our mission is to amplify that spirit by giving fans, students, parents, and old boys a platform to engage with the matches they love. Through predictions, friendly competition, and community building, we're creating a digital home for school rugby enthusiasts.
@@ -76,7 +76,7 @@ const About = () => {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">Meet the Founder</h2>
-            <p className="text-muted-foreground">The passion behind Tryble</p>
+            <p className="text-muted-foreground">The passion behind Trybal</p>
           </div>
           
           <div className="bg-gradient-card border border-border rounded-3xl p-8 md:p-12">
@@ -93,14 +93,14 @@ const About = () => {
                 <h3 className="text-2xl font-bold mb-2">James</h3>
                 <p className="text-primary font-medium mb-4">Founder & CEO</p>
                 <p className="text-muted-foreground mb-4">
-                  A lifelong school rugby enthusiast, James grew up on the sidelines of matches across South Africa. Watching the passion, the rivalries, and the community spirit that school rugby creates inspired him to build Tryble—a platform that brings fans closer to the game they love.
+                  A lifelong school rugby enthusiast, James grew up on the sidelines of matches across South Africa. Watching the passion, the rivalries, and the community spirit that school rugby creates inspired him to build Trybal—a platform that brings fans closer to the game they love.
                 </p>
                 <p className="text-muted-foreground mb-6">
-                  With a background in technology and a deep appreciation for South African rugby traditions, James set out to create more than just an app. Tryble is his vision of a connected community where every fan has a voice and every prediction tells a story.
+                  With a background in technology and a deep appreciation for South African rugby traditions, James set out to create more than just an app. Trybal is his vision of a connected community where every fan has a voice and every prediction tells a story.
                 </p>
                 <div className="flex gap-3 justify-center md:justify-start">
                   <Button variant="outline" size="sm" asChild>
-                    <a href="mailto:james@tryble.co.za" className="flex items-center gap-2">
+                    <a href="mailto:james@trybal.co.za" className="flex items-center gap-2">
                       <Mail className="h-4 w-4" />
                       Contact
                     </a>
@@ -130,10 +130,10 @@ const About = () => {
               But keeping track of who called it right? That was a mess. Spreadsheets got lost, memories faded, and the glory of a perfect prediction would be forgotten by Monday.
             </p>
             <p>
-              That's when the idea for Tryble was born. What if there was a proper platform for this? A place where predictions were tracked, where schools had their own leaderboards, where the rivalry extended beyond the pitch and into the community?
+              That's when the idea for Trybal was born. What if there was a proper platform for this? A place where predictions were tracked, where schools had their own leaderboards, where the rivalry extended beyond the pitch and into the community?
             </p>
             <p>
-              Today, Tryble serves thousands of school rugby fans across South Africa. From Grey College to Affies, from Bishops to Maritzburg College—every school, every match, every prediction matters here.
+              Today, Trybal serves thousands of school rugby fans across South Africa. From Grey College to Affies, from Bishops to Maritzburg College—every school, every match, every prediction matters here.
             </p>
             <p className="text-foreground font-medium">
               We're just getting started, and we're building this for you—the true fans of school rugby.
@@ -145,7 +145,7 @@ const About = () => {
       {/* CTA Section */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Join the Tryble Community</h2>
+          <h2 className="text-3xl font-bold mb-4">Join the Trybal Community</h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
             Ready to put your rugby knowledge to the test? Join thousands of fans making predictions every week.
           </p>
@@ -163,7 +163,7 @@ const About = () => {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border">
         <div className="max-w-6xl mx-auto text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Tryble. All rights reserved.</p>
+          <p>&copy; 2025 Trybal. All rights reserved.</p>
         </div>
       </footer>
     </div>

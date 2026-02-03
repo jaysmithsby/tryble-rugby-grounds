@@ -16,7 +16,7 @@ interface SimulationContextType {
 
 const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
 
-const SIMULATION_STORAGE_KEY = "tryble_simulation_state";
+const SIMULATION_STORAGE_KEY = "trybal_simulation_state";
 
 interface SimulationState {
   isSimulationMode: boolean;

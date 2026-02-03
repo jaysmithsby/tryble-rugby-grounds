@@ -20,7 +20,7 @@ const PrivacyPolicy = () => {
             <section className="bg-white/5 rounded-2xl p-6 border border-white/10">
               <h2 className="text-xl font-bold text-white mb-4">1. Introduction</h2>
               <p>
-                Tryble ("we", "our", or "us") is committed to protecting the privacy of all users,
+                Trybal ("we", "our", or "us") is committed to protecting the privacy of all users,
                 especially children and young people. This Privacy Policy explains how we collect,
                 use, and protect your personal information in compliance with the Protection of
                 Personal Information Act (POPIA) of South Africa.

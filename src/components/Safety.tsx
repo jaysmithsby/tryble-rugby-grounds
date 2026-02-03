@@ -11,7 +11,7 @@ const Safety = () => {
             </div>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">Youth-Safe & Community-Focused</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Tryble is built on school spirit, not gambling. We're creating a safe space for students, parents, and alumni to celebrate South African school rugby.
+              Trybal is built on school spirit, not gambling. We're creating a safe space for students, parents, and alumni to celebrate South African school rugby.
             </p>
           </div>
 
@@ -44,7 +44,7 @@ const Safety = () => {
           <div className="bg-background/50 border border-border rounded-2xl p-8">
             <blockquote className="text-center">
               <p className="text-lg italic mb-4">
-                "Tryble gives our students a safe way to engage with school rugby. It's all about school spirit and healthy competition—exactly what we need."
+                "Trybal gives our students a safe way to engage with school rugby. It's all about school spirit and healthy competition—exactly what we need."
               </p>
               <footer className="text-muted-foreground">
                 — School Principal, Pilot Program Participant

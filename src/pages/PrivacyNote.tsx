@@ -17,7 +17,7 @@ const PrivacyNote = () => {
     {
       icon: Eye,
       title: "Your parents know",
-      description: "If you're under 18, your parent or guardian gave permission for you to use Tryble.",
+      description: "If you're under 18, your parent or guardian gave permission for you to use Trybal.",
     },
     {
       icon: Heart,

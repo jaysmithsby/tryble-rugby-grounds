@@ -55,10 +55,10 @@ const ForParents = () => {
           {/* Hero */}
           <div className="text-center mb-16">
             <h1 className="text-3xl md:text-5xl font-bold text-white font-montserrat mb-6">
-              Tryble Is a Safe Space for Your Child to Compete and Connect
+              Trybal Is a Safe Space for Your Child to Compete and Connect
             </h1>
             <p className="text-lg text-white/70 max-w-2xl mx-auto">
-              We've built Tryble with your child's safety and privacy as our top priority.
+              We've built Trybal with your child's safety and privacy as our top priority.
               No gambling, no data selling, just healthy competition.
             </p>
           </div>

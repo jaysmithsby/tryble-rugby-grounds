@@ -348,7 +348,7 @@ export const allBadges: Badge[] = [
   {
     id: "30",
     category: "Special",
-    name: "Tryble Legend",
+    name: "Trybal Legend",
     description: "Active for 2+ seasons",
     criteria: "2 full seasons",
     icon: "👑",

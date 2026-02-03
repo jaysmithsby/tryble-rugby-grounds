@@ -23,7 +23,7 @@ const StepComplete = ({ userData, onComplete }: StepCompleteProps) => {
         <div className="flex justify-center">
           <CheckCircle2 className="w-16 h-16 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold">Welcome to Tryble, {userData.firstName}!</h2>
+        <h2 className="text-2xl font-bold">Welcome to Trybal, {userData.firstName}!</h2>
         <p className="text-muted-foreground">Your account has been created successfully</p>
       </div>
 

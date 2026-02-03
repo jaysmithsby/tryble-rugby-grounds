@@ -48,7 +48,7 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
       const validated = signUpSchema.parse(dataToValidate);
       
       const { data, error } = await supabase.auth.signUp({
-        email: validated.contactMethod === "email" ? validated.contactValue : `${Date.now()}@tryble.app`,
+        email: validated.contactMethod === "email" ? validated.contactValue : `${Date.now()}@trybal.app`,
         password: validated.password,
         phone: validated.contactMethod === "mobile" ? validated.contactValue : undefined,
         options: {

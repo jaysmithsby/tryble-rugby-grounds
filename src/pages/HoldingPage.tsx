@@ -31,7 +31,7 @@ const HoldingPage = () => {
 
       toast.success("🏉 TRY! You're on the team! We'll be in touch before kickoff.", {
         duration: 5000,
-        description: "Welcome to the Tryble community!",
+        description: "Welcome to the Trybal community!",
       });
       setEmail("");
     } catch (error) {
@@ -64,7 +64,7 @@ const HoldingPage = () => {
 
           {/* Main Heading */}
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white font-montserrat leading-tight">
-            Tryble — The ultimate platform for South African schoolboy rugby.
+            Trybal — The ultimate platform for South African schoolboy rugby.
             <span className="block mt-2 text-[#FFD60A]">Coming March 2026</span>
           </h1>
 

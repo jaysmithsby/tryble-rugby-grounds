@@ -12,7 +12,7 @@ const Hero = () => {
       {/* Header */}
       <header className="relative z-10 border-b border-border/40 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-primary">Tryble</h2>
+          <h2 className="text-2xl font-bold text-primary">Trybal</h2>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button 
