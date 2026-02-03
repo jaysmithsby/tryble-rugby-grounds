@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
-import { allBadges } from "@/data/badgesData";
+// Badge imports preserved for v2
+// import { allBadges } from "@/data/badgesData";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChangeSchoolDialog } from "@/components/profile/ChangeSchoolDialog";
@@ -259,7 +260,8 @@ const Profile = () => {
         {/* Score Submission Section */}
         <ScoreSubmission />
 
-        {/* Achievements Section */}
+        {/* Badges Section - Hidden for MVP, will be re-enabled in v2 */}
+        {/* 
         <Card className="mb-6 bg-gradient-card border-border/40">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -303,6 +305,7 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+        */}
 
         {/* Groups & Pools */}
         <Card className="mb-6 bg-gradient-card border-border/40">

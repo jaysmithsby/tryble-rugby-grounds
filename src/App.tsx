@@ -55,7 +55,8 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/home" element={<Home />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/badges" element={<Badges />} />
+              {/* Badges hidden for MVP - will be re-enabled in v2 */}
+              {/* <Route path="/badges" element={<Badges />} /> */}
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
               <Route path="/school/:schoolSlug" element={<SchoolProfile />} />
