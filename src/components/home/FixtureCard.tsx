@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 
@@ -72,16 +72,10 @@ export const FixtureCard = ({
     <Card className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300">
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{time}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{venue}</span>
-            {isPredicted && (
-              <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
-            )}
-          </div>
+          <span className="text-xs text-muted-foreground">{venue}</span>
+          {isPredicted && (
+            <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-4">
