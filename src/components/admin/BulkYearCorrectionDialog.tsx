@@ -45,8 +45,8 @@ export function BulkYearCorrectionDialog({
   const handleSubmit = async () => {
     if (!targetYear) {
       toast({
-        title: "Error",
-        description: "Please select a target year",
+        title: "Missing Target Year",
+        description: "Please select a target year before proceeding.",
         variant: "destructive",
       });
       return;
@@ -91,8 +91,8 @@ export function BulkYearCorrectionDialog({
     } catch (error) {
       console.error("Error updating fixtures:", error);
       toast({
-        title: "Error",
-        description: "Failed to update fixtures",
+        title: "Update Failed",
+        description: "Could not update fixture years. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -126,8 +126,8 @@ export function ReviewSchoolRequestDialog({
     } catch (error: any) {
       console.error('Error declining requests:', error);
       toast({
-        title: "Error",
-        description: "Failed to decline requests.",
+        title: "Decline Failed",
+        description: "Could not decline the requests. Please try again.",
         variant: "destructive",
       });
     } finally {

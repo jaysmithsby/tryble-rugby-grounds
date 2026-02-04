@@ -145,8 +145,8 @@ export function EditTournamentDialog({
     } catch (error) {
       console.error("Error uploading logo:", error);
       toast({
-        title: "Error",
-        description: "Failed to upload sponsor logo",
+        title: "Upload Failed",
+        description: "Could not upload the sponsor logo. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -188,8 +188,8 @@ export function EditTournamentDialog({
     } catch (error) {
       console.error("Error updating tournament:", error);
       toast({
-        title: "Error",
-        description: "Failed to update tournament",
+        title: "Update Failed",
+        description: "Could not update the tournament. Please try again.",
         variant: "destructive",
       });
     } finally {

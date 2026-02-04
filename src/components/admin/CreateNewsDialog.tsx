@@ -53,8 +53,8 @@ export function CreateNewsDialog({ open, onOpenChange, onSuccess }: CreateNewsDi
 
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to create news article",
+        title: "Creation Failed",
+        description: "Could not create the news article. Please try again.",
         variant: "destructive",
       });
     } else {

@@ -301,8 +301,8 @@ export function CreateSchoolDialog({
     } catch (error) {
       console.error("Error creating school:", error);
       toast({
-        title: "Error",
-        description: "Failed to create school",
+        title: "Creation Failed",
+        description: "Could not create the school. Please try again.",
         variant: "destructive",
       });
     } finally {

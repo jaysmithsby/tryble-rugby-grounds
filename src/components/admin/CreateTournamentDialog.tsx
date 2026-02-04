@@ -170,8 +170,8 @@ export function CreateTournamentDialog({
     } catch (error) {
       console.error("Error uploading logo:", error);
       toast({
-        title: "Error",
-        description: "Failed to upload sponsor logo",
+        title: "Upload Failed",
+        description: "Could not upload the sponsor logo. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -253,8 +253,8 @@ export function CreateTournamentDialog({
     } catch (error) {
       console.error("Error creating tournament:", error);
       toast({
-        title: "Error",
-        description: "Failed to create tournament",
+        title: "Creation Failed",
+        description: "Could not create the tournament. Please try again.",
         variant: "destructive",
       });
     } finally {

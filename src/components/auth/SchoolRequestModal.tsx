@@ -102,8 +102,8 @@ export function SchoolRequestModal({ open, onOpenChange, initialSchoolName = "" 
     } catch (error: any) {
       console.error('Error submitting school request:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit school request. Please try again.",
+        title: "Request Failed",
+        description: "Could not submit your school request. Please try again.",
         variant: "destructive",
       });
     } finally {

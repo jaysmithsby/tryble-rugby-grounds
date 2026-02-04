@@ -85,8 +85,8 @@ export function EditAdDialog({ open, onOpenChange, ad, onSuccess }: EditAdDialog
 
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to update advertisement",
+        title: "Update Failed",
+        description: "Could not update the advertisement. Please try again.",
         variant: "destructive",
       });
     } else {

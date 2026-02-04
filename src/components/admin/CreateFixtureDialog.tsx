@@ -194,8 +194,8 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
     } catch (error: any) {
       console.error("Error creating school:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create school",
+        title: "School Creation Failed",
+        description: error.message || "Could not create the school. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -276,8 +276,8 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
     } catch (error: any) {
       console.error("Error creating fixture:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create fixture",
+        title: "Fixture Creation Failed",
+        description: error.message || "Could not create the fixture. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -57,8 +57,8 @@ export function AdsTable() {
     if (error) {
       console.error("Error fetching ads:", error);
       toast({
-        title: "Error",
-        description: "Failed to fetch advertisements",
+        title: "Failed to Load Ads",
+        description: "Could not retrieve advertisements. Please try again.",
         variant: "destructive",
       });
     } else {
@@ -76,8 +76,8 @@ export function AdsTable() {
     
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to delete advertisement",
+        title: "Delete Failed",
+        description: "Could not remove the advertisement. Please try again.",
         variant: "destructive",
       });
     } else {

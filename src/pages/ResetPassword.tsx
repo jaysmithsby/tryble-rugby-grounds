@@ -79,8 +79,8 @@ const ResetPassword = () => {
         });
       } else {
         toast({
-          title: "Error",
-          description: error.message || "Failed to reset password. Please try again.",
+          title: "Password Reset Failed",
+          description: error.message || "Could not reset your password. Please try again.",
           variant: "destructive",
         });
       }

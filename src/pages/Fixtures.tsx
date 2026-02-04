@@ -91,8 +91,8 @@ const Fixtures = () => {
       } catch (error) {
         console.error("Failed to save prediction:", error);
         toast({
-          title: "Error",
-          description: "Failed to save prediction. Please try again.",
+          title: "Prediction Failed",
+          description: "Could not save your prediction. Please try again.",
           variant: "destructive",
         });
       }

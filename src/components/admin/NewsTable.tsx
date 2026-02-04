@@ -55,8 +55,8 @@ export function NewsTable() {
     if (error) {
       console.error("Error fetching news:", error);
       toast({
-        title: "Error",
-        description: "Failed to fetch news articles",
+        title: "Failed to Load News",
+        description: "Could not retrieve news articles. Please try again.",
         variant: "destructive",
       });
     } else {
@@ -74,8 +74,8 @@ export function NewsTable() {
     
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to delete article",
+        title: "Delete Failed",
+        description: "Could not remove the article. Please try again.",
         variant: "destructive",
       });
     } else {

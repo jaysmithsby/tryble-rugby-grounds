@@ -262,8 +262,8 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
       console.error('Error submitting score:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to submit score. Please try again.",
+        title: "Score Submission Failed",
+        description: error.message || "Could not submit your score. Please try again.",
       });
     } finally {
       setIsSubmitting(false);

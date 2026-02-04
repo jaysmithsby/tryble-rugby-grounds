@@ -174,8 +174,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     } catch (error) {
       console.error('Error fetching fixtures:', error);
       toast({
-        title: "Error",
-        description: "Failed to load fixtures",
+        title: "Failed to Load Fixtures",
+        description: "Could not retrieve fixture data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -213,8 +213,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     } catch (error) {
       console.error('Error toggling visibility:', error);
       toast({
-        title: "Error",
-        description: "Failed to update fixture",
+        title: "Update Failed",
+        description: "Could not update fixture visibility. Please try again.",
         variant: "destructive",
       });
     }
