@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 import { useHomeAuth } from "@/hooks/useHomeAuth";
 import { useHomeFixtures } from "@/hooks/useHomeFixtures";
+import { buildWhatsAppUrl } from "@/lib/constants";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -274,7 +275,7 @@ const Home = () => {
                     asChild
                   >
                     <a
-                      href={`https://wa.me/27836388389?text=${encodeURIComponent(`Hey Trybal! I want to be an official scorekeeper for ${userSchoolName}, I'll let you know what the final first team score is`)}`}
+                      href={buildWhatsAppUrl(`Hey Trybal! I want to be an official scorekeeper for ${userSchoolName}, I'll let you know what the final first team score is`)}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
