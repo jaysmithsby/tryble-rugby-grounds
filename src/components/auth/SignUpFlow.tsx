@@ -38,10 +38,11 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
   const [state, setState] = useState<OnboardingState>(defaultState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Load persisted state on mount
+  // Load persisted state on mount - only once
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -54,17 +55,22 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     }
   }, []);
 
-  // Persist state changes
+  // Persist state changes - but only after initial check is done to prevent overwriting with defaults
   useEffect(() => {
-    if (state.step > 1) {
+    if (state.step > 1 && initialCheckDone) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
-  }, [state]);
+  }, [state, initialCheckDone]);
 
-  // Check if user is already authenticated and verified
+  // Check if user is already authenticated and verified - run only once on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!isMounted) return;
+      
       if (user) {
         // Only advance past verification if email is actually confirmed
         if (user.email_confirmed_at) {
@@ -75,10 +81,13 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
             .eq("id", user.id)
             .single();
 
+          if (!isMounted) return;
+
           if (profile?.onboarding_completed_at) {
             // Onboarding complete, go to home
             localStorage.removeItem(STORAGE_KEY);
             navigate("/home");
+            return;
           } else if (profile?.first_name) {
             // Has profile but not completed onboarding
             setState(prev => ({
@@ -97,21 +106,32 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
               step: 3, // Go to profile setup
             }));
           }
-        } else if (state.step === 1) {
-          // User exists but is NOT verified - set to verification step
-          // Only set if we're on step 1 to avoid disrupting other flows
-          setState(prev => ({
-            ...prev,
-            userId: user.id,
-            email: user.email || "",
-            step: 2, // Stay on/go to verification step
-          }));
+        } else {
+          // User exists but is NOT verified
+          setState(prev => {
+            // Only update if we're on step 1 to avoid disrupting other flows
+            if (prev.step === 1) {
+              return {
+                ...prev,
+                userId: user.id,
+                email: user.email || "",
+                step: 2, // Stay on/go to verification step
+              };
+            }
+            return prev;
+          });
         }
       }
+      
+      setInitialCheckDone(true);
     };
 
     checkAuth();
-  }, [navigate, state.step]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]); // Remove state.step dependency to prevent loops
 
   const updateState = (updates: Partial<OnboardingState>) => {
     setState(prev => ({ ...prev, ...updates }));

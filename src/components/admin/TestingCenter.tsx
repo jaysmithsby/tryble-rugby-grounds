@@ -51,11 +51,11 @@ export function TestingCenter() {
     setIsSimulationMode,
     simulatedDate,
     setSimulatedDate,
-    getEffectiveWeek,
-    getEffectiveYear,
+    effectiveWeek,
+    effectiveYear,
     advanceToNextWeek,
     goToPreviousWeek,
-    getWeekendRange,
+    weekendRange,
   } = useSimulation();
 
   const [weekStats, setWeekStats] = useState<WeekStats>({
@@ -68,9 +68,8 @@ export function TestingCenter() {
   const [isResetting, setIsResetting] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const weekNumber = getEffectiveWeek();
-  const year = getEffectiveYear();
-  const weekendRange = getWeekendRange();
+  const weekNumber = effectiveWeek;
+  const year = effectiveYear;
 
   useEffect(() => {
     if (isSimulationMode) {

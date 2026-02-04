@@ -43,6 +43,7 @@ interface FixtureWithSchools {
 const Home = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
   const [userSchoolName, setUserSchoolName] = useState<string | null>(null);
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
@@ -259,30 +260,35 @@ const Home = () => {
       
       if (!user) {
         navigate("/auth");
-      } else {
-        setUser(user);
-        // Fetch user's profile info
-        supabase
-          .from("profiles")
-          .select("school_name, display_name, first_name")
-          .eq("id", user.id)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (!isMounted) return;
-            const schoolName = data?.school_name || null;
-            const displayName = data?.display_name || data?.first_name || null;
-            setUserSchoolName(schoolName);
-            setUserDisplayName(displayName);
-          });
+        return;
       }
-      setLoading(false);
+      
+      setUser(user);
+      
+      // Fetch user's profile info
+      supabase
+        .from("profiles")
+        .select("school_name, display_name, first_name")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!isMounted) return;
+          const schoolName = data?.school_name || null;
+          const displayName = data?.display_name || data?.first_name || null;
+          setUserSchoolName(schoolName);
+          setUserDisplayName(displayName);
+          setProfileLoaded(true);
+          setLoading(false);
+        });
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      
       if (!session) {
         navigate("/auth");
-      } else {
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setUser(session.user);
         // Fetch user's profile info
         supabase
@@ -296,6 +302,7 @@ const Home = () => {
             const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
             setUserDisplayName(displayName);
+            setProfileLoaded(true);
           });
       }
     });
@@ -307,12 +314,12 @@ const Home = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  // Refetch fixtures when effective date changes (simulation mode) or user/school changes
+  // Refetch fixtures only when profile is loaded and ready
   useEffect(() => {
-    if (user && userSchoolName !== undefined) {
+    if (user && profileLoaded) {
       fetchFixtures(user.id, userSchoolName);
     }
-  }, [fetchFixtures, user, userSchoolName]);
+  }, [fetchFixtures, user, userSchoolName, profileLoaded]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

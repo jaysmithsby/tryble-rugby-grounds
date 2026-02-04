@@ -1,17 +1,24 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getWeek, getYear, startOfWeek, endOfWeek, addDays, format } from "date-fns";
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
+import { getWeek, getYear, addDays } from "date-fns";
+
+interface WeekendRange {
+  start: Date;
+  end: Date;
+}
 
 interface SimulationContextType {
   isSimulationMode: boolean;
   setIsSimulationMode: (value: boolean) => void;
   simulatedDate: Date;
   setSimulatedDate: (date: Date) => void;
-  getEffectiveDate: () => Date;
-  getEffectiveWeek: () => number;
-  getEffectiveYear: () => number;
+  // Stable memoized values - use these instead of getters
+  effectiveDate: Date;
+  effectiveWeek: number;
+  effectiveYear: number;
+  weekendRange: WeekendRange;
+  // Actions
   advanceToNextWeek: () => void;
   goToPreviousWeek: () => void;
-  getWeekendRange: () => { start: Date; end: Date };
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
@@ -23,9 +30,33 @@ interface SimulationState {
   simulatedDate: string;
 }
 
+// Helper to calculate weekend range from a date
+function calculateWeekendRange(date: Date): WeekendRange {
+  const dayOfWeek = date.getDay();
+  
+  // Calculate Friday of the current week
+  const friday = new Date(date);
+  const daysSinceFriday = dayOfWeek >= 5 ? dayOfWeek - 5 : 7 - (5 - dayOfWeek);
+  
+  if (dayOfWeek >= 5) {
+    // We're on Friday or later - go back to this Friday
+    friday.setDate(date.getDate() - daysSinceFriday);
+  } else {
+    // We're before Friday - this is previous week's window, go back to last Friday
+    friday.setDate(date.getDate() - daysSinceFriday - 7);
+  }
+  friday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(friday);
+  sunday.setDate(friday.getDate() + 2);
+  sunday.setHours(23, 59, 59, 999);
+
+  return { start: friday, end: sunday };
+}
+
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const [isSimulationMode, setIsSimulationModeState] = useState(false);
-  const [simulatedDate, setSimulatedDateState] = useState(new Date(2025, 2, 1)); // March 1, 2025
+  const [simulatedDate, setSimulatedDateState] = useState(() => new Date(2025, 2, 1)); // March 1, 2025
   // Stable current date that only updates periodically (every minute) to prevent infinite re-renders
   const [stableCurrentDate, setStableCurrentDate] = useState(() => new Date());
 
@@ -74,18 +105,22 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     setSimulatedDateState(date);
   };
 
-  // Return stable date reference - simulation date when in sim mode, stable current date otherwise
-  const getEffectiveDate = () => {
+  // STABLE MEMOIZED VALUES - these only change when their dependencies change
+  const effectiveDate = useMemo(() => {
     return isSimulationMode ? simulatedDate : stableCurrentDate;
-  };
+  }, [isSimulationMode, simulatedDate, stableCurrentDate]);
 
-  const getEffectiveWeek = () => {
-    return getWeek(getEffectiveDate(), { weekStartsOn: 1 });
-  };
+  const effectiveWeek = useMemo(() => {
+    return getWeek(effectiveDate, { weekStartsOn: 1 });
+  }, [effectiveDate]);
 
-  const getEffectiveYear = () => {
-    return getYear(getEffectiveDate());
-  };
+  const effectiveYear = useMemo(() => {
+    return getYear(effectiveDate);
+  }, [effectiveDate]);
+
+  const weekendRange = useMemo(() => {
+    return calculateWeekendRange(effectiveDate);
+  }, [effectiveDate]);
 
   const advanceToNextWeek = () => {
     setSimulatedDateState((prev) => addDays(prev, 7));
@@ -95,46 +130,28 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     setSimulatedDateState((prev) => addDays(prev, -7));
   };
 
-  const getWeekendRange = () => {
-    const effectiveDate = getEffectiveDate();
-    const dayOfWeek = effectiveDate.getDay();
-    
-    // Calculate Friday of the current week
-    const friday = new Date(effectiveDate);
-    const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
-    const daysSinceFriday = dayOfWeek >= 5 ? dayOfWeek - 5 : 7 - (5 - dayOfWeek);
-    
-    if (dayOfWeek >= 5) {
-      // We're on Friday or later - go back to this Friday
-      friday.setDate(effectiveDate.getDate() - daysSinceFriday);
-    } else {
-      // We're before Friday - this is previous week's window, go back to last Friday
-      friday.setDate(effectiveDate.getDate() - daysSinceFriday - 7);
-    }
-    friday.setHours(0, 0, 0, 0);
-
-    const sunday = new Date(friday);
-    sunday.setDate(friday.getDate() + 2);
-    sunday.setHours(23, 59, 59, 999);
-
-    return { start: friday, end: sunday };
-  };
+  const contextValue = useMemo(() => ({
+    isSimulationMode,
+    setIsSimulationMode,
+    simulatedDate,
+    setSimulatedDate,
+    effectiveDate,
+    effectiveWeek,
+    effectiveYear,
+    weekendRange,
+    advanceToNextWeek,
+    goToPreviousWeek,
+  }), [
+    isSimulationMode,
+    simulatedDate,
+    effectiveDate,
+    effectiveWeek,
+    effectiveYear,
+    weekendRange,
+  ]);
 
   return (
-    <SimulationContext.Provider
-      value={{
-        isSimulationMode,
-        setIsSimulationMode,
-        simulatedDate,
-        setSimulatedDate,
-        getEffectiveDate,
-        getEffectiveWeek,
-        getEffectiveYear,
-        advanceToNextWeek,
-        goToPreviousWeek,
-        getWeekendRange,
-      }}
-    >
+    <SimulationContext.Provider value={contextValue}>
       {children}
     </SimulationContext.Provider>
   );
