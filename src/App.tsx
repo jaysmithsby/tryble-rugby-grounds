@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SimulationProvider } from "@/contexts/SimulationContext";
 import { SimulationBanner } from "@/components/SimulationBanner";
+import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
 import ForSchools from "./pages/ForSchools";
 import ForParents from "./pages/ForParents";
 import ForPlayers from "./pages/ForPlayers";
@@ -71,6 +72,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <CookieConsentBanner />
           </BrowserRouter>
         </TooltipProvider>
       </SimulationProvider>
