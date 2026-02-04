@@ -1,6 +1,10 @@
 /**
  * Beta Signup Edge Function
  * 
+ * INTENTIONALLY PUBLIC ENDPOINT:
+ * This endpoint is designed to be publicly accessible for landing page beta signups.
+ * Users must be able to sign up without authentication.
+ * 
  * DATA FLOW DISCLOSURE (GDPR/POPIA Compliance):
  * This function sends email addresses to Resend for notification delivery.
  * - Data sent: User email address only
@@ -11,7 +15,10 @@
  * 
  * SECURITY CONTROLS:
  * - Rate limited (3 requests/hour/IP)
- * - Input validation (email format)
+ * - Strict email validation (RFC 5322 compliant regex)
+ * - Honeypot field detection (bot protection)
+ * - Request size limit (prevents payload attacks)
+ * - Email sanitization (prevents injection)
  * - PII redacted from logs
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -23,6 +30,12 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 // Retry configuration
 const MAX_RETRIES = 3;
 const INITIAL_DELAY_MS = 1000;
+
+// Strict email validation regex (RFC 5322 simplified)
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+// Maximum request body size (1KB should be plenty for an email)
+const MAX_REQUEST_SIZE = 1024;
 
 async function sendEmailWithRetry(
   emailConfig: Parameters<typeof resend.emails.send>[0],
@@ -50,6 +63,7 @@ async function sendEmailWithRetry(
     return { success: false, error: errorMessage };
   }
 }
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -58,6 +72,9 @@ const corsHeaders = {
 
 interface BetaSignupRequest {
   email: string;
+  // Honeypot fields - if these are filled, it's likely a bot
+  website?: string;
+  phone?: string;
 }
 
 // Rate limit: 3 requests per hour per IP
@@ -106,11 +123,43 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email }: BetaSignupRequest = await req.json();
+    // Check request size to prevent payload attacks
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Request too large" }),
+        { status: 413, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
-    // Validate email
-    if (!email || !email.includes("@")) {
-      throw new Error("Invalid email address");
+    const body: BetaSignupRequest = await req.json();
+    const { email, website, phone } = body;
+
+    // Honeypot check - if hidden fields are filled, it's likely a bot
+    if (website || phone) {
+      console.log("Honeypot triggered - likely bot submission");
+      // Return success to not tip off the bot, but don't process
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Validate email with strict regex
+    if (!email || typeof email !== "string") {
+      return new Response(
+        JSON.stringify({ success: false, error: "Email is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const sanitizedEmail = email.trim().toLowerCase().slice(0, 254); // Max email length per RFC
+    
+    if (!EMAIL_REGEX.test(sanitizedEmail)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid email format" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     console.log("Processing beta signup for: [REDACTED]");
@@ -143,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="content">
               <p style="margin: 0 0 10px 0; color: #95D5B2;">A new fan wants to join the Trybal community:</p>
               <div style="text-align: center;">
-                <span class="email-badge">${email}</span>
+                <span class="email-badge">${sanitizedEmail}</span>
               </div>
             </div>
             <div class="footer">
