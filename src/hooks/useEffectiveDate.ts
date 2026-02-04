@@ -1,33 +1,20 @@
 import { useSimulation } from "@/contexts/SimulationContext";
-import { getWeek, getYear } from "date-fns";
 import { useMemo, useCallback } from "react";
 
 export function useEffectiveDate() {
   const simulation = useSimulation();
 
-  // Get the stable effectiveDate from context (now properly memoized in SimulationContext)
-  const effectiveDate = simulation.getEffectiveDate();
+  // All values are already memoized in the context - just destructure them
+  const { 
+    effectiveDate, 
+    effectiveWeek, 
+    effectiveYear, 
+    weekendRange, 
+    isSimulationMode 
+  } = simulation;
   
-  // Use timestamp for stable comparisons
+  // Use stable timestamp for callback dependencies
   const dateTimestamp = effectiveDate.getTime();
-  
-  // Memoize all derived values using the stable timestamp
-  const weekNumber = useMemo(() => 
-    getWeek(effectiveDate, { weekStartsOn: 1 }), 
-    [dateTimestamp]
-  );
-  
-  const seasonYear = useMemo(() => 
-    getYear(effectiveDate), 
-    [dateTimestamp]
-  );
-  
-  const isSimulation = simulation.isSimulationMode;
-  
-  // Memoize weekendRange to prevent infinite re-renders
-  const weekendRange = useMemo(() => {
-    return simulation.getWeekendRange();
-  }, [dateTimestamp]);
 
   // Get SAST time helper - memoized
   const getSASTTime = useCallback((date: Date = effectiveDate) => {
@@ -48,13 +35,22 @@ export function useEffectiveDate() {
     return false;
   }, [getSASTTime]);
 
-  return {
+  // Return stable object reference
+  return useMemo(() => ({
     effectiveDate,
-    weekNumber,
-    seasonYear,
-    isSimulation,
+    weekNumber: effectiveWeek,
+    seasonYear: effectiveYear,
+    isSimulation: isSimulationMode,
     weekendRange,
     getSASTTime,
     isWithinSubmissionWindow,
-  };
+  }), [
+    effectiveDate,
+    effectiveWeek,
+    effectiveYear,
+    isSimulationMode,
+    weekendRange,
+    getSASTTime,
+    isWithinSubmissionWindow,
+  ]);
 }

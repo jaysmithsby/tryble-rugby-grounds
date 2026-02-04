@@ -3,7 +3,7 @@ import { FlaskConical, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 export function SimulationBanner() {
-  const { isSimulationMode, simulatedDate, getEffectiveWeek, getEffectiveYear } = useSimulation();
+  const { isSimulationMode, simulatedDate, effectiveWeek, effectiveYear } = useSimulation();
 
   if (!isSimulationMode) {
     return null;
@@ -17,7 +17,7 @@ export function SimulationBanner() {
       <Calendar className="h-3.5 w-3.5" />
       <span>{format(simulatedDate, "MMM d, yyyy")}</span>
       <span className="opacity-75">•</span>
-      <span>Week {getEffectiveWeek()} of {getEffectiveYear()}</span>
+      <span>Week {effectiveWeek} of {effectiveYear}</span>
       <span className="opacity-75 hidden sm:inline">•</span>
       <span className="text-xs opacity-90 hidden sm:inline">All schools visible</span>
     </div>
