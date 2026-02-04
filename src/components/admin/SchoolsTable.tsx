@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,8 @@ import {
   getCompletenessBadgeVariant,
   FIELD_LABELS,
 } from "@/lib/schoolCompleteness";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "./PaginationControls";
 
 type SortField = 'name' | 'province' | 'completeness' | 'established' | 'rival' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -89,8 +91,11 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [provinces, setProvinces] = useState<string[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
   const { toast } = useToast();
+
+  const pagination = usePagination(1, 25);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -99,6 +104,7 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
       setSortField(field);
       setSortDirection('asc');
     }
+    pagination.goToPage(1);
   };
 
   const getSortIcon = (field: SortField) => {
@@ -110,16 +116,92 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
       : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
+  // Fetch provinces once for filter dropdown
   useEffect(() => {
-    fetchSchools();
-  }, [refreshTrigger]);
+    const fetchProvinces = async () => {
+      const { data } = await supabase
+        .from('schools')
+        .select('province')
+        .not('province', 'is', null);
+      
+      if (data) {
+        const uniqueProvinces = [...new Set(data.map(s => s.province).filter(Boolean))];
+        setProvinces(uniqueProvinces.sort() as string[]);
+      }
+    };
+    fetchProvinces();
+  }, []);
 
-  const fetchSchools = async () => {
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    pagination.goToPage(1);
+  }, [debouncedSearch, provinceFilter, statusFilter, completenessFilter, archiveFilter]);
+
+  const fetchSchools = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("*")
-        .order("name");
+      setLoading(true);
+
+      // Build count query
+      let countQuery = supabase
+        .from('schools')
+        .select('*', { count: 'exact', head: true });
+
+      // Apply filters
+      if (archiveFilter === 'active') {
+        countQuery = countQuery.eq('is_archived', false);
+      } else if (archiveFilter === 'archived') {
+        countQuery = countQuery.eq('is_archived', true);
+      }
+      if (provinceFilter !== 'all') {
+        countQuery = countQuery.eq('province', provinceFilter);
+      }
+      if (statusFilter !== 'all') {
+        countQuery = countQuery.eq('status', statusFilter);
+      }
+      if (debouncedSearch) {
+        countQuery = countQuery.or(
+          `name.ilike.%${debouncedSearch}%,province.ilike.%${debouncedSearch}%,main_rival.ilike.%${debouncedSearch}%`
+        );
+      }
+
+      const { count, error: countError } = await countQuery;
+      if (countError) console.error('Count error:', countError);
+      
+      pagination.setTotalCount(count || 0);
+
+      // Build data query
+      let dataQuery = supabase
+        .from('schools')
+        .select('*');
+
+      // Apply same filters
+      if (archiveFilter === 'active') {
+        dataQuery = dataQuery.eq('is_archived', false);
+      } else if (archiveFilter === 'archived') {
+        dataQuery = dataQuery.eq('is_archived', true);
+      }
+      if (provinceFilter !== 'all') {
+        dataQuery = dataQuery.eq('province', provinceFilter);
+      }
+      if (statusFilter !== 'all') {
+        dataQuery = dataQuery.eq('status', statusFilter);
+      }
+      if (debouncedSearch) {
+        dataQuery = dataQuery.or(
+          `name.ilike.%${debouncedSearch}%,province.ilike.%${debouncedSearch}%,main_rival.ilike.%${debouncedSearch}%`
+        );
+      }
+
+      // Apply sorting (completeness is calculated client-side, so sort by name for that)
+      const sortColumn = sortField === 'completeness' ? 'name'
+        : sortField === 'established' ? 'established_year'
+        : sortField === 'rival' ? 'main_rival'
+        : sortField;
+      
+      dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' });
+      dataQuery = dataQuery.range(pagination.from, pagination.to);
+
+      const { data, error } = await dataQuery;
 
       if (error) throw error;
       setSchools(data || []);
@@ -133,7 +215,11 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.from, pagination.to, debouncedSearch, provinceFilter, statusFilter, archiveFilter, sortField, sortDirection, toast]);
+
+  useEffect(() => {
+    fetchSchools();
+  }, [fetchSchools, refreshTrigger]);
 
   const handleArchive = async (id: string) => {
     try {
@@ -195,7 +281,7 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     }
   };
 
-  // Calculate completeness for each school
+  // Calculate completeness for each school (client-side since it's complex logic)
   const schoolsWithCompleteness = useMemo(() => {
     return schools.map(school => ({
       ...school,
@@ -215,76 +301,25 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     }));
   }, [schools]);
 
-  // Get unique provinces for filter dropdown
-  const provinces = useMemo(() => {
-    const uniqueProvinces = [...new Set(schools.map(s => s.province).filter(Boolean))];
-    return uniqueProvinces.sort() as string[];
-  }, [schools]);
-
-  // Filter and sort schools
+  // Filter by completeness (client-side since it's calculated)
   const filteredSchools = useMemo(() => {
-    const filtered = schoolsWithCompleteness.filter((school) => {
-      const query = debouncedSearch.toLowerCase();
-      const matchesSearch =
-        debouncedSearch === "" ||
-        school.name.toLowerCase().includes(query) ||
-        school.province?.toLowerCase().includes(query) ||
-        school.main_rival?.toLowerCase().includes(query) ||
-        school.established_year?.toString().includes(query);
+    if (completenessFilter === 'all') return schoolsWithCompleteness;
+    
+    return schoolsWithCompleteness.filter(school => 
+      (completenessFilter === 'complete' && school.completeness.percentage >= 100) ||
+      (completenessFilter === 'incomplete' && school.completeness.percentage < 100)
+    );
+  }, [schoolsWithCompleteness, completenessFilter]);
 
-      const matchesProvince =
-        provinceFilter === "all" || school.province === provinceFilter;
-
-      const matchesStatus =
-        statusFilter === "all" || school.status === statusFilter;
-
-      const matchesCompleteness =
-        completenessFilter === "all" ||
-        (completenessFilter === "complete" && school.completeness.percentage >= 100) ||
-        (completenessFilter === "incomplete" && school.completeness.percentage < 100);
-
-      const matchesArchive =
-        archiveFilter === "all" ||
-        (archiveFilter === "active" && !school.is_archived) ||
-        (archiveFilter === "archived" && school.is_archived);
-
-      return matchesSearch && matchesProvince && matchesStatus && matchesCompleteness && matchesArchive;
-    });
-
-    // Sort results based on sortField and sortDirection
-    return filtered.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'province':
-          const provA = a.province || '';
-          const provB = b.province || '';
-          comparison = provA.localeCompare(provB);
-          break;
-        case 'completeness':
-          comparison = a.completeness.percentage - b.completeness.percentage;
-          break;
-        case 'established':
-          const yearA = a.established_year || 0;
-          const yearB = b.established_year || 0;
-          comparison = yearA - yearB;
-          break;
-        case 'rival':
-          const rivalA = a.main_rival || '';
-          const rivalB = b.main_rival || '';
-          comparison = rivalA.localeCompare(rivalB);
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
-          break;
-      }
-      
+  // Sort by completeness if needed (client-side)
+  const sortedSchools = useMemo(() => {
+    if (sortField !== 'completeness') return filteredSchools;
+    
+    return [...filteredSchools].sort((a, b) => {
+      const comparison = a.completeness.percentage - b.completeness.percentage;
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter, archiveFilter, sortField, sortDirection]);
+  }, [filteredSchools, sortField, sortDirection]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -294,9 +329,10 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     setArchiveFilter("active");
     setSortField("name");
     setSortDirection("asc");
+    pagination.goToPage(1);
   };
 
-  if (loading) {
+  if (loading && schools.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -426,12 +462,12 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredSchools.length === 0 ? (
+            {sortedSchools.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <p>
-                      {schools.length === 0
+                      {pagination.totalCount === 0
                         ? "No schools found"
                         : "No matches found for your search"}
                     </p>
@@ -450,7 +486,7 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredSchools.map((school) => (
+              sortedSchools.map((school) => (
                  <TableRow key={school.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -550,11 +586,8 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
         </Table>
       </div>
 
-      {/* Results count */}
-      <div className="text-sm text-muted-foreground mt-4">
-        Showing {filteredSchools.length} of {schools.length} schools
-        {archiveFilter === "archived" && " (archived)"}
-      </div>
+      {/* Pagination Controls */}
+      <PaginationControls pagination={pagination} loading={loading} />
 
       {/* Archive Confirmation Dialog */}
       <AlertDialog open={archiveId !== null} onOpenChange={() => setArchiveId(null)}>
