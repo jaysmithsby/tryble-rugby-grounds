@@ -23,6 +23,11 @@ export default function Admin() {
   const [selectedFixture, setSelectedFixture] = useState<any>(null);
   const [fixturesKey, setFixturesKey] = useState(0);
 
+  // Check admin access on mount
+  useEffect(() => {
+    checkAdminAccess();
+  }, []);
+
   // Callback to trigger refresh of fixtures table
   const handleFixtureChange = () => {
     setFixturesKey(prev => prev + 1);
