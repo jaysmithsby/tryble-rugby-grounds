@@ -19,6 +19,7 @@ interface OnboardingState {
   userType?: string;
   yearOfBirth?: number;
   schoolName: string;
+  parentEmail?: string;
   userId?: string;
 }
 
@@ -172,11 +173,16 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     userType: string;
     yearOfBirth: number;
     schoolName: string;
+    parentEmail?: string;
   }) => {
     if (!state.userId) return;
 
     setLoading(true);
     try {
+      // Determine if user is a minor
+      const currentYear = new Date().getFullYear();
+      const isMinor = currentYear - data.yearOfBirth < 18;
+      
       // Update the profile
       const { error: updateError } = await supabase
         .from("profiles")
@@ -187,16 +193,36 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
           school_name: data.schoolName,
           contact_method: "email",
           contact_value: state.email,
+          // Set account type and consent fields for minors
+          account_type: isMinor ? "minor" : "adult",
+          parent_email: isMinor ? data.parentEmail : null,
+          consent_status: isMinor ? "pending" : null,
         })
         .eq("id", state.userId);
 
       if (updateError) throw updateError;
+
+      // If minor, trigger consent email
+      if (isMinor && data.parentEmail) {
+        try {
+          await supabase.functions.invoke("send-parental-consent", {
+            body: {
+              parentEmail: data.parentEmail,
+              childFirstName: data.firstName,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send consent email:", emailError);
+          // Don't block onboarding if email fails
+        }
+      }
 
       updateState({
         firstName: data.firstName,
         userType: data.userType,
         yearOfBirth: data.yearOfBirth,
         schoolName: data.schoolName,
+        parentEmail: data.parentEmail,
         step: 4,
       });
     } catch (e: any) {
@@ -278,6 +304,7 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
             userType={state.userType}
             yearOfBirth={state.yearOfBirth}
             schoolName={state.schoolName}
+            parentEmail={state.parentEmail}
             onNext={handleProfileComplete}
             loading={loading}
           />

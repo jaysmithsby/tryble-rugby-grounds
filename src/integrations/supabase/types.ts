@@ -249,6 +249,51 @@ export type Database = {
         }
         Relationships: []
       }
+      parental_consent_requests: {
+        Row: {
+          child_user_id: string
+          consent_token: string
+          created_at: string | null
+          email_sent_at: string | null
+          expires_at: string | null
+          first_request_at: string | null
+          id: string
+          parent_email: string
+          parent_user_id: string | null
+          request_count: number | null
+          status: string
+          verified_at: string | null
+        }
+        Insert: {
+          child_user_id: string
+          consent_token?: string
+          created_at?: string | null
+          email_sent_at?: string | null
+          expires_at?: string | null
+          first_request_at?: string | null
+          id?: string
+          parent_email: string
+          parent_user_id?: string | null
+          request_count?: number | null
+          status?: string
+          verified_at?: string | null
+        }
+        Update: {
+          child_user_id?: string
+          consent_token?: string
+          created_at?: string | null
+          email_sent_at?: string | null
+          expires_at?: string | null
+          first_request_at?: string | null
+          id?: string
+          parent_email?: string
+          parent_user_id?: string | null
+          request_count?: number | null
+          status?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       pool_members: {
         Row: {
           id: string
@@ -920,10 +965,19 @@ export type Database = {
         Args: { p_fixture_id: string }
         Returns: number
       }
+      can_change_parent_email: {
+        Args: { p_user_id: string }
+        Returns: {
+          can_change: boolean
+          changes_remaining: number
+          next_change_at: string
+        }[]
+      }
       check_all_members_voted: {
         Args: { pool_id_param: string }
         Returns: boolean
       }
+      check_parent_email_limit: { Args: { p_email: string }; Returns: boolean }
       finalize_pool_voting: {
         Args: { pool_id_param: string }
         Returns: undefined
