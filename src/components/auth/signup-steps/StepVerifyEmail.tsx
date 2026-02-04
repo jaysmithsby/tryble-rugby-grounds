@@ -90,18 +90,28 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
   const handleCheckManually = async () => {
     setChecking(true);
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
+      // Refresh the session first to get latest user state
+      const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
       
-      if (user?.email_confirmed_at) {
+      if (refreshError) {
+        // Try getUser as fallback
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        
+        if (user?.email_confirmed_at) {
+          onVerified();
+          return;
+        }
+      } else if (session?.user?.email_confirmed_at) {
         onVerified();
-      } else {
-        toast({
-          title: "Not verified yet",
-          description: "Please click the link in your email to verify.",
-          variant: "destructive",
-        });
+        return;
       }
+      
+      toast({
+        title: "Not verified yet",
+        description: "Please click the link in your email to verify your account.",
+        variant: "destructive",
+      });
     } catch (error: any) {
       toast({
         title: "Error checking verification",

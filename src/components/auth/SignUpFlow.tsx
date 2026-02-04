@@ -65,6 +65,7 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Only advance past verification if email is actually confirmed
         if (user.email_confirmed_at) {
           // User is verified, check if profile is complete
           const { data: profile } = await supabase
@@ -95,20 +96,21 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
               step: 3, // Go to profile setup
             }));
           }
-        } else {
-          // Not verified yet
+        } else if (state.step === 1) {
+          // User exists but is NOT verified - set to verification step
+          // Only set if we're on step 1 to avoid disrupting other flows
           setState(prev => ({
             ...prev,
             userId: user.id,
             email: user.email || "",
-            step: 2, // Stay on verification
+            step: 2, // Stay on/go to verification step
           }));
         }
       }
     };
 
     checkAuth();
-  }, [navigate]);
+  }, [navigate, state.step]);
 
   const updateState = (updates: Partial<OnboardingState>) => {
     setState(prev => ({ ...prev, ...updates }));
