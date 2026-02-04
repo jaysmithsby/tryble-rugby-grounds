@@ -49,4 +49,11 @@ export const RESULT_OPTIONS = [
 export const currentYear = new Date().getFullYear();
 export const YEARS = Array.from({ length: 30 }, (_, i) => (currentYear - i).toString());
 
+/**
+ * Year threshold for determining default fixture status.
+ * Fixtures in this year or later default to "upcoming" status.
+ * Update this when moving to a new season.
+ */
+export const UPCOMING_YEAR_THRESHOLD = 2026;
+
 export const generateId = () => Math.random().toString(36).substring(2, 9);

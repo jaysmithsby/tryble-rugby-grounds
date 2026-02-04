@@ -50,6 +50,7 @@ import {
   currentYear,
   generateId,
   parseFixtureData,
+  UPCOMING_YEAR_THRESHOLD,
 } from "@/lib/fixtureParser";
 
 interface HistoricalFixturesUploadProps {
@@ -91,7 +92,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
 
   function createEmptyRow(): FixtureRow {
     const yearNum = parseInt(defaultYear);
-    const defaultResult = yearNum >= 2026 ? "upcoming" : "won";
+    const defaultResult = yearNum >= UPCOMING_YEAR_THRESHOLD ? "upcoming" : "won";
     
     return {
       id: generateId(),
@@ -261,7 +262,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
 
   const addRow = () => {
     const yearNum = parseInt(defaultYear);
-    const defaultResult = yearNum >= 2026 ? "upcoming" : "won";
+    const defaultResult = yearNum >= UPCOMING_YEAR_THRESHOLD ? "upcoming" : "won";
     setRows(prev => [...prev, { ...createEmptyRow(), year: defaultYear, result: defaultResult }]);
   };
 
@@ -280,7 +281,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       
       if (field === "year") {
         const yearNum = parseInt(value);
-        if (yearNum >= 2026) {
+        if (yearNum >= UPCOMING_YEAR_THRESHOLD) {
           updatedRow.result = "upcoming";
         }
       }
