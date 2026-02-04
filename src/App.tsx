@@ -33,7 +33,31 @@ import JoinPool from "./pages/JoinPool";
 import ParentConsent from "./pages/ParentConsent";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+/**
+ * QueryClient Configuration
+ * 
+ * Global cache settings optimized for mobile/desktop navigation:
+ * - staleTime: How long data is considered fresh (won't refetch)
+ * - gcTime: How long unused data stays in cache before garbage collection
+ * 
+ * These defaults ensure instant page transitions while still keeping data fresh.
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Default: keep data fresh for 2 minutes (prevents refetch on quick nav)
+      staleTime: 2 * 60 * 1000,
+      // Keep unused data in cache for 10 minutes
+      gcTime: 10 * 60 * 1000,
+      // Don't refetch when window regains focus (reduces network noise)
+      refetchOnWindowFocus: false,
+      // Retry failed queries once
+      retry: 1,
+      // Don't refetch when remounting (preserves cache during navigation)
+      refetchOnMount: false,
+    },
+  },
+});
 
 const App = () => {
   // Initialize error tracking on mount
