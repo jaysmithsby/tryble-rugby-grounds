@@ -16,6 +16,7 @@ import Index from "./pages/Index";
 import About from "./pages/About";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
+import Fixtures from "./pages/Fixtures";
 import Profile from "./pages/Profile";
 import Badges from "./pages/Badges";
 import Leaderboard from "./pages/Leaderboard";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/home" element={<Home />} />
+              <Route path="/fixtures" element={<Fixtures />} />
               <Route path="/profile" element={<Profile />} />
               {/* Badges hidden for MVP - will be re-enabled in v2 */}
               {/* <Route path="/badges" element={<Badges />} /> */}
