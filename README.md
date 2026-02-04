@@ -1,73 +1,187 @@
-# Welcome to your Lovable project
+# Trybal - Schools Rugby Prediction Platform
 
-## Project info
+A mobile-first web application for South African schools rugby predictions, pools, and leaderboards.
 
-**URL**: https://lovable.dev/projects/b8e41dda-abcd-444d-930c-f7d6931f0ae2
+**Live URL**: https://tryble-rugby-grounds.lovable.app
 
-## How can I edit this code?
+## 🏉 Overview
 
-There are several ways of editing your application.
+Trybal allows users to predict rugby match outcomes for South African schools, compete in leaderboards, and join pools with friends. The platform includes special features for minors with parental consent requirements.
 
-**Use Lovable**
+## 🏗️ Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b8e41dda-abcd-444d-930c-f7d6931f0ae2) and start prompting.
+### Tech Stack
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **Backend**: Supabase (Lovable Cloud)
+  - PostgreSQL database with Row Level Security
+  - Edge Functions (Deno) for server-side logic
+  - Realtime subscriptions for live updates
+- **Mobile**: Capacitor for iOS/Android builds
 
-Changes made via Lovable will be committed automatically to this repo.
+### Project Structure
+```
+src/
+├── components/
+│   ├── admin/          # Admin panel components
+│   ├── auth/           # Authentication flows
+│   ├── consent/        # Parental consent UI
+│   ├── fixtures/       # Fixture display components
+│   ├── home/           # Home page widgets
+│   ├── pools/          # Pool management
+│   ├── scores/         # Score submission
+│   └── ui/             # Reusable UI components (shadcn)
+├── hooks/              # Custom React hooks
+├── lib/                # Utilities and helpers
+│   ├── fixtureParser/  # CSV/paste import parsing
+│   └── constants.ts    # App-wide constants
+├── pages/              # Route components
+└── integrations/       # Supabase client & types
+supabase/
+├── functions/          # Edge functions
+└── migrations/         # Database migrations
+```
 
-**Use your preferred IDE**
+## 📊 Database Schema
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Core Tables
+| Table | Purpose |
+|-------|---------|
+| `profiles` | User profiles with school, age band, consent status |
+| `schools` | School master data with jerseys, colors, provinces |
+| `fixtures` | Match data with home/away schools, scores, dates |
+| `predictions` | User predictions with team, margin, points earned |
+| `pools` | User-created prediction pools |
+| `pool_members` | Pool membership mapping |
+| `tournaments` | Festival/tournament events |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Compliance Tables
+| Table | Purpose |
+|-------|---------|
+| `parental_consent_requests` | Tracks minor consent requests |
+| `user_sanctions` | Bans, suspensions, warnings |
+| `admin_audit_log` | Immutable admin action log |
+| `user_reports` | Community moderation reports |
 
-Follow these steps:
+## 🔒 Business Rules
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Parental Consent (Minors)
+- **Minor Definition**: `currentYear - yearOfBirth < 18` (exception: users turning 18 this year are adults)
+- **Restrictions for Unverified Minors**:
+  - Cannot create/join custom pools
+  - Cannot predict on non-affiliated school fixtures
+- **Consent Flow**:
+  1. Minor provides parent email during signup
+  2. System sends verification email via Resend
+  3. Parent clicks link to verify (30-day expiry)
+  4. Consent stored in `parental_consent_requests`
+- **Limits**: Max 10 children per parent email; 3 email changes per 24 hours
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Prediction Scoring
+- Correct winner prediction: **3 points**
+- Exact margin bonus: **+2 points**
+- Predictions lock at match kickoff time
+- Draws treated as separate outcome
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Fixture Status Flow
+```
+upcoming → live → completed
+                ↘ cancelled
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Year Threshold
+- Fixtures in year ≥ `UPCOMING_YEAR_THRESHOLD` (2026) default to "upcoming" status
+- Historical fixtures default to "won" for the home school
+
+## 🛠️ Environment Setup
+
+### Prerequisites
+- Node.js 18+ (use nvm)
+- Bun (optional, for faster installs)
+
+### Local Development
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Environment Variables
+The `.env` file is auto-managed by Lovable Cloud. Required variables:
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_PUBLISHABLE_KEY` - Anon key for client
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Edge Function Secrets
+Managed via Lovable Cloud > Secrets:
+- `RESEND_API_KEY` - Email delivery for consent
 
-**Use GitHub Codespaces**
+## 👨‍💼 Admin Panel
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Access: `/admin` (requires `admin` role in `user_roles` table)
 
-## What technologies are used for this project?
+### Features
+| Tab | Purpose |
+|-----|---------|
+| Schools | Manage school data, jerseys, archive/restore |
+| Fixtures | CRUD fixtures, bulk imports, visibility toggle |
+| Tournaments | Create/edit festivals and tournaments |
+| Pool Packs | Pre-made school collections for pools |
+| Users | View profiles, apply sanctions, view activity |
+| Reports | Review community reports, take action |
+| Ads | Manage carousel advertisements |
+| News | Manage news carousel items |
+| Analytics | User growth, moderation workload charts |
 
-This project is built with:
+### Historical Fixtures Upload
+- Supports markdown tables, TSV, and concatenated text
+- Fuzzy matching for school names (handles abbreviations)
+- Auto-creates missing schools/tournaments
+- See `src/lib/fixtureParser/` for parsing logic
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🧪 Testing
 
-## How can I deploy this project?
+```bash
+# Run unit tests
+npm run test
 
-Simply open [Lovable](https://lovable.dev/projects/b8e41dda-abcd-444d-930c-f7d6931f0ae2) and click on Share -> Publish.
+# Run with coverage
+npm run test -- --coverage
+```
 
-## Can I connect a custom domain to my Lovable project?
+Test files located alongside source files with `.test.ts(x)` suffix.
 
-Yes, you can!
+## 📱 Mobile Builds
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Uses Capacitor for native builds:
+```bash
+# Sync web assets to native projects
+npx cap sync
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# Open in Xcode (iOS)
+npx cap open ios
+
+# Open in Android Studio
+npx cap open android
+```
+
+## 🔗 Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `src/lib/constants.ts` | App-wide configuration values |
+| `src/lib/fixtureParser/` | Import parsing and fuzzy matching |
+| `src/hooks/useConsentStatus.ts` | Minor consent checking hook |
+| `src/hooks/useEffectiveDate.ts` | Simulation mode date handling |
+| `src/components/ErrorBoundary.tsx` | Global error catching |
+| `src/lib/logger.ts` | Structured logging with PII sanitization |
+
+## 📞 Contact
+
+- WhatsApp Support: +27 83 638 8389
+- Scorekeeper Applications: Via WhatsApp with school name
+
+---
+
+Built with [Lovable](https://lovable.dev)
