@@ -174,8 +174,10 @@ export const usePreloadJerseyImages = (urls: (string | null | undefined)[]) => {
     const validUrls = urls.filter((url): url is string => !!url);
     
     validUrls.forEach((url) => {
-      // Pre-cache in IndexedDB
-      fetchAndCacheImage(url).catch(() => {});
+      // Pre-cache in IndexedDB - log failures but don't block
+      fetchAndCacheImage(url).catch((error) => {
+        console.debug(`[JerseyPreload] Failed to pre-cache: ${url}`, error);
+      });
     });
   }, [urls]);
 };

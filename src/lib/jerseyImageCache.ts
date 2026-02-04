@@ -76,8 +76,9 @@ export const cacheImage = async (url: string, blob: Blob): Promise<void> => {
     };
 
     store.put(cachedImage);
-  } catch {
-    // Silently fail - caching is optional
+  } catch (error) {
+    // Caching is optional - log for debugging but don't block
+    console.debug('[JerseyCache] Failed to cache image:', url, error);
   }
 };
 
@@ -87,8 +88,9 @@ const deleteCachedImage = async (url: string): Promise<void> => {
     const transaction = db.transaction(STORE_NAME, "readwrite");
     const store = transaction.objectStore(STORE_NAME);
     store.delete(url);
-  } catch {
-    // Silently fail
+  } catch (error) {
+    // Deletion is non-critical - log for debugging
+    console.debug('[JerseyCache] Failed to delete cached image:', url, error);
   }
 };
 
