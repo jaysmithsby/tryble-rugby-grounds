@@ -42,7 +42,7 @@ const PII_PATTERNS = [
 /**
  * Sanitize a string to remove PII
  */
-function sanitizeString(str: string): string {
+export function sanitizePII(str: string): string {
   let sanitized = str;
   for (const { pattern, replacement } of PII_PATTERNS) {
     sanitized = sanitized.replace(pattern, replacement);
@@ -55,7 +55,7 @@ function sanitizeString(str: string): string {
  */
 function sanitizeValue(value: unknown): unknown {
   if (typeof value === 'string') {
-    return sanitizeString(value);
+    return sanitizePII(value);
   }
   if (Array.isArray(value)) {
     return value.map(sanitizeValue);
@@ -129,7 +129,7 @@ function log(level: LogLevel, message: string, context?: LogContext): void {
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
-    message: sanitizeString(message),
+    message: sanitizePII(message),
     context: sanitizedContext,
   };
 
