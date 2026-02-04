@@ -1,7 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
 import { BottomNav } from "@/components/BottomNav";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
@@ -17,48 +15,40 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
-
-interface FixtureWithSchools {
-  id: string;
-  match_date: string;
-  venue: string;
-  status: string;
-  home_score: number | null;
-  away_score: number | null;
-  is_derby: boolean | null;
-  home_school: {
-    id: string;
-    name: string;
-    slug: string;
-    jersey_url: string | null;
-  };
-  away_school: {
-    id: string;
-    name: string;
-    slug: string;
-    jersey_url: string | null;
-  };
-}
+import { useHomeAuth } from "@/hooks/useHomeAuth";
+import { useHomeFixtures } from "@/hooks/useHomeFixtures";
 
 const Home = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profileLoaded, setProfileLoaded] = useState(false);
-  const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
-  const [userSchoolName, setUserSchoolName] = useState<string | null>(null);
-  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
-  const [upcomingFixtures, setUpcomingFixtures] = useState<FixtureWithSchools[]>([]);
-  const [recentFixtures, setRecentFixtures] = useState<FixtureWithSchools[]>([]);
-  const [userSchoolFixture, setUserSchoolFixture] = useState<FixtureWithSchools | null>(null);
-  const [fixturesLoading, setFixturesLoading] = useState(true);
-  const [hasNoPools, setHasNoPools] = useState(false);
   const navigate = useNavigate();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
+  const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
   
-  // Store stable primitive timestamps for useCallback dependencies
-  const effectiveDateTimestamp = effectiveDate.getTime();
-  const weekendStartTimestamp = weekendRange.start.getTime();
-  const weekendEndTimestamp = weekendRange.end.getTime();
+  // Auth and profile data
+  const {
+    user,
+    loading,
+    profileLoaded,
+    userSchoolName,
+    userDisplayName,
+    handleSignOut,
+  } = useHomeAuth();
+
+  // Fixtures data
+  const {
+    upcomingFixtures,
+    recentFixtures,
+    userSchoolFixture,
+    hasNoPools,
+    fixturesLoading,
+  } = useHomeFixtures({
+    userId: user?.id || null,
+    userSchoolName,
+    effectiveDate,
+    weekendStart: weekendRange.start,
+    weekendEnd: weekendRange.end,
+    seasonYear,
+    profileLoaded,
+  });
 
   // Handle prediction submission
   const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number) => {
@@ -66,264 +56,6 @@ const Home = () => {
       ...prev,
       [matchId]: { team, margin }
     }));
-  };
-
-  // Fetch fixtures from database - uses stable timestamp primitives as dependencies
-  const fetchFixtures = useCallback(async (userId: string, schoolName?: string | null) => {
-    setFixturesLoading(true);
-    try {
-      // Create dates from stable timestamps inside the function
-      const now = new Date(effectiveDateTimestamp).toISOString();
-      
-      // First, fetch the user's pools and their schools
-      const { data: poolMemberships } = await supabase
-        .from("pool_members")
-        .select("pool_id")
-        .eq("user_id", userId);
-
-      let poolSchoolNames: string[] = [];
-      const userHasPools = poolMemberships && poolMemberships.length > 0;
-      setHasNoPools(!userHasPools);
-      
-      if (userHasPools) {
-        const poolIds = poolMemberships.map(pm => pm.pool_id);
-        const { data: pools } = await supabase
-          .from("pools")
-          .select("schools")
-          .in("id", poolIds)
-          .eq("is_active", true);
-        
-        if (pools) {
-          // Flatten all school names from all pools
-          poolSchoolNames = pools
-            .flatMap(p => p.schools || [])
-            .filter((name, index, self) => self.indexOf(name) === index); // Dedupe
-        }
-      }
-
-      // Get school IDs for the pool schools
-      let poolSchoolIds: string[] = [];
-      if (poolSchoolNames.length > 0) {
-        const { data: schoolsData } = await supabase
-          .from("schools")
-          .select("id, name")
-          .in("name", poolSchoolNames);
-        
-        if (schoolsData) {
-          poolSchoolIds = schoolsData.map(s => s.id);
-        }
-      }
-
-      // Fetch upcoming fixtures that involve pool schools
-      let upcomingQuery = supabase
-        .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          venue,
-          status,
-          home_score,
-          away_score,
-          is_derby,
-          home_school_id,
-          away_school_id,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-        `)
-        .eq("is_visible", true)
-        .eq("status", "upcoming")
-        .eq("year", seasonYear)
-        .gte("match_date", now)
-        .order("match_date", { ascending: true })
-        .limit(20);
-
-      const { data: allUpcoming, error: upcomingError } = await upcomingQuery;
-
-      if (upcomingError) {
-        console.error("Error fetching upcoming fixtures:", upcomingError);
-      } else {
-        // Filter to only fixtures involving pool schools (if user has pools)
-        let filteredUpcoming = (allUpcoming || []);
-        if (poolSchoolIds.length > 0) {
-          filteredUpcoming = filteredUpcoming.filter(f => 
-            poolSchoolIds.includes(f.home_school_id) || poolSchoolIds.includes(f.away_school_id)
-          );
-        }
-        
-        const formattedUpcoming = filteredUpcoming.slice(0, 10).map(f => ({
-          id: f.id,
-          match_date: f.match_date,
-          venue: f.venue,
-          status: f.status,
-          home_score: f.home_score,
-          away_score: f.away_score,
-          is_derby: f.is_derby,
-          home_school: f.home_school as unknown as FixtureWithSchools['home_school'],
-          away_school: f.away_school as unknown as FixtureWithSchools['away_school'],
-        }));
-        setUpcomingFixtures(formattedUpcoming);
-      }
-
-      // Fetch recent completed fixtures (last 7 days from effective date)
-      const sevenDaysAgo = new Date(effectiveDateTimestamp - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: recent, error: recentError } = await supabase
-        .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          venue,
-          status,
-          home_score,
-          away_score,
-          is_derby,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-        `)
-        .eq("is_visible", true)
-        .eq("status", "completed")
-        .eq("year", seasonYear)
-        .gte("match_date", sevenDaysAgo)
-        .lte("match_date", now)
-        .order("match_date", { ascending: false })
-        .limit(10);
-
-      if (recentError) {
-        console.error("Error fetching recent fixtures:", recentError);
-      } else {
-        const formattedRecent = (recent || []).map(f => ({
-          ...f,
-          home_school: f.home_school as unknown as FixtureWithSchools['home_school'],
-          away_school: f.away_school as unknown as FixtureWithSchools['away_school'],
-        }));
-        setRecentFixtures(formattedRecent);
-      }
-
-      // Fetch user's school fixture for this weekend if they have a school
-      if (schoolName) {
-        // First get the school ID
-        const { data: schoolData } = await supabase
-          .from("schools")
-          .select("id")
-          .eq("name", schoolName)
-          .maybeSingle();
-
-        if (schoolData) {
-          // Use stable timestamps to create dates inside the function
-          const friday = new Date(weekendStartTimestamp);
-          const sunday = new Date(weekendEndTimestamp);
-
-          const { data: schoolFixture } = await supabase
-            .from("fixtures")
-            .select(`
-              id,
-              match_date,
-              venue,
-              status,
-              home_score,
-              away_score,
-              is_derby,
-              home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-              away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-            `)
-            .eq("is_visible", true)
-            .eq("year", seasonYear)
-            .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
-            .gte("match_date", friday.toISOString())
-            .lte("match_date", sunday.toISOString())
-            .order("match_date", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
-          if (schoolFixture) {
-            setUserSchoolFixture({
-              ...schoolFixture,
-              home_school: schoolFixture.home_school as unknown as FixtureWithSchools['home_school'],
-              away_school: schoolFixture.away_school as unknown as FixtureWithSchools['away_school'],
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching fixtures:", error);
-    } finally {
-      setFixturesLoading(false);
-    }
-  }, [effectiveDateTimestamp, seasonYear, weekendStartTimestamp, weekendEndTimestamp]);
-
-  // Initial auth check and setup - runs once on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    // Check if user is logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!isMounted) return;
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-      
-      setUser(user);
-      
-      // Fetch user's profile info
-      supabase
-        .from("profiles")
-        .select("school_name, display_name, first_name")
-        .eq("id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (!isMounted) return;
-          const schoolName = data?.school_name || null;
-          const displayName = data?.display_name || data?.first_name || null;
-          setUserSchoolName(schoolName);
-          setUserDisplayName(displayName);
-          setProfileLoaded(true);
-          setLoading(false);
-        });
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isMounted) return;
-      
-      if (!session) {
-        navigate("/auth");
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setUser(session.user);
-        // Fetch user's profile info
-        supabase
-          .from("profiles")
-          .select("school_name, display_name, first_name")
-          .eq("id", session.user.id)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (!isMounted) return;
-            const schoolName = data?.school_name || null;
-            const displayName = data?.display_name || data?.first_name || null;
-            setUserSchoolName(schoolName);
-            setUserDisplayName(displayName);
-            setProfileLoaded(true);
-          });
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
-
-  // Refetch fixtures only when profile is loaded and ready
-  useEffect(() => {
-    if (user && profileLoaded) {
-      fetchFixtures(user.id, userSchoolName);
-    }
-  }, [fetchFixtures, user, userSchoolName, profileLoaded]);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
   };
 
   // Helper to format match time

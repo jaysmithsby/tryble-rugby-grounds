@@ -23,7 +23,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -35,7 +34,6 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2, CalendarIcon, ClipboardPaste, ChevronDown } from "lucide-react";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -43,48 +41,22 @@ import {
 } from "@/components/ui/command";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
+import {
+  FixtureRow,
+  School,
+  Tournament,
+  RESULT_OPTIONS,
+  YEARS,
+  currentYear,
+  generateId,
+  parseFixtureData,
+} from "@/lib/fixtureParser";
 
 interface HistoricalFixturesUploadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
-
-interface School {
-  id: string;
-  name: string;
-  province: string | null;
-}
-
-interface Tournament {
-  id: string;
-  name: string;
-}
-
-interface FixtureRow {
-  id: string;
-  year: string;
-  homeAway: "home" | "away";
-  opponentName: string;
-  opponentId: string;
-  result: "won" | "lost" | "drew" | "upcoming";
-  scoreFor: string;
-  scoreAgainst: string;
-  tournamentId: string;
-  matchDate: string;
-}
-
-const RESULT_OPTIONS = [
-  { value: "won", label: "Won", color: "text-green-600" },
-  { value: "lost", label: "Lost", color: "text-red-600" },
-  { value: "drew", label: "Drew", color: "text-orange-500" },
-  { value: "upcoming", label: "Upcoming", color: "text-blue-500" },
-];
-
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
-const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 30 }, (_, i) => (currentYear - i).toString());
 
 export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: HistoricalFixturesUploadProps) {
   const { toast } = useToast();
@@ -101,11 +73,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
   // Step 2: Fixture rows
   const [rows, setRows] = useState<FixtureRow[]>([createEmptyRow()]);
   
-  // Opponent dropdown states
+  // Dropdown states
   const [activeOpponentDropdown, setActiveOpponentDropdown] = useState<string | null>(null);
   const [opponentSearchQueries, setOpponentSearchQueries] = useState<Record<string, string>>({});
-  
-  // Tournament dropdown states
   const [activeTournamentDropdown, setActiveTournamentDropdown] = useState<string | null>(null);
   const [tournamentSearchQueries, setTournamentSearchQueries] = useState<Record<string, string>>({});
   
@@ -120,7 +90,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
   const [errors, setErrors] = useState<string[]>([]);
 
   function createEmptyRow(): FixtureRow {
-    // Default to "upcoming" for future years (2026+)
     const yearNum = parseInt(defaultYear);
     const defaultResult = yearNum >= 2026 ? "upcoming" : "won";
     
@@ -146,7 +115,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
   }, [open]);
 
   useEffect(() => {
-    // Update default year in empty rows when defaultYear changes
     setRows(prev => prev.map(row => 
       row.year === "" ? { ...row, year: defaultYear } : row
     ));
@@ -187,14 +155,12 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     );
   }, [schools, primarySearchQuery]);
 
-  // Generate a unique slug, appending suffix if needed
   const generateUniqueSlug = async (name: string): Promise<string> => {
     const baseSlug = name
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-');
     
-    // Check if base slug exists
     const { data: existing } = await supabase
       .from("schools")
       .select("slug")
@@ -203,7 +169,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     
     if (!existing) return baseSlug;
     
-    // Find a unique variant with suffix
     let suffix = 2;
     while (suffix < 100) {
       const candidateSlug = `${baseSlug}-${suffix}`;
@@ -217,11 +182,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       suffix++;
     }
     
-    // Fallback: append timestamp
     return `${baseSlug}-${Date.now()}`;
   };
 
-  // Create a new school and return its ID
   const createNewSchool = async (name: string): Promise<string | null> => {
     const trimmedName = name.trim();
     if (!trimmedName) return null;
@@ -242,7 +205,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
 
       if (error) throw error;
 
-      // Add the new school to local state
       setSchools(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       
       toast({
@@ -306,7 +268,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
   const removeRow = (id: string) => {
     if (rows.length > 1) {
       setRows(prev => prev.filter(row => row.id !== id));
-      // Clear errors when a row is removed so user can retry submission
       setErrors([]);
     }
   };
@@ -317,7 +278,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       
       const updatedRow = { ...row, [field]: value };
       
-      // Auto-switch to "upcoming" when year is changed to 2026+
       if (field === "year") {
         const yearNum = parseInt(value);
         if (yearNum >= 2026) {
@@ -327,7 +287,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       
       return updatedRow;
     }));
-    // Clear errors when user edits a row so they can retry submission
     if (errors.length > 0) {
       setErrors([]);
     }
@@ -347,48 +306,16 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     setParseInfo(null);
   };
 
-  // Fuzzy match tournament name
-  const fuzzyMatchTournament = (name: string, year: string): { id: string; name: string } | null => {
-    if (!name || !name.trim()) return null;
-    
-    const normalized = normalizeSchoolName(name);
-    const yearSuffix = ` ${year}`;
-    
-    // Try to match with year suffix
-    for (const tournament of tournaments) {
-      const tournamentNorm = normalizeSchoolName(tournament.name);
-      // Check if tournament name matches with or without year
-      if (tournamentNorm === normalized || 
-          tournamentNorm === normalized + yearSuffix.trim() ||
-          tournamentNorm.replace(/ \d{4}$/, '') === normalized) {
-        return { id: tournament.id, name: tournament.name };
-      }
-    }
-    
-    // Partial match
-    for (const tournament of tournaments) {
-      const tournamentNorm = normalizeSchoolName(tournament.name).replace(/ \d{4}$/, '');
-      if (tournamentNorm.includes(normalized) || normalized.includes(tournamentNorm)) {
-        return { id: tournament.id, name: tournament.name };
-      }
-    }
-    
-    return null;
-  };
-
-  // Create a new tournament/festival and return its ID
   const createNewTournament = async (name: string, year: string): Promise<string | null> => {
     const trimmedName = name.trim();
     if (!trimmedName) return null;
 
-    // Append year if not already present
     const yearPattern = /\d{4}$/;
     const tournamentName = yearPattern.test(trimmedName) 
       ? trimmedName 
       : `${trimmedName} ${year}`;
 
     try {
-      // Get primary school name for host
       const primarySchool = schools.find(s => s.id === primarySchoolId);
       const hostSchool = primarySchool?.name || "TBD";
 
@@ -407,7 +334,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
 
       if (error) throw error;
 
-      // Add the new tournament to local state
       setTournaments(prev => [data, ...prev]);
       
       toast({
@@ -452,565 +378,18 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     return tournaments.find(t => t.id === id)?.name || "";
   };
 
-  // Normalize school name for better matching
-  const normalizeSchoolName = (name: string): string => {
-    return name
-      .toLowerCase()
-      .replace(/[''`']/g, '') // Remove apostrophes
-      .replace(/[^a-z0-9\s]/g, '') // Remove other punctuation
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  // Abbreviation expansions for better matching
-  const expandAbbreviations = (name: string): string[] => {
-    const normalized = normalizeSchoolName(name);
-    const variations = [normalized];
-    
-    // Common abbreviation mappings
-    const abbreviations: Record<string, string[]> = {
-      'hs': ['high school', 'high'],
-      'high school': ['hs'],
-      'high': ['hs', 'high school'],
-      'ps': ['primary school', 'primary'],
-      'primary school': ['ps'],
-      'vs': ['volkskool'],
-      'volkskool': ['vs'],
-      'coll': ['college'],
-      'college': ['coll'],
-      'tech': ['technical'],
-      'technical': ['tech'],
-      'hoer': ['hoërskool', 'hoerskool'],
-      'hoerskool': ['hoer', 'hoërskool'],
-      'laer': ['laerskool'],
-      'laerskool': ['laer'],
-    };
-    
-    for (const [abbr, expansions] of Object.entries(abbreviations)) {
-      if (normalized.includes(abbr)) {
-        for (const expansion of expansions) {
-          variations.push(normalized.replace(abbr, expansion));
-        }
-      }
-    }
-    
-    return variations;
-  };
-
-  // Fuzzy match school name to existing schools
-  const fuzzyMatchSchool = (name: string): { id: string; name: string } | null => {
-    if (!name || !name.trim()) return null;
-    
-    const normalizedName = normalizeSchoolName(name);
-    const nameVariations = expandAbbreviations(name);
-    
-    // Exact match on normalized names (including abbreviation expansions)
-    for (const variation of nameVariations) {
-      const exactMatch = schools.find(s => normalizeSchoolName(s.name) === variation);
-      if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
-    }
-    
-    // Check if any school's variations match our variations
-    for (const school of schools) {
-      const schoolVariations = expandAbbreviations(school.name);
-      for (const nameVar of nameVariations) {
-        for (const schoolVar of schoolVariations) {
-          if (nameVar === schoolVar) {
-            return { id: school.id, name: school.name };
-          }
-        }
-      }
-    }
-    
-    // Partial match (school name contains or is contained in search)
-    for (const variation of nameVariations) {
-      const partialMatch = schools.find(s => {
-        const normalizedSchool = normalizeSchoolName(s.name);
-        return normalizedSchool.includes(variation) || variation.includes(normalizedSchool);
-      });
-      if (partialMatch) return { id: partialMatch.id, name: partialMatch.name };
-    }
-    
-    // Slug-based matching (catch cases like "Grey HS" vs "Grey High School")
-    const inputSlug = normalizedName.replace(/\s+/g, '-');
-    for (const school of schools) {
-      const schoolSlug = normalizeSchoolName(school.name).replace(/\s+/g, '-');
-      // Check if slugs share a significant prefix
-      if (inputSlug.length >= 5 && schoolSlug.length >= 5) {
-        if (schoolSlug.startsWith(inputSlug.substring(0, 5)) || 
-            inputSlug.startsWith(schoolSlug.substring(0, 5))) {
-          // Additional check: ensure they share key words
-          const inputWords = normalizedName.split(' ').filter(w => w.length > 2);
-          const schoolWords = normalizeSchoolName(school.name).split(' ').filter(w => w.length > 2);
-          const sharedWords = inputWords.filter(iw => 
-            schoolWords.some(sw => sw === iw || sw.includes(iw) || iw.includes(sw))
-          );
-          if (sharedWords.length >= 1) {
-            return { id: school.id, name: school.name };
-          }
-        }
-      }
-    }
-    
-    // Word-based scoring match
-    const searchWords = normalizedName.split(' ').filter(w => w.length > 2);
-    if (searchWords.length === 0) return null;
-    
-    let bestMatch: School | null = null;
-    let bestScore = 0;
-    
-    for (const school of schools) {
-      const schoolWords = normalizeSchoolName(school.name).split(' ');
-      const matchingWords = searchWords.filter(sw => 
-        schoolWords.some(scw => scw.includes(sw) || sw.includes(scw))
-      );
-      const score = matchingWords.length / searchWords.length;
-      if (score > bestScore && score >= 0.5) {
-        bestScore = score;
-        bestMatch = school;
-      }
-    }
-    
-    if (bestMatch) return { id: bestMatch.id, name: bestMatch.name };
-    
-    return null;
-  };
-
-  // Parse concatenated data (no tabs) using date patterns as anchors
-  const parseConcatenatedData = (text: string): FixtureRow[] => {
-    const primarySchoolName = getSchoolName(primarySchoolId);
-    const normalizedPrimary = normalizeSchoolName(primarySchoolName);
-    
-    // Remove headers if present
-    let dataText = text;
-    if (text.toLowerCase().includes('match_date')) {
-      // Find where first date appears (after headers)
-      const firstDateMatch = text.match(/\d{4}-\d{2}-\d{2}/);
-      if (firstDateMatch && firstDateMatch.index !== undefined) {
-        dataText = text.substring(firstDateMatch.index);
-      }
-    }
-    
-    // Split into chunks using date as delimiter
-    // Each chunk starts with a date: YYYY-MM-DD
-    const datePattern = /(\d{4}-\d{2}-\d{2})/g;
-    const parts: string[] = [];
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = datePattern.exec(dataText)) !== null) {
-      if (match.index > lastIndex) {
-        // Add the text before this date to the previous chunk
-        if (parts.length > 0) {
-          parts[parts.length - 1] += dataText.substring(lastIndex, match.index);
-        }
-      }
-      // Start new chunk with this date
-      parts.push(match[1]);
-      lastIndex = match.index + match[1].length;
-    }
-    // Add remaining text to last chunk
-    if (parts.length > 0 && lastIndex < dataText.length) {
-      parts[parts.length - 1] += dataText.substring(lastIndex);
-    }
-    
-    const parsedRows: FixtureRow[] = [];
-    
-    for (const part of parts) {
-      // Extract date (first 10 chars should be the date)
-      const dateMatch = part.match(/^(\d{4}-\d{2}-\d{2})/);
-      if (!dateMatch) continue;
-      
-      const dateStr = dateMatch[1];
-      const remainder = part.substring(10);
-      
-      // Parse the date
-      let matchDate = "";
-      let year = defaultYear;
-      try {
-        const parsedDate = new Date(dateStr);
-        if (!isNaN(parsedDate.getTime())) {
-          parsedDate.setHours(14, 0, 0, 0);
-          matchDate = parsedDate.toISOString();
-          year = parsedDate.getFullYear().toString();
-        }
-      } catch (e) {
-        // Keep defaults
-      }
-      
-      // Find "Rugby" keyword to split schools section from rest
-      const rugbyIndex = remainder.toLowerCase().indexOf('rugby');
-      if (rugbyIndex === -1) continue;
-      
-      const schoolsSection = remainder.substring(0, rugbyIndex);
-      const afterRugby = remainder.substring(rugbyIndex + 5);
-      
-      // Find Home/Away/Neutral keyword
-      const haMatch = afterRugby.match(/(Home|Away|Neutral)/i);
-      let homeAway: "home" | "away" = "home";
-      
-      if (haMatch) {
-        const haValue = haMatch[1].toLowerCase();
-        // "Neutral" and "Away" both mean primary school is away
-        homeAway = (haValue === 'away' || haValue === 'neutral') ? "away" : "home";
-      }
-      
-      // Now extract opponent from schools section
-      // The schools section contains: homeSchool + awaySchool
-      // We need to find the primary school and the other one is the opponent
-      let opponentName = "";
-      
-      // Try to find where primary school name appears in the schools section
-      const normalizedSchools = normalizeSchoolName(schoolsSection);
-      
-      // Check if we can find the primary school name
-      if (normalizedSchools.includes(normalizedPrimary)) {
-        // Split around the primary school name
-        const primaryIndex = normalizedSchools.indexOf(normalizedPrimary);
-        const beforePrimary = schoolsSection.substring(0, primaryIndex).trim();
-        const afterPrimary = schoolsSection.substring(primaryIndex + primarySchoolName.length).trim();
-        
-        // The opponent is the non-empty part
-        opponentName = (beforePrimary || afterPrimary).trim();
-      } else {
-        // Primary school not found in text - use home/away to determine which part
-        // Split by trying to find known school names
-        let foundSchool1: { id: string; name: string } | null = null;
-        let foundSchool2: { id: string; name: string } | null = null;
-        
-        // Try to match each school from the database
-        for (const school of schools) {
-          if (school.id === primarySchoolId) continue;
-          const normalizedSchool = normalizeSchoolName(school.name);
-          if (normalizedSchools.includes(normalizedSchool)) {
-            if (!foundSchool1) {
-              foundSchool1 = { id: school.id, name: school.name };
-            } else if (!foundSchool2) {
-              foundSchool2 = { id: school.id, name: school.name };
-            }
-          }
-        }
-        
-        // Use the first found school as opponent
-        if (foundSchool1) {
-          opponentName = foundSchool1.name;
-        } else {
-          // Fallback: take the whole schools section as opponent name
-          // and try fuzzy matching
-          opponentName = schoolsSection.trim();
-        }
-      }
-      
-      // Clean up opponent name
-      opponentName = opponentName.replace(/^\s*['']?/, '').replace(/['']?\s*$/, '').trim();
-      
-      // Try to match opponent to existing school
-      const matchedSchool = fuzzyMatchSchool(opponentName);
-      
-      parsedRows.push({
-        id: generateId(),
-        year,
-        matchDate,
-        homeAway,
-        opponentName: matchedSchool?.name || opponentName,
-        opponentId: matchedSchool?.id || "",
-        result: "won",
-        scoreFor: "",
-        scoreAgainst: "",
-        tournamentId: "",
-      });
-    }
-    
-    return parsedRows;
-  };
-
-  // Parse markdown table format: | No | Date | Union | Opponent | Venue | Result | PF | PA | Notes |
-  const parseMarkdownTableData = (text: string): FixtureRow[] => {
-    const lines = text.split('\n').filter(line => line.trim());
-    const parsedRows: FixtureRow[] = [];
-    
-    // Find header line
-    let headerIndex = -1;
-    let headers: string[] = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.includes('|') && (line.toLowerCase().includes('date') || line.toLowerCase().includes('opponent'))) {
-        headerIndex = i;
-        headers = line.split('|').map(h => h.trim().toLowerCase()).filter(h => h);
-        break;
-      }
-    }
-    
-    if (headerIndex === -1) return [];
-    
-    // Find column indices
-    const colIndex = {
-      no: headers.findIndex(h => h === 'no' || h === '#'),
-      date: headers.findIndex(h => h === 'date'),
-      union: headers.findIndex(h => h === 'union'),
-      opponent: headers.findIndex(h => h === 'opponent'),
-      venue: headers.findIndex(h => h === 'venue'),
-      result: headers.findIndex(h => h === 'result'),
-      pf: headers.findIndex(h => h === 'pf' || h === 'for' || h === 'points for'),
-      pa: headers.findIndex(h => h === 'pa' || h === 'against' || h === 'points against'),
-      notes: headers.findIndex(h => h === 'notes' || h === 'tournament'),
-    };
-    
-    // Parse data rows (skip header and separator lines)
-    for (let i = headerIndex + 1; i < lines.length; i++) {
-      const line = lines[i];
-      
-      // Skip separator lines (| -- | -- | etc.)
-      if (line.includes('--') || line.includes('---')) continue;
-      
-      // Skip empty lines
-      if (!line.includes('|')) continue;
-      
-      const values = line.split('|').map(v => v.trim()).filter((v, idx, arr) => {
-        // Filter out empty first/last elements from | borders
-        return !(idx === 0 && v === '') && !(idx === arr.length - 1 && v === '');
-      });
-      
-      // Re-split properly to handle the pipe borders
-      const allValues = line.split('|').map(v => v.trim());
-      // Remove empty first and last if they exist
-      if (allValues[0] === '') allValues.shift();
-      if (allValues[allValues.length - 1] === '') allValues.pop();
-      
-      if (allValues.length < 4) continue; // Need at least date, opponent, venue, result
-      
-      // Skip if first value is separator
-      if (allValues[0].includes('-')) continue;
-      
-      // Parse date (format: Mon.03Mar, Fri.07Mar, etc.)
-      let matchDate = "";
-      let year = defaultYear;
-      const dateValue = colIndex.date >= 0 ? allValues[colIndex.date] : allValues[1];
-      
-      if (dateValue) {
-        // Parse format: Mon.03Mar or Sat.15Mar
-        const dateMatch = dateValue.match(/(?:\w+\.)?(\d{1,2})([A-Za-z]{3})/);
-        if (dateMatch) {
-          const day = parseInt(dateMatch[1], 10);
-          const monthStr = dateMatch[2].toLowerCase();
-          const months: Record<string, number> = {
-            'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
-            'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
-          };
-          const month = months[monthStr];
-          if (month !== undefined) {
-            const parsedDate = new Date(parseInt(defaultYear), month, day, 14, 0, 0);
-            if (!isNaN(parsedDate.getTime())) {
-              matchDate = parsedDate.toISOString();
-              year = defaultYear;
-            }
-          }
-        }
-      }
-      
-      // Parse opponent
-      const opponentName = colIndex.opponent >= 0 ? allValues[colIndex.opponent] : allValues[3];
-      const matchedSchool = fuzzyMatchSchool(opponentName);
-      
-      // Parse venue: H = Home, A = Away, F = Festival/Neutral
-      const venueValue = colIndex.venue >= 0 ? allValues[colIndex.venue] : allValues[4];
-      let homeAway: "home" | "away" = "home";
-      if (venueValue) {
-        const v = venueValue.toUpperCase();
-        if (v === 'A' || v === 'AWAY') {
-          homeAway = "away";
-        } else if (v === 'F' || v === 'FESTIVAL' || v === 'N' || v === 'NEUTRAL') {
-          homeAway = "away"; // Festival/Neutral = away for the primary school
-        }
-        // H or HOME = home (default)
-      }
-      
-      // Parse result: Won, Lost, Drew, or Upcoming (default for 2026+)
-      const resultValue = colIndex.result >= 0 ? allValues[colIndex.result] : allValues[5];
-      const yearNum = parseInt(year);
-      let result: "won" | "lost" | "drew" | "upcoming" = yearNum >= 2026 ? "upcoming" : "won";
-      if (resultValue) {
-        const r = resultValue.toLowerCase();
-        if (r === 'lost' || r === 'l') {
-          result = "lost";
-        } else if (r === 'drew' || r === 'draw' || r === 'd') {
-          result = "drew";
-        } else if (r === 'upcoming' || r === 'u') {
-          result = "upcoming";
-        }
-        // Won or W = won (default for historical), Upcoming for 2026+
-      }
-      
-      // Parse scores: PF (Points For) and PA (Points Against)
-      const pfValue = colIndex.pf >= 0 ? allValues[colIndex.pf] : allValues[6];
-      const paValue = colIndex.pa >= 0 ? allValues[colIndex.pa] : allValues[7];
-      const scoreFor = pfValue ? pfValue.replace(/\D/g, '') : "";
-      const scoreAgainst = paValue ? paValue.replace(/\D/g, '') : "";
-      
-      // Parse notes/tournament
-      const notesValue = colIndex.notes >= 0 ? allValues[colIndex.notes] : (allValues[8] || "");
-      let tournamentId = "";
-      if (notesValue) {
-        // Try to match tournament from notes
-        const matchedTournament = tournaments.find(t => 
-          normalizeSchoolName(t.name).includes(normalizeSchoolName(notesValue)) ||
-          normalizeSchoolName(notesValue).includes(normalizeSchoolName(t.name))
-        );
-        if (matchedTournament) {
-          tournamentId = matchedTournament.id;
-        }
-      }
-      
-      parsedRows.push({
-        id: generateId(),
-        year,
-        matchDate,
-        homeAway,
-        opponentName: matchedSchool?.name || opponentName,
-        opponentId: matchedSchool?.id || "",
-        result,
-        scoreFor,
-        scoreAgainst,
-        tournamentId,
-      });
-    }
-    
-    return parsedRows;
-  };
-
-  // Parse tab-separated data
-  const parseTabSeparatedData = (text: string): FixtureRow[] => {
-    const lines = text.split('\n');
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].toLowerCase().split('\t').map(h => h.trim());
-    
-    const colIndex = {
-      matchDate: headers.findIndex(h => h.includes('match_date') || h.includes('date')),
-      homeSchool: headers.findIndex(h => h.includes('home_school') || h === 'home'),
-      awaySchool: headers.findIndex(h => h.includes('away_school') || h === 'away'),
-      homeAway: headers.findIndex(h => h.includes('home_away') || h === 'h/a'),
-      result: headers.findIndex(h => h === 'result'),
-      pf: headers.findIndex(h => h === 'pf' || h === 'for'),
-      pa: headers.findIndex(h => h === 'pa' || h === 'against'),
-    };
-
-    const parsedRows: FixtureRow[] = [];
-    const primarySchoolName = getSchoolName(primarySchoolId)?.toLowerCase() || "";
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split('\t').map(v => v.trim());
-      if (values.length < 2) continue;
-
-      let matchDate = "";
-      let year = defaultYear;
-      if (colIndex.matchDate >= 0 && values[colIndex.matchDate]) {
-        try {
-          const parsedDate = new Date(values[colIndex.matchDate]);
-          if (!isNaN(parsedDate.getTime())) {
-            parsedDate.setHours(14, 0, 0, 0);
-            matchDate = parsedDate.toISOString();
-            year = parsedDate.getFullYear().toString();
-          }
-        } catch (e) {}
-      }
-
-      let homeAway: "home" | "away" = "home";
-      let opponentName = "";
-      
-      if (colIndex.homeAway >= 0) {
-        const haValue = values[colIndex.homeAway]?.toLowerCase() || "";
-        homeAway = (haValue.includes('away') || haValue === 'a' || haValue === 'neutral') ? "away" : "home";
-      }
-
-      if (colIndex.homeSchool >= 0 && colIndex.awaySchool >= 0) {
-        const homeSchoolName = values[colIndex.homeSchool] || "";
-        const awaySchoolName = values[colIndex.awaySchool] || "";
-        
-        if (homeSchoolName.toLowerCase().includes(primarySchoolName) || 
-            primarySchoolName.includes(homeSchoolName.toLowerCase())) {
-          opponentName = awaySchoolName;
-          homeAway = "home";
-        } else if (awaySchoolName.toLowerCase().includes(primarySchoolName) || 
-                   primarySchoolName.includes(awaySchoolName.toLowerCase())) {
-          opponentName = homeSchoolName;
-          homeAway = "away";
-        } else {
-          opponentName = homeAway === "home" ? awaySchoolName : homeSchoolName;
-        }
-      }
-
-      // Parse result if available - default to "upcoming" for 2026+
-      const yearNum = parseInt(year);
-      let result: "won" | "lost" | "drew" | "upcoming" = yearNum >= 2026 ? "upcoming" : "won";
-      if (colIndex.result >= 0 && values[colIndex.result]) {
-        const r = values[colIndex.result].toLowerCase();
-        if (r === 'lost' || r === 'l') result = "lost";
-        else if (r === 'drew' || r === 'draw' || r === 'd') result = "drew";
-        else if (r === 'upcoming' || r === 'u') result = "upcoming";
-      }
-
-      // Parse scores
-      const scoreFor = colIndex.pf >= 0 && values[colIndex.pf] ? values[colIndex.pf].replace(/\D/g, '') : "";
-      const scoreAgainst = colIndex.pa >= 0 && values[colIndex.pa] ? values[colIndex.pa].replace(/\D/g, '') : "";
-
-      const matchedSchool = fuzzyMatchSchool(opponentName);
-
-      parsedRows.push({
-        id: generateId(),
-        year,
-        matchDate,
-        homeAway,
-        opponentName: matchedSchool?.name || opponentName,
-        opponentId: matchedSchool?.id || "",
-        result,
-        scoreFor,
-        scoreAgainst,
-        tournamentId: "",
-      });
-    }
-    
-    return parsedRows;
-  };
-
-  // Parse pasted data from clipboard - smart detection
   const parsePastedData = () => {
-    if (!pasteText.trim()) {
-      toast({
-        title: "No data to parse",
-        description: "Please paste your fixture data first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!primarySchoolId) {
-      toast({
-        title: "No primary school selected",
-        description: "Please select the primary school first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const text = pasteText.trim();
-    let parsedRows: FixtureRow[] = [];
+    if (!pasteText.trim() || !primarySchoolId) return;
     
-    // Detect format and use appropriate parser
-    // Check for markdown table format (pipe characters with headers like Date, Opponent, Venue, Result)
-    const isMarkdownTable = text.includes('|') && 
-      (text.toLowerCase().includes('opponent') || text.toLowerCase().includes('venue') || text.toLowerCase().includes('result'));
+    const primarySchoolName = getSchoolName(primarySchoolId);
     
-    if (isMarkdownTable) {
-      parsedRows = parseMarkdownTableData(text);
-    } else if (text.includes('\t')) {
-      // Tab-separated format
-      parsedRows = parseTabSeparatedData(text);
-    } else {
-      // Fallback - concatenated data parser
-      parsedRows = parseConcatenatedData(text);
-    }
+    const parsedRows = parseFixtureData(pasteText, {
+      primarySchoolId,
+      primarySchoolName,
+      defaultYear,
+      schools,
+      tournaments,
+    });
 
     if (parsedRows.length === 0) {
       toast({
@@ -1021,7 +400,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       return;
     }
 
-    // Count matched vs new schools
     const matchedCount = parsedRows.filter(r => r.opponentId).length;
     const newCount = parsedRows.filter(r => !r.opponentId && r.opponentName).length;
 
@@ -1056,7 +434,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
         validationErrors.push(`Row ${rowNum}: Opponent is required`);
       }
       
-      // Only require scores for completed fixtures (not upcoming)
       if (row.result !== "upcoming" && (!row.scoreFor || !row.scoreAgainst)) {
         validationErrors.push(`Row ${rowNum}: Score is required`);
       }
@@ -1083,7 +460,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       const fixturesToInsert = [];
       const newSchoolsToCreate: { name: string; tempId: string }[] = [];
 
-      // First pass: identify schools that need to be created
       for (const row of rows) {
         if (!row.opponentId && row.opponentName.trim()) {
           const existingSchool = schools.find(
@@ -1103,10 +479,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
         }
       }
 
-      // Create new schools if needed
       const createdSchoolIds: Record<string, string> = {};
       for (const newSchool of newSchoolsToCreate) {
-        // Generate unique slug to prevent duplicate key errors
         const slug = await generateUniqueSlug(newSchool.name);
 
         const { data, error } = await supabase
@@ -1124,11 +498,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
         createdSchoolIds[newSchool.name.toLowerCase()] = data.id;
       }
 
-      // Second pass: create fixtures
       for (const row of rows) {
         let opponentId = row.opponentId;
         
-        // Get opponent ID from newly created schools if needed
         if (!opponentId && row.opponentName.trim()) {
           const existingSchool = schools.find(
             s => s.name.toLowerCase() === row.opponentName.trim().toLowerCase()
@@ -1146,30 +518,23 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
         const scoreFor = isUpcoming ? null : parseInt(row.scoreFor);
         const scoreAgainst = isUpcoming ? null : parseInt(row.scoreAgainst);
         
-        // Determine home/away and scores
         const isHome = row.homeAway === "home";
         const homeSchoolId = isHome ? primarySchoolId : opponentId;
         const awaySchoolId = isHome ? opponentId : primarySchoolId;
         const homeScore = isUpcoming ? null : (isHome ? scoreFor : scoreAgainst);
         const awayScore = isUpcoming ? null : (isHome ? scoreAgainst : scoreFor);
 
-        // Determine venue based on home/away
-        // If Home: venue is the primary school's name
-        // If Away: venue is the opponent's name
         const primarySchoolName = getSchoolName(primarySchoolId);
         const opponentName = row.opponentName.trim() || getSchoolName(opponentId);
         const venue = isHome ? primarySchoolName : opponentName;
 
-        // Calculate status based on result
         const status = isUpcoming ? "upcoming" : "completed";
 
-        // Create match date (use middle of the year if no specific date)
         const year = parseInt(row.year);
         let matchDate: Date;
         if (row.matchDate) {
           matchDate = new Date(row.matchDate);
         } else {
-          // Default to March 15 of the specified year
           matchDate = new Date(year, 2, 15, 14, 0, 0);
         }
 
@@ -1209,8 +574,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
       console.error("Error creating fixtures:", error);
       setErrors([error.message || "Failed to create fixtures"]);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create fixtures",
+        title: "Failed to create fixtures",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -1448,7 +813,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                         value={primarySearchQuery}
                         onValueChange={setPrimarySearchQuery}
                       />
-                    <CommandList>
+                      <CommandList>
                         <CommandGroup>
                           {filteredPrimarySchools.map((school) => (
                             <CommandItem
@@ -1466,12 +831,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                                   primarySchoolId === school.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <div className="flex flex-col">
-                                <span>{school.name}</span>
-                                {school.province && (
-                                  <span className="text-xs text-muted-foreground">{school.province}</span>
-                                )}
-                              </div>
+                              {school.name}
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -1480,17 +840,14 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                         ) && (
                           <CommandGroup>
                             <CommandItem
-                              value={`create-primary-${primarySearchQuery}`}
+                              value={`create-${primarySearchQuery}`}
                               onSelect={handleCreatePrimarySchool}
                               className="text-primary"
                             >
                               <Plus className="mr-2 h-4 w-4" />
-                              <span>Create "{primarySearchQuery}" as new school</span>
+                              Create "{primarySearchQuery}"
                             </CommandItem>
                           </CommandGroup>
-                        )}
-                        {filteredPrimarySchools.length === 0 && !primarySearchQuery && (
-                          <CommandEmpty>No school found. Type to search or create new.</CommandEmpty>
                         )}
                       </CommandList>
                     </Command>
@@ -1615,8 +972,7 @@ match_date	home_school	away_school	sport	venue	home_away	round_name
                 </div>
 
                 {/* Fixture Rows */}
-                {rows.map((row, index) => {
-                  // Parse the date for the picker
+                {rows.map((row) => {
                   const rowDate = row.matchDate ? new Date(row.matchDate) : undefined;
                   
                   return (
@@ -1661,10 +1017,8 @@ match_date	home_school	away_school	sport	venue	home_away	round_name
                           selected={rowDate}
                           onSelect={(date) => {
                             if (date) {
-                              // Set time to 14:00 for the match
                               date.setHours(14, 0, 0, 0);
                               updateRow(row.id, "matchDate", date.toISOString());
-                              // Also update the year to match the selected date
                               updateRow(row.id, "year", date.getFullYear().toString());
                             } else {
                               updateRow(row.id, "matchDate", "");

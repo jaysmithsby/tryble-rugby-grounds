@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 const PROVINCES = [
   "Eastern Cape",
@@ -203,9 +204,11 @@ export function useSchoolAutomation() {
         throw new Error(error.message);
       }
       
-      console.log("Automation response data:", JSON.stringify(data, null, 2));
-      console.log("Data type:", typeof data);
-      console.log("Is array:", Array.isArray(data));
+      logger.debug("Automation response received", {
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        keyCount: data && typeof data === 'object' ? Object.keys(data).length : 0,
+      });
       
       // Handle response - the edge function now returns a single object (not array)
       let responseObj: Record<string, unknown> | null = null;
@@ -217,7 +220,7 @@ export function useSchoolAutomation() {
       }
       
       if (!responseObj) {
-        console.log("Could not extract response object from:", data);
+        logger.warn("Could not extract response object from automation data");
         toast({
           title: "No data found",
           description: "No data found. Please fill manually.",
@@ -226,27 +229,26 @@ export function useSchoolAutomation() {
         return null;
       }
       
-      console.log("Response object keys:", Object.keys(responseObj));
+      logger.debug("Response object structure", { keys: Object.keys(responseObj) });
       
       let parsed: ParsedSchoolData;
       
       // Check if it's JSON format (camelCase or space-separated keys)
       if ("School Name" in responseObj || "schoolName" in responseObj) {
-        console.log("Using JSON format parser");
+        logger.debug("Using JSON format parser");
         parsed = parseJsonResponse(responseObj);
       } 
       // Check if it's the legacy text output format
       else if ("output" in responseObj && typeof responseObj.output === 'string') {
-        console.log("Using text output parser");
+        logger.debug("Using text output parser");
         parsed = parseTextOutput(responseObj.output);
       } 
       else {
-        // Try parsing anyway - might have different key variations
-        console.log("Trying JSON parser for unknown format, keys:", Object.keys(responseObj));
+        logger.debug("Trying JSON parser for unknown format", { keys: Object.keys(responseObj) });
         parsed = parseJsonResponse(responseObj);
       }
       
-      console.log("Parsed result:", parsed);
+      logger.debug("Automation parsing complete", { fieldCount: Object.keys(parsed).length });
       
       if (Object.keys(parsed).length === 0) {
         toast({
@@ -264,9 +266,9 @@ export function useSchoolAutomation() {
       
       return parsed;
     } catch (error) {
-      console.error("Automation error:", error);
+      logger.error("School automation request failed", { error: error instanceof Error ? error.message : String(error) });
       toast({
-        title: "Error",
+        title: "Automation failed",
         description: "Automation request failed. Try again later.",
         variant: "destructive",
       });
