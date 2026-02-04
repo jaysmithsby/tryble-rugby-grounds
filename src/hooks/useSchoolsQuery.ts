@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSimulation } from "@/contexts/SimulationContext";
+import { CACHE_TIMES } from "@/lib/queryConfig";
 
 interface SchoolBase {
   id: string;
@@ -24,20 +25,11 @@ export function useSchoolsQuery<T extends SchoolBase>({
   orderBy = "name",
   additionalFilters,
 }: UseSchoolsQueryOptions<T>) {
-  const [schools, setSchools] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const { isSimulationMode } = useSimulation();
 
-  useEffect(() => {
-    fetchSchools();
-  }, [isSimulationMode]);
-
-  const fetchSchools = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
+  const { data: schools = [], isLoading: loading, error, refetch } = useQuery({
+    queryKey: ["schools", select, orderBy, isSimulationMode, additionalFilters?.toString()],
+    queryFn: async () => {
       let query = supabase.from("schools").select(select);
 
       // Always exclude archived schools
@@ -59,19 +51,10 @@ export function useSchoolsQuery<T extends SchoolBase>({
       const { data, error: queryError } = await query;
 
       if (queryError) throw queryError;
-      // Cast through unknown to satisfy TypeScript
-      setSchools((data || []) as unknown as T[]);
-    } catch (err) {
-      console.error("Error fetching schools:", err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refetch = () => {
-    fetchSchools();
-  };
+      return (data || []) as unknown as T[];
+    },
+    staleTime: CACHE_TIMES.STATIC, // Schools list is static reference data
+  });
 
   return { schools, loading, error, refetch, isSimulationMode };
 }
@@ -81,17 +64,11 @@ export function useSchoolsQuery<T extends SchoolBase>({
  * Useful for validation purposes
  */
 export function useVerifiedSchoolNames() {
-  const [schoolNames, setSchoolNames] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const { isSimulationMode } = useSimulation();
 
-  useEffect(() => {
-    fetchSchoolNames();
-  }, [isSimulationMode]);
-
-  const fetchSchoolNames = async () => {
-    setLoading(true);
-    try {
+  const { data: schoolNames = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["verified-school-names", isSimulationMode],
+    queryFn: async () => {
       let query = supabase.from("schools").select("name").eq("is_archived", false);
 
       if (!isSimulationMode) {
@@ -101,13 +78,10 @@ export function useVerifiedSchoolNames() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setSchoolNames(data?.map((s) => s.name) || []);
-    } catch (error) {
-      console.error("Error fetching school names:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data?.map((s) => s.name) || [];
+    },
+    staleTime: CACHE_TIMES.STATIC, // School names are static reference data
+  });
 
-  return { schoolNames, loading, isSimulationMode, refetch: fetchSchoolNames };
+  return { schoolNames, loading, isSimulationMode, refetch };
 }

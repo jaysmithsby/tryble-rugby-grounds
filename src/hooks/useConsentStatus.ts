@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "./use-toast";
+import { CACHE_TIMES } from "@/lib/queryConfig";
 
 interface ConsentStatus {
   isMinor: boolean;
@@ -66,7 +67,7 @@ export function useConsentStatus(): ConsentStatus & {
         userSchoolName: data.school_name,
       };
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: CACHE_TIMES.USER_PROFILE, // Profile data doesn't change often
   });
 
   // Fetch email change eligibility
@@ -86,7 +87,7 @@ export function useConsentStatus(): ConsentStatus & {
 
       return data?.[0] || { can_change: true, changes_remaining: 3, next_change_at: null };
     },
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: CACHE_TIMES.VOLATILE, // Eligibility is time-sensitive
     enabled: !!profileData?.yearOfBirth && calculateIsMinor(profileData.yearOfBirth),
   });
 
