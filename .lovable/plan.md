@@ -1,335 +1,651 @@
 
-# Fixtures Hub Implementation Plan
+# Parental Consent Flow Implementation Plan
 
 ## Overview
 
-This plan adds a dedicated "Fixtures" page to the bottom navigation bar, positioned between Leaderboards and Profile. The page will serve as a centralized hub for all South African schoolboy rugby fixtures, styled after the World Rugby website's chronological fixture presentation.
+This plan implements a comprehensive parental consent system for Trybal, ensuring minors (users born in a year that would make them under 18) require verified parental consent before accessing advanced features. The flow is designed to be child-safe, POPIA-compliant, and parent-friendly.
 
 ---
 
-## Design Reference Analysis (World Rugby Style)
+## Age Calculation Logic
 
-Based on the uploaded screenshots, the key design elements to implement:
-
-1. **Month Navigation Bar**: Horizontal scrollable month selector (Jan, Feb, Mar, etc.) with year navigation
-2. **Date Grouping**: Fixtures grouped by date with clear date headers (e.g., "Thursday 5 February")
-3. **Match Counter**: Badge showing number of matches on each date
-4. **Fixture Cards**: Clean cards showing both teams with crests, tournament name, and venue
-5. **Chronological Order**: All fixtures in date order, not grouped by school
-6. **Calendar Sidebar** (desktop): Optional mini-calendar with fixture dots (lower priority for mobile-first)
-
----
-
-## Technical Architecture
-
-### New Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/pages/Fixtures.tsx` | Main fixtures hub page |
-| `src/components/fixtures/FixturesMonthNav.tsx` | Horizontal month/year navigation |
-| `src/components/fixtures/FixtureDateGroup.tsx` | Date header with fixture count badge |
-| `src/components/fixtures/FixtureListCard.tsx` | World Rugby-style fixture card |
-| `src/components/fixtures/FixturesFilters.tsx` | Filter drawer for school search, province |
-
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/BottomNav.tsx` | Add "Fixtures" tab between Leaderboards and Profile |
-| `src/App.tsx` | Add route for `/fixtures` page |
-
----
-
-## UI/UX Design
-
-### Bottom Navigation Update
-
-```text
-[ Home ] [ Leaderboards ] [ Fixtures ] [ Profile ]
-   🏠          🏆            📅          👤
+A user is considered a **minor** if:
+```
+currentYear - yearOfBirth < 18
 ```
 
-- Icon: `CalendarDays` from lucide-react (matches rugby fixtures context)
-- Active state: primary color when on `/fixtures`
+Exception: If they are turning 18 in the current year (e.g., born 2008 in 2026), they are treated as 18+.
 
-### Page Layout (Mobile-First)
+**Examples for 2026:**
+- Born 2009 → 17 years old → Minor (consent required)
+- Born 2008 → 18 years old → Adult (no consent required)
+- Born 2007 → 19 years old → Adult (no consent required)
+
+---
+
+## User Journey Overview
+
+### Minor (Child) Flow
 
 ```text
-┌─────────────────────────────────────────┐
-│ HEADER: "Fixtures"                      │
-│ [My Schools ▼] [All Schools ▼] 🔍       │
-├─────────────────────────────────────────┤
-│ < 2025  |  2026  |  2027 >              │
-│ Jan Feb [Mar] Apr May Jun Jul Aug Sep   │
-├─────────────────────────────────────────┤
-│ Friday 14 February        ○ 1 Match     │
-├─────────────────────────────────────────┤
-│ ┌─────────────────────────────────────┐ │
-│ │ GREY COLLEGE   🏛️  vs  🏛️   PAARL GIM │ │
-│ │         Grey College, Bloemfontein  │ │
-│ │ [Predict Now]                       │ │
-│ └─────────────────────────────────────┘ │
-├─────────────────────────────────────────┤
-│ Thursday 27 February      ○ 1 Match     │
-├─────────────────────────────────────────┤
-│ ┌─────────────────────────────────────┐ │
-│ │ HILTON COLLEGE  🏛️ vs 🏛️  MARITZBURG │ │
-│ │           Hilton College            │ │
-│ │ [Predict Now]                       │ │
-│ └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         MINOR USER JOURNEY                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Profile Setup ──► Age Detection ──► Parent Email Collection             │
+│       │                  │                      │                        │
+│  (Year of Birth)    (Under 18?)           (Required field)               │
+│                          │                      │                        │
+│                          ▼                      ▼                        │
+│                    Set account_type      Send Consent Email              │
+│                      = "minor"           via Edge Function               │
+│                          │                      │                        │
+│                          ▼                      ▼                        │
+│                 Can use app with         Parent clicks link              │
+│                 RESTRICTED features      ──► Consent granted             │
+│                          │                      │                        │
+│                          ▼                      ▼                        │
+│              Blocked actions show     consent_status = "verified"        │
+│              "Ask parent" dialog      ──► All features unlocked          │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Key UX Decisions
+### Parent Flow
 
-1. **Default View**: "My Schools" - shows fixtures for:
-   - User's selected school
-   - Schools from pools the user has joined
-   - Schools the user explicitly follows (via tournaments)
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          PARENT JOURNEY                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Receive Email ──► Review Safety Info ──► Click Consent Link            │
+│       │                    │                     │                       │
+│   (Branded,           (Links to               (Secure token)             │
+│    friendly)        /for-parents)                │                       │
+│                                                  ▼                       │
+│                                        Consent Landing Page              │
+│                                              │                           │
+│                                    ┌─────────┴─────────┐                 │
+│                                    │                   │                 │
+│                              "I Consent"        "I Do Not"               │
+│                                    │                   │                 │
+│                                    ▼                   ▼                 │
+│                           Mark child verified   (No action,              │
+│                           + Nudge parent       link expires)             │
+│                           to create account                              │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-2. **"All Schools" View**: Browse all fixtures with filters:
-   - Search by school name (autocomplete)
-   - Filter by province dropdown
-   - Filter by tournament (if applicable)
+---
 
-3. **Chronological Order**: Fixtures sorted by date ascending, grouped by date header
+## Database Schema Changes
 
-4. **No Pagination (Infinite Scroll)**: Load fixtures in batches as user scrolls
+### 1. New Table: `parental_consent_requests`
+
+```sql
+CREATE TABLE public.parental_consent_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  child_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  parent_email TEXT NOT NULL,
+  consent_token UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'expired', 'revoked')),
+  
+  -- Tracking
+  created_at TIMESTAMPTZ DEFAULT now(),
+  email_sent_at TIMESTAMPTZ,
+  verified_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ DEFAULT (now() + interval '30 days'),
+  
+  -- Change limiting (3 changes per 24h window)
+  request_count INTEGER DEFAULT 1,
+  first_request_at TIMESTAMPTZ DEFAULT now(),
+  
+  -- Parent account linking (optional)
+  parent_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  
+  UNIQUE(child_user_id, parent_email)
+);
+
+-- Index for token lookups
+CREATE INDEX idx_consent_token ON parental_consent_requests(consent_token);
+
+-- Index for parent email limits (max 10 children per email)
+CREATE INDEX idx_parent_email ON parental_consent_requests(parent_email);
+
+-- RLS Policies
+ALTER TABLE parental_consent_requests ENABLE ROW LEVEL SECURITY;
+
+-- Children can view their own consent requests
+CREATE POLICY "Users can view their own consent requests"
+  ON parental_consent_requests FOR SELECT
+  USING (auth.uid() = child_user_id);
+
+-- Children can create consent requests for themselves
+CREATE POLICY "Users can create their own consent requests"
+  ON parental_consent_requests FOR INSERT
+  WITH CHECK (auth.uid() = child_user_id);
+
+-- Children can update their own pending requests (email change)
+CREATE POLICY "Users can update their own pending consent requests"
+  ON parental_consent_requests FOR UPDATE
+  USING (auth.uid() = child_user_id AND status = 'pending');
+
+-- Admins can view all
+CREATE POLICY "Admins can view all consent requests"
+  ON parental_consent_requests FOR SELECT
+  USING (has_role(auth.uid(), 'admin'::app_role));
+```
+
+### 2. Database Function: Check Parent Email Limit
+
+```sql
+CREATE OR REPLACE FUNCTION check_parent_email_limit(p_email TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+  consent_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO consent_count
+  FROM parental_consent_requests
+  WHERE parent_email = p_email AND status = 'verified';
+  
+  RETURN consent_count < 10;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### 3. Database Function: Check Email Change Eligibility
+
+```sql
+CREATE OR REPLACE FUNCTION can_change_parent_email(p_user_id UUID)
+RETURNS TABLE(can_change BOOLEAN, changes_remaining INTEGER, next_change_at TIMESTAMPTZ) AS $$
+DECLARE
+  latest_request RECORD;
+  changes_in_window INTEGER;
+BEGIN
+  SELECT * INTO latest_request
+  FROM parental_consent_requests
+  WHERE child_user_id = p_user_id
+  ORDER BY created_at DESC
+  LIMIT 1;
+  
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT true, 3, NULL::TIMESTAMPTZ;
+    RETURN;
+  END IF;
+  
+  -- Count changes in last 24 hours from first_request_at
+  IF latest_request.first_request_at > now() - interval '24 hours' THEN
+    changes_in_window := latest_request.request_count;
+    
+    IF changes_in_window >= 3 THEN
+      RETURN QUERY SELECT 
+        false, 
+        0, 
+        latest_request.first_request_at + interval '24 hours';
+      RETURN;
+    ELSE
+      RETURN QUERY SELECT 
+        true, 
+        3 - changes_in_window,
+        NULL::TIMESTAMPTZ;
+      RETURN;
+    END IF;
+  ELSE
+    -- 24h window has passed, reset counter
+    RETURN QUERY SELECT true, 3, NULL::TIMESTAMPTZ;
+    RETURN;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
+## Edge Functions
+
+### 1. `send-parental-consent` (NEW)
+
+Sends the consent request email to the parent.
+
+**Trigger:** Called when:
+- Child submits parent email during onboarding
+- Child updates parent email from profile
+- Child clicks "Resend" button
+
+**Email Content:**
+- Branded Trybal header
+- Child's first name (not full details for privacy)
+- Explanation of what Trybal is
+- Safety highlights (no gambling, POPIA compliant, moderated)
+- Links to `/for-parents` safety page
+- Contact email: `safety@trybal.app`
+- Big "I Consent" button with unique token link
+- Expiry notice (30 days)
+
+### 2. `verify-parental-consent` (NEW)
+
+Handles the consent verification when parent clicks the link.
+
+**Input:** consent_token (from URL)
+
+**Logic:**
+1. Validate token exists and is not expired
+2. Update `parental_consent_requests.status` to 'verified'
+3. Update `parental_consent_requests.verified_at`
+4. Update child's `profiles.consent_status` to 'verified'
+5. Return success page with:
+   - Confirmation message
+   - "Join the fun" CTA to create parent's own account
+
+---
+
+## Frontend Components
+
+### New Components
+
+| Component | Purpose |
+|-----------|---------|
+| `src/components/consent/ParentalConsentGate.tsx` | HOC/hook that checks consent before allowing actions |
+| `src/components/consent/ConsentRequiredDialog.tsx` | Pop-up shown when minor attempts blocked action |
+| `src/components/consent/ParentEmailInput.tsx` | Email input with validation for parent email |
+| `src/components/consent/ConsentStatusCard.tsx` | Profile section showing consent status |
+| `src/pages/ParentConsent.tsx` | Landing page for parents clicking consent link |
+| `src/hooks/useConsentStatus.ts` | Hook to check/manage consent status |
+
+### Modified Components
+
+| Component | Changes |
+|-----------|---------|
+| `StepProfile.tsx` | Add parent email field when year_of_birth indicates minor |
+| `SignUpFlow.tsx` | Detect minor status, set account_type, trigger consent email |
+| `Profile.tsx` | Show dynamic consent status card, allow email updates |
+| `CreatePoolDialog.tsx` | Wrap creation action with consent gate |
+| `JoinPool.tsx` | Wrap join action with consent gate for non-default pools |
+| `PredictionDialog.tsx` | Gate predictions on non-user-school fixtures |
+| `FixtureListCard.tsx` | Pass consent status to prediction button |
+| `FixtureCard.tsx` | Pass consent status to prediction button |
 
 ---
 
 ## Component Specifications
 
-### 1. FixturesMonthNav.tsx
+### 1. ConsentRequiredDialog
 
-**Features:**
-- Year selector with arrows: `< 2025 | 2026 | 2027 >`
-- Horizontal scrollable month pills: Jan through Dec
-- Selected month highlighted in primary color
-- Auto-scroll to current month on load
+Shown when a minor without consent attempts a blocked action.
 
-**Props:**
+```text
+┌─────────────────────────────────────────┐
+│        🔒 Parental Consent Required     │
+├─────────────────────────────────────────┤
+│                                         │
+│  To access this feature, we need your   │
+│  parent or guardian's permission.       │
+│                                         │
+│  📧 Ask your parent or guardian to      │
+│     check their email.                  │
+│                                         │
+│  Sent to: p***@email.com               │
+│                                         │
+│  [Resend Email]    [Update Email]       │
+│                                         │
+│          [Got it]                       │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### 2. ConsentStatusCard (in Profile)
+
+**Pending State:**
+```text
+┌─────────────────────────────────────────┐
+│ ⏳ Parental Consent: Pending            │
+├─────────────────────────────────────────┤
+│ We've sent a request to:                │
+│ p***r@email.com                         │
+│                                         │
+│ Some features are limited until your    │
+│ parent approves.                        │
+│                                         │
+│ [Resend Email]  [Update Parent Email]   │
+│                                         │
+│ Changes remaining: 2 of 3               │
+└─────────────────────────────────────────┘
+```
+
+**Verified State:**
+```text
+┌─────────────────────────────────────────┐
+│ ✅ Parental Consent: Verified           │
+├─────────────────────────────────────────┤
+│ Your account is fully activated.        │
+│ Verified on: 14 Feb 2026                │
+│                                         │
+│ Protected under POPIA guidelines.       │
+└─────────────────────────────────────────┘
+```
+
+### 3. ParentConsent Page (`/consent/:token`)
+
+Landing page when parent clicks email link.
+
+```text
+┌─────────────────────────────────────────────────┐
+│                  🏉 TRYBAL                       │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  Parental Consent Request                        │
+│                                                  │
+│  Your child, [FirstName], is requesting          │
+│  permission to use Trybal, a safe predictions    │
+│  app for South African schoolboy rugby.          │
+│                                                  │
+│  ✓ No gambling, no prizes                        │
+│  ✓ POPIA-compliant data handling                 │
+│  ✓ All content is moderated                      │
+│  ✓ No addictive mechanics                        │
+│                                                  │
+│  📚 Learn more about our safety measures         │
+│     → /for-parents                               │
+│                                                  │
+│  📧 Questions? Contact safety@trybal.app         │
+│                                                  │
+│  ┌─────────────────────────────────────────┐    │
+│  │        ✅ I Give My Consent              │    │
+│  └─────────────────────────────────────────┘    │
+│                                                  │
+│  By consenting, you allow [FirstName] to         │
+│  create pools, join pools, and make              │
+│  predictions on all fixtures.                    │
+│                                                  │
+└─────────────────────────────────────────────────┘
+```
+
+**After Consent:**
+```text
+┌─────────────────────────────────────────────────┐
+│                  🏉 TRYBAL                       │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  ✅ Consent Confirmed!                           │
+│                                                  │
+│  [FirstName]'s account is now fully activated.   │
+│  They can now access all features.               │
+│                                                  │
+│  ─────────────────────────────────────────────   │
+│                                                  │
+│  🎯 Want to join the fun?                        │
+│                                                  │
+│  Create your own Trybal account and compete      │
+│  alongside your child!                           │
+│                                                  │
+│  ┌─────────────────────────────────────────┐    │
+│  │        🏆 Create My Account              │    │
+│  └─────────────────────────────────────────┘    │
+│                                                  │
+│  Trybal is safe for the whole family.            │
+│                                                  │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## Feature Restriction Logic
+
+### useConsentStatus Hook
+
 ```typescript
-interface FixturesMonthNavProps {
-  selectedYear: number;
-  selectedMonth: number; // 0-11
-  onYearChange: (year: number) => void;
-  onMonthChange: (month: number) => void;
+interface ConsentStatus {
+  isMinor: boolean;
+  consentStatus: 'pending' | 'verified' | 'expired' | null;
+  needsConsent: boolean; // isMinor && consentStatus !== 'verified'
+  parentEmail: string | null;
+  canChangeEmail: boolean;
+  changesRemaining: number;
+  nextChangeAt: Date | null;
 }
 ```
 
-### 2. FixtureDateGroup.tsx
+### Restriction Rules
 
-**Features:**
-- Date header: "Friday 14 February" format
-- Match count badge: "○ 3 Matches" 
-- Collapsible (optional, for many fixtures on same day)
+| Feature | Allowed Without Consent | Blocked Without Consent |
+|---------|------------------------|-------------------------|
+| View fixtures | ✅ | - |
+| Predict on OWN school | ✅ | - |
+| View leaderboards | ✅ | - |
+| Join default pools (global, school, province) | ✅ | - |
+| Create custom pools | - | ❌ |
+| Join custom pools | - | ❌ |
+| Predict on OTHER schools | - | ❌ |
 
-**Props:**
+### Implementation in Components
+
+**PredictionDialog:**
 ```typescript
-interface FixtureDateGroupProps {
-  date: Date;
-  fixtureCount: number;
-  children: React.ReactNode;
+// Before allowing prediction
+const { needsConsent } = useConsentStatus();
+const isOwnSchool = userSchoolName === homeTeam || userSchoolName === awayTeam;
+
+if (needsConsent && !isOwnSchool) {
+  openConsentRequiredDialog();
+  return;
 }
 ```
 
-### 3. FixtureListCard.tsx
-
-**Features (World Rugby inspired):**
-- Horizontal layout: `[Home Crest] HOME vs AWAY [Away Crest]`
-- School names in bold, uppercase
-- Venue displayed below
-- Tournament badge (if applicable)
-- Prediction CTA button
-- Tap on crest → navigate to school profile
-
-**Props:**
+**CreatePoolDialog:**
 ```typescript
-interface FixtureListCardProps {
-  fixture: {
-    id: string;
-    match_date: string;
-    venue: string;
-    status: string;
-    home_school: { id: string; name: string; slug: string; jersey_url: string | null; };
-    away_school: { id: string; name: string; slug: string; jersey_url: string | null; };
-    tournament?: { id: string; name: string; } | null;
-  };
-  isPredicted?: boolean;
-  onPredictionMade?: (fixtureId: string, team: "home" | "away", margin: number) => void;
+// Before showing pool creation form
+const { needsConsent } = useConsentStatus();
+
+if (needsConsent) {
+  return <ConsentRequiredDialog onClose={() => setOpen(false)} />;
 }
 ```
 
-### 4. FixturesFilters.tsx
-
-**Features:**
-- View toggle: "My Schools" / "All Schools"
-- School search input with autocomplete
-- Province filter dropdown (from `saProvinces.ts`)
-- Clear filters button
-
-**Props:**
+**JoinPool:**
 ```typescript
-interface FixturesFiltersProps {
-  viewMode: "my-schools" | "all-schools";
-  onViewModeChange: (mode: "my-schools" | "all-schools") => void;
-  selectedSchoolId?: string;
-  onSchoolChange: (schoolId: string | undefined) => void;
-  selectedProvince?: string;
-  onProvinceChange: (province: string | undefined) => void;
+// Before joining
+const { needsConsent } = useConsentStatus();
+const isDefaultPool = pool.type === 'global' || pool.type === 'school' || pool.type === 'province';
+
+if (needsConsent && !isDefaultPool) {
+  openConsentRequiredDialog();
+  return;
 }
 ```
 
 ---
 
-## Data Fetching Strategy
+## Email Change Logic
 
-### Fixtures Query
+### Rules
+- Maximum 3 email changes per 24-hour window
+- After 3 changes, user must wait 24 hours or contact support
+- Counter resets after 24 hours from first change in window
 
-```typescript
-// Fetch fixtures for a specific month
-const fetchFixturesForMonth = async (year: number, month: number, filters: Filters) => {
-  const startOfMonth = new Date(year, month, 1).toISOString();
-  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+### UI Flow
+1. User clicks "Update Parent Email" in ConsentStatusCard
+2. If `canChangeEmail` is false:
+   - Show disabled state with "Try again at [time]"
+   - Show "Contact support" link
+3. If allowed:
+   - Show email input modal
+   - Validate new email format
+   - Check parent email limit (< 10 children)
+   - Send new consent request
+   - Invalidate old token
 
-  let query = supabase
-    .from("fixtures")
-    .select(`
-      id,
-      match_date,
-      venue,
-      status,
-      home_school_id,
-      away_school_id,
-      home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
-      away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
-      tournament:tournaments(id, name)
-    `)
-    .eq("is_visible", true)
-    .gte("match_date", startOfMonth)
-    .lte("match_date", endOfMonth)
-    .order("match_date", { ascending: true });
+---
 
-  // Apply filters
-  if (filters.schoolId) {
-    query = query.or(`home_school_id.eq.${filters.schoolId},away_school_id.eq.${filters.schoolId}`);
-  }
-  if (filters.province) {
-    // Need to filter by school province
-    query = query.or(`home_school.province.eq.${filters.province},away_school.province.eq.${filters.province}`);
-  }
+## Email Template
 
-  return query;
-};
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; }
+    .header { background: #1B4332; padding: 30px; text-align: center; }
+    .header h1 { color: #FFD60A; margin: 0; font-size: 28px; }
+    .content { padding: 30px; }
+    .safety-box { background: #f0fdf4; border-left: 4px solid #1B4332; padding: 15px; margin: 20px 0; }
+    .cta-button { display: block; background: #1B4332; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center; margin: 30px auto; max-width: 250px; }
+    .footer { background: #f9f9f9; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏉 TRYBAL</h1>
+      <p style="color: #95D5B2; margin-top: 10px;">Parental Consent Request</p>
+    </div>
+    
+    <div class="content">
+      <p>Hi there,</p>
+      
+      <p>Your child, <strong>[FirstName]</strong>, has signed up for Trybal — a fun, safe predictions app for South African schoolboy rugby.</p>
+      
+      <p>To unlock all features, we need your consent.</p>
+      
+      <div class="safety-box">
+        <strong>Why Trybal is safe:</strong>
+        <ul>
+          <li>✓ No gambling, no prizes, no fees</li>
+          <li>✓ POPIA-compliant — minimal data collection</li>
+          <li>✓ All content is moderated</li>
+          <li>✓ No addictive mechanics</li>
+          <li>✓ Built by parents, for families</li>
+        </ul>
+      </div>
+      
+      <a href="[CONSENT_LINK]" class="cta-button">I Give My Consent</a>
+      
+      <p style="text-align: center; font-size: 14px; color: #666;">
+        This link expires in 30 days.
+      </p>
+      
+      <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
+      
+      <p style="font-size: 14px;">
+        <strong>Questions?</strong><br />
+        📚 <a href="[ORIGIN]/for-parents">Read our Safety Guide</a><br />
+        📧 <a href="mailto:safety@trybal.app">safety@trybal.app</a>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Trybal — Where School Pride Meets Predictions</p>
+      <p>You received this because [FirstName] listed you as their parent/guardian.</p>
+    </div>
+  </div>
+</body>
+</html>
 ```
 
-### "My Schools" Logic
+---
 
-For the default "My Schools" view:
-1. Get user's `school_name` from profiles
-2. Get schools from user's pool memberships
-3. Get schools from `user_tournament_follows` (tournaments the user follows)
-4. Filter fixtures to only those involving these schools
+## File Changes Summary
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useConsentStatus.ts` | Hook to check and manage consent state |
+| `src/components/consent/ConsentRequiredDialog.tsx` | Blocked action dialog |
+| `src/components/consent/ConsentStatusCard.tsx` | Profile consent section |
+| `src/components/consent/UpdateParentEmailDialog.tsx` | Email change modal |
+| `src/pages/ParentConsent.tsx` | Parent consent landing page |
+| `supabase/functions/send-parental-consent/index.ts` | Email sending function |
+| `supabase/functions/verify-parental-consent/index.ts` | Consent verification function |
+
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| `src/components/auth/signup-steps/StepProfile.tsx` | Add parent email input for minors |
+| `src/components/auth/SignUpFlow.tsx` | Detect minor, set account_type, trigger consent email |
+| `src/pages/Profile.tsx` | Replace static consent section with ConsentStatusCard |
+| `src/components/pools/CreatePoolDialog.tsx` | Add consent gate check |
+| `src/pages/JoinPool.tsx` | Add consent gate for custom pools |
+| `src/components/home/PredictionDialog.tsx` | Accept consent props |
+| `src/components/home/FixtureCard.tsx` | Pass consent status to dialog |
+| `src/components/fixtures/FixtureListCard.tsx` | Pass consent status, gate non-school predictions |
+| `src/App.tsx` | Add route for `/consent/:token` |
 
 ---
 
-## State Management
+## Implementation Phases
 
-```typescript
-interface FixturesPageState {
-  // Navigation
-  selectedYear: number;
-  selectedMonth: number;
-  
-  // Filters
-  viewMode: "my-schools" | "all-schools";
-  searchQuery: string;
-  selectedSchoolId?: string;
-  selectedProvince?: string;
-  
-  // Data
-  fixtures: FixtureWithSchools[];
-  loading: boolean;
-  
-  // Predictions
-  predictions: Record<string, { team: "home" | "away"; margin: number }>;
-}
-```
+### Phase 1: Database Infrastructure
+1. Create `parental_consent_requests` table with RLS
+2. Create helper functions for email limits and change eligibility
+3. Add indexes for performance
 
----
+### Phase 2: Edge Functions
+1. Create `send-parental-consent` function
+2. Create `verify-parental-consent` function
+3. Deploy and test email delivery
 
-## Implementation Sequence
+### Phase 3: Consent Hook & Context
+1. Create `useConsentStatus` hook
+2. Integrate with auth context
+3. Add cache invalidation on consent changes
 
-### Phase 1: Core Infrastructure
-1. Create `Fixtures.tsx` page skeleton
-2. Update `BottomNav.tsx` to add Fixtures tab
-3. Update `App.tsx` to add `/fixtures` route
+### Phase 4: Onboarding Integration
+1. Update `StepProfile` to collect parent email for minors
+2. Update `SignUpFlow` to set account_type and trigger email
+3. Add friendly messaging about consent
 
-### Phase 2: Month Navigation
-1. Create `FixturesMonthNav.tsx` component
-2. Implement year/month selection logic
-3. Style to match World Rugby horizontal scrolling
+### Phase 5: Feature Gating
+1. Create `ConsentRequiredDialog`
+2. Gate pool creation
+3. Gate pool joining (custom pools only)
+4. Gate predictions on non-school fixtures
 
-### Phase 3: Fixture Display
-1. Create `FixtureDateGroup.tsx` for date headers
-2. Create `FixtureListCard.tsx` for individual fixtures
-3. Implement chronological grouping logic
+### Phase 6: Profile Management
+1. Create `ConsentStatusCard` component
+2. Create `UpdateParentEmailDialog`
+3. Implement change limiting UI
 
-### Phase 4: Filtering
-1. Create `FixturesFilters.tsx` component
-2. Implement "My Schools" default filtering
-3. Add school search autocomplete
-4. Add province filter dropdown
-
-### Phase 5: Predictions Integration
-1. Connect `PredictionDialog` to fixture cards
-2. Track prediction state
-3. Show "Predicted" status on cards
+### Phase 7: Parent Consent Page
+1. Create `/consent/:token` route
+2. Build consent landing page
+3. Add parent account creation nudge
 
 ---
 
-## Styling Notes
+## Technical Considerations
 
-- Use existing Trybal design tokens (primary, accent, muted colors)
-- Cards: `bg-gradient-card border-border/40 shadow-card`
-- Month nav: horizontal scroll with `overflow-x-auto scrollbar-hide`
-- Date headers: `text-lg font-bold` with subtle separator
-- Match count badges: `rounded-full bg-primary/20 text-primary`
+### Security
+- Consent tokens are UUID v4 (cryptographically random)
+- Tokens expire after 30 days
+- Parent email is masked in child UI (p***r@email.com)
+- Edge function uses service role for DB updates
 
----
+### Performance
+- Consent status cached in React Query
+- Invalidated on verification webhook
+- Minimal additional DB queries per page
 
-## Empty States
-
-1. **No fixtures for selected month**: 
-   "No fixtures scheduled for [Month Year]. Try browsing other months."
-
-2. **No fixtures matching filters**:
-   "No fixtures found for [School Name] in [Province]. Clear filters to see all fixtures."
-
-3. **No followed schools** (My Schools mode with no pools/school):
-   "Join a pool or follow schools to see personalized fixtures here."
-
----
-
-## Performance Considerations
-
-1. **Lazy Load Fixture Cards**: Only render visible cards using intersection observer
-2. **Image Preloading**: Use existing `usePreloadJerseyImages` hook for visible fixtures
-3. **Memoization**: Memoize date grouping computation with `useMemo`
-4. **Query Caching**: Use React Query for fixture data caching
+### Edge Cases
+- Parent uses email already at 10-child limit → friendly error
+- Child changes email 3 times → must wait 24h or contact support
+- Parent clicks expired link → show "expired" page with resend option
+- Same parent email used for same child → update existing request
 
 ---
 
 ## Success Criteria
 
 After implementation:
-1. Users can access Fixtures from bottom nav
-2. Default view shows personalized fixtures from followed schools
-3. All Schools view shows complete fixture calendar
-4. Fixtures are displayed chronologically by date
-5. Users can filter by school name and province
-6. Month/year navigation works smoothly
-7. Prediction flow works from fixture cards
-8. School crests are clickable and navigate to school profiles
+1. Minors are correctly detected based on year of birth
+2. Parent email is collected during onboarding for minors
+3. Consent email is sent with all safety information
+4. Parents can easily consent via email link
+5. Blocked features show clear "consent required" messaging
+6. Children can check consent status in profile
+7. Email change is limited to 3 per 24 hours
+8. Parent emails are limited to 10 children max
+9. Verified consent unlocks all features immediately (after refresh)
+10. Parents are nudged to create their own accounts
