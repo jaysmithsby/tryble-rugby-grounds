@@ -1,7 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const WEBHOOK_URL = "https://jamesie.app.n8n.cloud/webhook/57f3e119-d4c1-4438-b9a2-67eeec53c463";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -75,7 +73,16 @@ Deno.serve(async (req) => {
 
     console.log(`Admin ${user.id} fetching data for school: ${sanitizedSchoolName}`);
 
-    const response = await fetch(WEBHOOK_URL, {
+    const webhookUrl = Deno.env.get('N8N_SCHOOL_WEBHOOK_URL');
+    if (!webhookUrl) {
+      console.error('N8N_SCHOOL_WEBHOOK_URL secret is not configured');
+      return new Response(
+        JSON.stringify({ error: 'School automation service not configured' }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
