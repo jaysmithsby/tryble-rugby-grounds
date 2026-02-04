@@ -1,78 +1,206 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import StepName from "./signup-steps/StepName";
-import StepContact from "./signup-steps/StepContact";
-import StepRole from "./signup-steps/StepRole";
-import StepSchool from "./signup-steps/StepSchool";
-import StepPassword from "./signup-steps/StepPassword";
-import StepComplete from "./signup-steps/StepComplete";
+import StepAccount from "./signup-steps/StepAccount";
+import StepVerifyEmail from "./signup-steps/StepVerifyEmail";
+import StepProfile from "./signup-steps/StepProfile";
+import StepWelcome from "./signup-steps/StepWelcome";
+import StepNextMatch from "./signup-steps/StepNextMatch";
+import StepTournament from "./signup-steps/StepTournament";
+import StepPool from "./signup-steps/StepPool";
 
-const signUpSchema = z.object({
-  firstName: z.string().trim().min(1, "First name is required").max(100),
-  contactMethod: z.enum(["email", "mobile"]),
-  contactValue: z.string().trim().min(1, "Contact information is required"),
-  countryCode: z.string().optional(),
-  userType: z.enum(["scholar", "alumni", "parent", "fan"]),
-  schoolName: z.string().trim().min(1, "School name is required").max(200),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
+const STORAGE_KEY = "trybal_onboarding_state";
 
-type SignUpData = z.infer<typeof signUpSchema>;
+interface OnboardingState {
+  step: number;
+  email: string;
+  firstName: string;
+  userType?: string;
+  yearOfBirth?: number;
+  schoolName: string;
+  userId?: string;
+}
+
+const defaultState: OnboardingState = {
+  step: 1,
+  email: "",
+  firstName: "",
+  schoolName: "",
+};
 
 interface SignUpFlowProps {
   onSwitchToSignIn: () => void;
 }
 
 const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
-  const [step, setStep] = useState(1);
+  const [state, setState] = useState<OnboardingState>(defaultState);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<SignUpData>>({
-    contactMethod: "email",
-    countryCode: "+27",
-  });
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const updateFormData = (data: Partial<SignUpData>) => {
-    setFormData((prev) => ({ ...prev, ...data }));
+  // Load persisted state on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setState(parsed);
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }, []);
+
+  // Persist state changes
+  useEffect(() => {
+    if (state.step > 1) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+  }, [state]);
+
+  // Check if user is already authenticated and verified
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        if (user.email_confirmed_at) {
+          // User is verified, check if profile is complete
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, onboarding_completed_at")
+            .eq("id", user.id)
+            .single();
+
+          if (profile?.onboarding_completed_at) {
+            // Onboarding complete, go to home
+            localStorage.removeItem(STORAGE_KEY);
+            navigate("/home");
+          } else if (profile?.first_name) {
+            // Has profile but not completed onboarding
+            setState(prev => ({
+              ...prev,
+              userId: user.id,
+              email: user.email || "",
+              firstName: profile.first_name,
+              step: 4, // Go to welcome
+            }));
+          } else {
+            // Verified but no profile yet
+            setState(prev => ({
+              ...prev,
+              userId: user.id,
+              email: user.email || "",
+              step: 3, // Go to profile setup
+            }));
+          }
+        } else {
+          // Not verified yet
+          setState(prev => ({
+            ...prev,
+            userId: user.id,
+            email: user.email || "",
+            step: 2, // Stay on verification
+          }));
+        }
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  const updateState = (updates: Partial<OnboardingState>) => {
+    setState(prev => ({ ...prev, ...updates }));
   };
 
-  const handleSignUp = async (password: string) => {
+  // Step 1: Create Account
+  const handleAccountSubmit = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      
-      const dataToValidate = { ...formData, password };
-      const validated = signUpSchema.parse(dataToValidate);
-      
-      const { data, error } = await supabase.auth.signUp({
-        email: validated.contactMethod === "email" ? validated.contactValue : `${Date.now()}@trybal.app`,
-        password: validated.password,
-        phone: validated.contactMethod === "mobile" ? validated.contactValue : undefined,
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            first_name: validated.firstName,
-            contact_method: validated.contactMethod,
-            contact_value: validated.contactValue,
-            user_type: validated.userType,
-            school_name: validated.schoolName,
-          },
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
 
-      if (error) throw error;
+      if (signUpError) {
+        if (signUpError.message.includes("already registered")) {
+          setError("This email already has an account. Log in instead.");
+        } else {
+          setError(signUpError.message);
+        }
+        return;
+      }
 
       if (data.user) {
-        // Move to completion step instead of navigating immediately
-        setStep(6);
+        updateState({
+          email,
+          userId: data.user.id,
+          step: 2,
+        });
       }
-    } catch (error: any) {
+    } catch (e: any) {
+      setError(e.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Email Verified
+  const handleVerified = useCallback(() => {
+    updateState({ step: 3 });
+  }, []);
+
+  // Step 2: Change Email (go back to step 1)
+  const handleChangeEmail = async () => {
+    // Sign out the unverified user
+    await supabase.auth.signOut();
+    setState(defaultState);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // Step 3: Profile Setup Complete
+  const handleProfileComplete = async (data: {
+    firstName: string;
+    userType: string;
+    yearOfBirth: number;
+    schoolName: string;
+  }) => {
+    if (!state.userId) return;
+
+    setLoading(true);
+    try {
+      // Update the profile
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          first_name: data.firstName,
+          user_type: data.userType,
+          year_of_birth: data.yearOfBirth,
+          school_name: data.schoolName,
+          contact_method: "email",
+          contact_value: state.email,
+        })
+        .eq("id", state.userId);
+
+      if (updateError) throw updateError;
+
+      updateState({
+        firstName: data.firstName,
+        userType: data.userType,
+        yearOfBirth: data.yearOfBirth,
+        schoolName: data.schoolName,
+        step: 4,
+      });
+    } catch (e: any) {
       toast({
-        title: "Sign up failed",
-        description: error.message || "Please check your details and try again.",
+        title: "Error saving profile",
+        description: e.message,
         variant: "destructive",
       });
     } finally {
@@ -80,91 +208,136 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     }
   };
 
+  // Step 4: Welcome auto-advance
+  const handleWelcomeContinue = useCallback(() => {
+    updateState({ step: 5 });
+  }, []);
+
+  // Step 5: Next Match CTAs
+  const handleFollowTournament = () => {
+    updateState({ step: 6 });
+  };
+
+  const handleCreatePool = () => {
+    updateState({ step: 7 });
+  };
+
+  // Step 6: Tournament follow complete
+  const handleTournamentNext = () => {
+    updateState({ step: 7 });
+  };
+
+  // Step 7: Pool complete - finish onboarding
+  const handleOnboardingComplete = async () => {
+    if (!state.userId) return;
+
+    try {
+      // Mark onboarding as complete
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed_at: new Date().toISOString() })
+        .eq("id", state.userId);
+
+      localStorage.removeItem(STORAGE_KEY);
+      navigate("/home");
+    } catch (e) {
+      // Still navigate even if update fails
+      localStorage.removeItem(STORAGE_KEY);
+      navigate("/home");
+    }
+  };
+
   const renderStep = () => {
-    switch (step) {
+    switch (state.step) {
       case 1:
         return (
-          <StepName
-            firstName={formData.firstName || ""}
-            onNext={(firstName) => {
-              updateFormData({ firstName });
-              setStep(2);
-            }}
+          <StepAccount
+            email={state.email}
+            onNext={handleAccountSubmit}
+            onSwitchToSignIn={onSwitchToSignIn}
+            loading={loading}
+            error={error}
           />
         );
+
       case 2:
         return (
-          <StepContact
-            contactMethod={formData.contactMethod || "email"}
-            contactValue={formData.contactValue || ""}
-            countryCode={formData.countryCode}
-            onNext={(method, value, countryCode) => {
-              updateFormData({ contactMethod: method, contactValue: value, countryCode });
-              setStep(3);
-            }}
-            onBack={() => setStep(1)}
+          <StepVerifyEmail
+            email={state.email}
+            onVerified={handleVerified}
+            onChangeEmail={handleChangeEmail}
           />
         );
+
       case 3:
         return (
-          <StepRole
-            userType={formData.userType}
-            onNext={(userType) => {
-              updateFormData({ userType });
-              setStep(4);
-            }}
-            onBack={() => setStep(2)}
-          />
-        );
-      case 4:
-        return (
-          <StepSchool
-            schoolName={formData.schoolName || ""}
-            onNext={(schoolName) => {
-              updateFormData({ schoolName });
-              setStep(5);
-            }}
-            onBack={() => setStep(3)}
-          />
-        );
-      case 5:
-        return (
-          <StepPassword
-            onNext={(password) => {
-              handleSignUp(password);
-            }}
-            onBack={() => setStep(4)}
+          <StepProfile
+            firstName={state.firstName}
+            userType={state.userType}
+            yearOfBirth={state.yearOfBirth}
+            schoolName={state.schoolName}
+            onNext={handleProfileComplete}
             loading={loading}
           />
         );
-      case 6:
+
+      case 4:
         return (
-          <StepComplete
-            userData={{
-              firstName: formData.firstName || "",
-              contactMethod: formData.contactMethod || "email",
-              contactValue: formData.contactValue || "",
-              userType: formData.userType || "fan",
-              schoolName: formData.schoolName || "",
-            }}
-            onComplete={() => navigate("/home")}
+          <StepWelcome
+            firstName={state.firstName}
+            onContinue={handleWelcomeContinue}
           />
         );
+
+      case 5:
+        return (
+          <StepNextMatch
+            schoolName={state.schoolName}
+            onFollowTournament={handleFollowTournament}
+            onCreatePool={handleCreatePool}
+          />
+        );
+
+      case 6:
+        return (
+          <StepTournament
+            schoolName={state.schoolName}
+            userId={state.userId || ""}
+            onNext={handleTournamentNext}
+            onSkip={handleTournamentNext}
+          />
+        );
+
+      case 7:
+        return (
+          <StepPool
+            schoolName={state.schoolName}
+            userId={state.userId || ""}
+            onComplete={handleOnboardingComplete}
+            onSkip={handleOnboardingComplete}
+          />
+        );
+
       default:
         return null;
     }
   };
 
+  // Progress indicator (hide for verification step and welcome)
+  const showProgress = state.step !== 2 && state.step !== 4;
+  const progressSteps = [1, 3, 5, 6, 7]; // Skip verification (2) and welcome (4) in progress
+  const currentProgressIndex = progressSteps.indexOf(state.step);
+
   return (
     <div className="space-y-6">
-      {/* Progress Indicator - only show for steps 1-5 */}
-      {step <= 5 && (
+      {/* Progress Indicator */}
+      {showProgress && currentProgressIndex >= 0 && (
         <div className="flex justify-center gap-2">
-          {[1, 2, 3, 4, 5].map((s) => (
+          {progressSteps.map((_, index) => (
             <div
-              key={s}
-              className={`h-1.5 w-12 rounded-full transition-colors ${
-                s <= step ? "bg-primary" : "bg-muted"
+              key={index}
+              className={`h-1.5 w-10 rounded-full transition-colors ${
+                index <= currentProgressIndex ? "bg-primary" : "bg-muted"
               }`}
             />
           ))}
@@ -172,18 +345,6 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
       )}
 
       {renderStep()}
-
-      {/* Only show sign in link on steps 1-5 */}
-      {step <= 5 && (
-        <div className="text-center">
-          <button
-            onClick={onSwitchToSignIn}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Already have an account? <span className="text-primary font-medium">Sign In</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 };
