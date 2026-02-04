@@ -441,6 +441,7 @@ export type Database = {
           display_name: string | null
           first_name: string
           id: string
+          onboarding_completed_at: string | null
           parent_email: string | null
           province: string | null
           school_changed_at: string | null
@@ -448,6 +449,7 @@ export type Database = {
           updated_at: string
           user_type: string
           username: string | null
+          year_of_birth: number | null
         }
         Insert: {
           account_type?: string | null
@@ -460,6 +462,7 @@ export type Database = {
           display_name?: string | null
           first_name: string
           id: string
+          onboarding_completed_at?: string | null
           parent_email?: string | null
           province?: string | null
           school_changed_at?: string | null
@@ -467,6 +470,7 @@ export type Database = {
           updated_at?: string
           user_type: string
           username?: string | null
+          year_of_birth?: number | null
         }
         Update: {
           account_type?: string | null
@@ -479,6 +483,7 @@ export type Database = {
           display_name?: string | null
           first_name?: string
           id?: string
+          onboarding_completed_at?: string | null
           parent_email?: string | null
           province?: string | null
           school_changed_at?: string | null
@@ -486,6 +491,7 @@ export type Database = {
           updated_at?: string
           user_type?: string
           username?: string | null
+          year_of_birth?: number | null
         }
         Relationships: []
       }
@@ -869,6 +875,35 @@ export type Database = {
           weekly_points?: number | null
         }
         Relationships: []
+      }
+      user_tournament_follows: {
+        Row: {
+          created_at: string | null
+          id: string
+          tournament_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          tournament_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          tournament_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tournament_follows_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
