@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Trophy, User } from "lucide-react";
+import { Home, Trophy, CalendarDays, User } from "lucide-react";
 
 export const BottomNav = () => {
   const navigate = useNavigate();
@@ -33,6 +33,18 @@ export const BottomNav = () => {
           >
             <Trophy className="w-5 h-5" />
             <span className="text-xs font-medium">Leaderboards</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/fixtures")}
+            className={`flex flex-col items-center gap-1 transition-colors ${
+              isActive("/fixtures")
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CalendarDays className="w-5 h-5" />
+            <span className="text-xs font-medium">Fixtures</span>
           </button>
           
           <button
