@@ -37,12 +37,25 @@ const userTypes = [
 const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: currentYear - 1939 }, (_, i) => currentYear - i);
 
+// Check if user is a minor based on year of birth
+function isMinorYear(yearOfBirth: number | undefined): boolean {
+  if (!yearOfBirth) return false;
+  return currentYear - yearOfBirth < 18;
+}
+
 interface StepProfileProps {
   firstName: string;
   userType?: string;
   yearOfBirth?: number;
   schoolName: string;
-  onNext: (data: { firstName: string; userType: string; yearOfBirth: number; schoolName: string }) => void;
+  parentEmail?: string;
+  onNext: (data: { 
+    firstName: string; 
+    userType: string; 
+    yearOfBirth: number; 
+    schoolName: string;
+    parentEmail?: string;
+  }) => void;
   loading?: boolean;
 }
 
@@ -51,6 +64,7 @@ const StepProfile = ({
   userType: initialUserType,
   yearOfBirth: initialYearOfBirth,
   schoolName: initialSchoolName,
+  parentEmail: initialParentEmail,
   onNext,
   loading,
 }: StepProfileProps) => {
@@ -58,10 +72,14 @@ const StepProfile = ({
   const [userType, setUserType] = useState(initialUserType || "");
   const [yearOfBirth, setYearOfBirth] = useState<number | undefined>(initialYearOfBirth);
   const [schoolName, setSchoolName] = useState(initialSchoolName);
+  const [parentEmail, setParentEmail] = useState(initialParentEmail || "");
   const [schoolSearch, setSchoolSearch] = useState("");
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
   const [schoolOpen, setSchoolOpen] = useState(false);
+
+
+  const showParentEmail = isMinorYear(yearOfBirth);
 
   // Fetch schools based on search
   useEffect(() => {
@@ -94,7 +112,18 @@ const StepProfile = ({
     return () => clearTimeout(debounce);
   }, [schoolSearch]);
 
-  const isValid = firstName.trim().length > 0 && userType && yearOfBirth && schoolName.trim().length > 0;
+  // Email validation
+  const isValidEmail = (email: string) => {
+    if (!email) return true; // Empty is valid if not required
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const isValid = 
+    firstName.trim().length > 0 && 
+    userType && 
+    yearOfBirth && 
+    schoolName.trim().length > 0 &&
+    (!showParentEmail || (parentEmail.trim().length > 0 && isValidEmail(parentEmail)));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +133,7 @@ const StepProfile = ({
         userType,
         yearOfBirth: yearOfBirth!,
         schoolName: schoolName.trim(),
+        parentEmail: showParentEmail ? parentEmail.trim() : undefined,
       });
     }
   };
@@ -249,6 +279,24 @@ const StepProfile = ({
             </PopoverContent>
           </Popover>
         </div>
+
+        {/* Parent Email - Only shown for minors */}
+        {showParentEmail && (
+          <div className="space-y-2">
+            <Label htmlFor="parentEmail">Parent/Guardian Email</Label>
+            <Input
+              id="parentEmail"
+              type="email"
+              placeholder="parent@email.com"
+              value={parentEmail}
+              onChange={(e) => setParentEmail(e.target.value)}
+              autoComplete="email"
+            />
+            <p className="text-xs text-muted-foreground">
+              We'll send a consent request to your parent or guardian. This is required to unlock all features.
+            </p>
+          </div>
+        )}
       </div>
 
       <Button type="submit" className="w-full" size="lg" disabled={!isValid || loading}>

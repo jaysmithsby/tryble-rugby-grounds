@@ -30,6 +30,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChangeSchoolDialog } from "@/components/profile/ChangeSchoolDialog";
+import { ConsentStatusCard } from "@/components/consent/ConsentStatusCard";
 
 interface ProfileData {
   firstName: string;
@@ -458,16 +459,8 @@ const Profile = () => {
               </div>
             </div>
 
-            {/* Parental Consent Status */}
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
-                <span className="font-medium">Parental Consent: Verified</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Your account is protected under POPIA. Certain features are restricted for your safety.
-              </p>
-            </div>
+            {/* Dynamic Parental Consent Status */}
+            <ConsentStatusCard />
 
             {/* Log Out */}
             <Button
