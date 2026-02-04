@@ -89,6 +89,7 @@ const Leaderboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Fetch user's pools with member counts in a single query using the count aggregation
       const { data, error } = await supabase
         .from("pool_members")
         .select(`
@@ -98,24 +99,24 @@ const Leaderboard = () => {
             name,
             invite_code,
             schools,
-            voting_mode
+            voting_mode,
+            pool_members(count)
           )
         `)
         .eq("user_id", user.id);
 
       if (error) throw error;
+      
       const pools = data?.map(d => d.pools) || [];
       setUserPools(pools);
 
-      // Load member counts for each pool
+      // Extract member counts from the aggregated query (no N+1!)
       const counts: Record<string, number> = {};
       for (const pool of pools) {
         if (pool) {
-          const { data: members } = await supabase
-            .from("pool_members")
-            .select("user_id", { count: "exact" })
-            .eq("pool_id", pool.id);
-          counts[pool.id] = members?.length || 0;
+          // The count comes from the nested pool_members aggregation
+          const memberCount = (pool as any).pool_members?.[0]?.count ?? 0;
+          counts[pool.id] = memberCount;
         }
       }
       setPoolMemberCounts(counts);
