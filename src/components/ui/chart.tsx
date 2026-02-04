@@ -61,30 +61,55 @@ ChartContainer.displayName = "Chart";
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
-  if (!colorConfig.length) {
-    return null;
-  }
+  // Use useInsertionEffect to safely inject styles without dangerouslySetInnerHTML
+  React.useInsertionEffect(() => {
+    if (!colorConfig.length) {
+      return;
+    }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+    // Generate CSS content safely
+    const cssContent = Object.entries(THEMES)
+      .map(([theme, prefix]) => {
+        const cssVars = colorConfig
+          .map(([key, itemConfig]) => {
+            const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+            // Sanitize the color value - only allow valid CSS color characters
+            if (color && /^[#a-zA-Z0-9(),.\s%-]+$/.test(color)) {
+              // Sanitize the key - only allow alphanumeric and hyphens
+              const safeKey = key.replace(/[^a-zA-Z0-9-]/g, '');
+              return `  --color-${safeKey}: ${color};`;
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .join("\n");
+
+        return `${prefix} [data-chart=${id}] {\n${cssVars}\n}`;
+      })
+      .join("\n");
+
+    // Create or update the style element
+    const styleId = `chart-style-${id}`;
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
+    
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+    
+    styleElement.textContent = cssContent;
+
+    // Cleanup on unmount
+    return () => {
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, [id, colorConfig]);
+
+  return null;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
