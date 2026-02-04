@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { CACHE_TIMES } from "@/lib/queryConfig";
 
 interface FixtureSchool {
   id: string;
@@ -138,6 +139,7 @@ export const useFixturesData = ({
       return [...new Set(schoolIds)]; // Remove duplicates
     },
     enabled: viewMode === "my-schools" && !!userId,
+    staleTime: CACHE_TIMES.USER_PROFILE, // User's followed schools don't change often
   });
 
   // Fetch fixtures for the selected month
@@ -195,6 +197,7 @@ export const useFixturesData = ({
 
       return result;
     },
+    staleTime: CACHE_TIMES.DYNAMIC, // Fixtures data is moderately dynamic
   });
 
   // Fetch user's predictions for these fixtures
@@ -215,6 +218,7 @@ export const useFixturesData = ({
       return data as UserPrediction[];
     },
     enabled: !!userId && fixtureIds.length > 0,
+    staleTime: CACHE_TIMES.DYNAMIC, // Predictions may update during match weekends
   });
 
   // Create predictions map
@@ -276,6 +280,6 @@ export const useAllSchools = () => {
       if (error) throw error;
       return data;
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: CACHE_TIMES.STATIC, // Schools list is static reference data
   });
 };
