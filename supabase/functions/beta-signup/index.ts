@@ -37,6 +37,38 @@ const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-
 // Maximum request body size (1KB should be plenty for an email)
 const MAX_REQUEST_SIZE = 1024;
 
+// ============= Structured Logger with PII Sanitization =============
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+const PII_PATTERNS = [
+  { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: "[EMAIL_REDACTED]" },
+  { pattern: /\b\d{10,15}\b/g, replacement: "[PHONE_REDACTED]" },
+  { pattern: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, replacement: "[UUID_REDACTED]" },
+  { pattern: /Bearer\s+[A-Za-z0-9\-._~+\/]+=*/g, replacement: "Bearer [TOKEN_REDACTED]" },
+];
+
+function sanitizePII(value: unknown): string {
+  let str = typeof value === "string" ? value : JSON.stringify(value);
+  for (const { pattern, replacement } of PII_PATTERNS) {
+    str = str.replace(pattern, replacement);
+  }
+  return str;
+}
+
+function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    function: "beta-signup",
+    message: sanitizePII(message),
+    ...(context ? { context: JSON.parse(sanitizePII(context)) } : {}),
+  };
+  
+  const logFn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  logFn(JSON.stringify(entry));
+}
+// ============= End Logger =============
+
 async function sendEmailWithRetry(
   emailConfig: Parameters<typeof resend.emails.send>[0],
   attempt = 1
@@ -54,12 +86,12 @@ async function sendEmailWithRetry(
     
     if (attempt < MAX_RETRIES) {
       const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
-      console.log(`Email send attempt ${attempt} failed, retrying in ${delay}ms...`);
+      log("info", `Email send attempt ${attempt} failed, retrying in ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return sendEmailWithRetry(emailConfig, attempt + 1);
     }
     
-    console.error(`Email send failed after ${MAX_RETRIES} attempts:`, errorMessage);
+    log("error", `Email send failed after ${MAX_RETRIES} attempts`, { error: errorMessage });
     return { success: false, error: errorMessage };
   }
 }
@@ -107,10 +139,10 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     if (rateLimitError) {
-      console.error("Rate limit check failed:", rateLimitError);
+      log("error", "Rate limit check failed", { error: rateLimitError.message });
       // Continue anyway - don't block on rate limit errors
     } else if (rateLimitResult && rateLimitResult[0] && !rateLimitResult[0].allowed) {
-      console.log(`Rate limit exceeded for IP: ${clientIp}`);
+      log("info", "Rate limit exceeded for IP");
       return new Response(
         JSON.stringify({
           success: false,
@@ -126,6 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Check request size to prevent payload attacks
     const contentLength = req.headers.get("content-length");
     if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      log("warn", "Request too large", { size: contentLength });
       return new Response(
         JSON.stringify({ success: false, error: "Request too large" }),
         { status: 413, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -137,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Honeypot check - if hidden fields are filled, it's likely a bot
     if (website || phone) {
-      console.log("Honeypot triggered - likely bot submission");
+      log("info", "Honeypot triggered - likely bot submission");
       // Return success to not tip off the bot, but don't process
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
@@ -162,7 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Processing beta signup for: [REDACTED]");
+    log("info", "Processing beta signup request");
 
     const emailResult = await sendEmailWithRetry({
       from: "Trybal Beta <onboarding@resend.dev>",
@@ -209,7 +242,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Email delivery failed: ${emailResult.error}`);
     }
 
-    console.log("Beta signup email sent successfully");
+    log("info", "Beta signup email sent successfully");
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -219,7 +252,9 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: unknown) {
-    console.error("Error in beta-signup function:", error);
+    log("error", "Error in beta-signup function", { 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    });
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
