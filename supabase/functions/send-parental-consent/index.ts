@@ -4,6 +4,37 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_DELAY_MS = 1000;
+
+async function sendEmailWithRetry(
+  emailConfig: Parameters<typeof resend.emails.send>[0],
+  attempt = 1
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await resend.emails.send(emailConfig);
+    
+    if (response.error) {
+      throw new Error(response.error.message || "Resend API error");
+    }
+    
+    return { success: true };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    if (attempt < MAX_RETRIES) {
+      const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
+      console.log(`Email send attempt ${attempt} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return sendEmailWithRetry(emailConfig, attempt + 1);
+    }
+    
+    console.error(`Email send failed after ${MAX_RETRIES} attempts:`, errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -272,16 +303,16 @@ serve(async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    const { error: emailError } = await resend.emails.send({
+    const emailResult = await sendEmailWithRetry({
       from: "Trybal <noreply@trybal.app>",
       to: [normalizedEmail],
       subject: `Parental Consent Request for ${childFirstName}`,
       html: emailHtml,
     });
 
-    if (emailError) {
-      console.error("Error sending email:", emailError);
-      throw new Error("Failed to send consent email");
+    if (!emailResult.success) {
+      console.error("Error sending email after retries:", emailResult.error);
+      throw new Error("Failed to send consent email after multiple attempts");
     }
 
     console.log(`Parental consent email sent to [REDACTED] for user ${user.id}`);
