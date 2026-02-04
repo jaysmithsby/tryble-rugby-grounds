@@ -27,6 +27,38 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 const MAX_RETRIES = 3;
 const INITIAL_DELAY_MS = 1000;
 
+// ============= Structured Logger with PII Sanitization =============
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+const PII_PATTERNS = [
+  { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: "[EMAIL_REDACTED]" },
+  { pattern: /\b\d{10,15}\b/g, replacement: "[PHONE_REDACTED]" },
+  { pattern: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, replacement: "[UUID_REDACTED]" },
+  { pattern: /Bearer\s+[A-Za-z0-9\-._~+\/]+=*/g, replacement: "Bearer [TOKEN_REDACTED]" },
+];
+
+function sanitizePII(value: unknown): string {
+  let str = typeof value === "string" ? value : JSON.stringify(value);
+  for (const { pattern, replacement } of PII_PATTERNS) {
+    str = str.replace(pattern, replacement);
+  }
+  return str;
+}
+
+function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    function: "send-parental-consent",
+    message: sanitizePII(message),
+    ...(context ? { context: JSON.parse(sanitizePII(context)) } : {}),
+  };
+  
+  const logFn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  logFn(JSON.stringify(entry));
+}
+// ============= End Logger =============
+
 async function sendEmailWithRetry(
   emailConfig: Parameters<typeof resend.emails.send>[0],
   attempt = 1
@@ -44,12 +76,12 @@ async function sendEmailWithRetry(
     
     if (attempt < MAX_RETRIES) {
       const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
-      console.log(`Email send attempt ${attempt} failed, retrying in ${delay}ms...`);
+      log("info", `Email send attempt ${attempt} failed, retrying in ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return sendEmailWithRetry(emailConfig, attempt + 1);
     }
     
-    console.error(`Email send failed after ${MAX_RETRIES} attempts:`, errorMessage);
+    log("error", `Email send failed after ${MAX_RETRIES} attempts`, { error: errorMessage });
     return { success: false, error: errorMessage };
   }
 }
@@ -92,6 +124,7 @@ serve(async (req: Request): Promise<Response> => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
+      log("warn", "Authentication failed");
       throw new Error("Unauthorized");
     }
 
@@ -105,10 +138,11 @@ serve(async (req: Request): Promise<Response> => {
       });
 
     if (rateLimitError) {
-      console.error("Rate limit check failed:", rateLimitError);
+      log("error", "Rate limit check failed", { error: rateLimitError.message });
       // Continue anyway - don't block on rate limit errors
     } else if (rateLimitResult && rateLimitResult[0] && !rateLimitResult[0].allowed) {
       const resetAt = new Date(rateLimitResult[0].reset_at).toLocaleTimeString();
+      log("info", "Rate limit exceeded", { userId: user.id });
       return new Response(
         JSON.stringify({
           error: `Too many requests. Please try again after ${resetAt}`,
@@ -135,11 +169,12 @@ serve(async (req: Request): Promise<Response> => {
       .rpc("check_parent_email_limit", { p_email: normalizedEmail });
 
     if (limitError) {
-      console.error("Error checking email limit:", limitError);
+      log("error", "Error checking email limit", { error: limitError.message });
       throw new Error("Failed to validate parent email");
     }
 
     if (!limitCheck) {
+      log("info", "Parent email limit exceeded");
       return new Response(
         JSON.stringify({
           error: "This email has been used for too many accounts. Please use a different parent/guardian email.",
@@ -158,7 +193,7 @@ serve(async (req: Request): Promise<Response> => {
         .rpc("can_change_parent_email", { p_user_id: user.id });
 
       if (changeError) {
-        console.error("Error checking change eligibility:", changeError);
+        log("error", "Error checking change eligibility", { error: changeError.message });
         throw new Error("Failed to validate email change eligibility");
       }
 
@@ -228,7 +263,7 @@ serve(async (req: Request): Promise<Response> => {
         });
 
       if (insertError) {
-        console.error("Error creating consent request:", insertError);
+        log("error", "Error creating consent request", { error: insertError.message });
         throw new Error("Failed to create consent request");
       }
     }
@@ -330,11 +365,11 @@ serve(async (req: Request): Promise<Response> => {
     });
 
     if (!emailResult.success) {
-      console.error("Error sending email after retries:", emailResult.error);
+      log("error", "Error sending email after retries", { error: emailResult.error });
       throw new Error("Failed to send consent email after multiple attempts");
     }
 
-    console.log(`Parental consent email sent to [REDACTED] for user ${user.id}`);
+    log("info", "Parental consent email sent successfully", { userId: user.id });
 
     return new Response(
       JSON.stringify({
@@ -348,7 +383,9 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error in send-parental-consent:", error);
+    log("error", "Error in send-parental-consent", { 
+      error: error.message || "Internal server error" 
+    });
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
       {

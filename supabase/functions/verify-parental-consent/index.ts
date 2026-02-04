@@ -1,3 +1,14 @@
+/**
+ * Verify Parental Consent Edge Function
+ * 
+ * PUBLIC ENDPOINT - No authentication required
+ * Parents verify consent via token in email link.
+ * 
+ * SECURITY CONTROLS:
+ * - Token-based verification
+ * - Token expiry validation
+ * - PII redacted from logs
+ */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -6,6 +17,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// ============= Structured Logger with PII Sanitization =============
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+const PII_PATTERNS = [
+  { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: "[EMAIL_REDACTED]" },
+  { pattern: /\b\d{10,15}\b/g, replacement: "[PHONE_REDACTED]" },
+  { pattern: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, replacement: "[UUID_REDACTED]" },
+  { pattern: /Bearer\s+[A-Za-z0-9\-._~+\/]+=*/g, replacement: "Bearer [TOKEN_REDACTED]" },
+];
+
+function sanitizePII(value: unknown): string {
+  let str = typeof value === "string" ? value : JSON.stringify(value);
+  for (const { pattern, replacement } of PII_PATTERNS) {
+    str = str.replace(pattern, replacement);
+  }
+  return str;
+}
+
+function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    function: "verify-parental-consent",
+    message: sanitizePII(message),
+    ...(context ? { context: JSON.parse(sanitizePII(context)) } : {}),
+  };
+  
+  const logFn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  logFn(JSON.stringify(entry));
+}
+// ============= End Logger =============
 
 interface VerifyRequest {
   token: string;
@@ -28,6 +71,8 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Missing consent token");
     }
 
+    log("info", "Processing consent verification");
+
     // Look up the consent request
     const { data: consentRequest, error: lookupError } = await supabase
       .from("parental_consent_requests")
@@ -36,11 +81,12 @@ serve(async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (lookupError) {
-      console.error("Error looking up consent request:", lookupError);
+      log("error", "Error looking up consent request", { error: lookupError.message });
       throw new Error("Failed to verify consent token");
     }
 
     if (!consentRequest) {
+      log("warn", "Invalid consent token provided");
       return new Response(
         JSON.stringify({
           success: false,
@@ -63,6 +109,7 @@ serve(async (req: Request): Promise<Response> => {
         .eq("id", consentRequest.child_user_id)
         .single();
 
+      log("info", "Consent already verified");
       return new Response(
         JSON.stringify({
           success: true,
@@ -80,6 +127,7 @@ serve(async (req: Request): Promise<Response> => {
     // Check if expired
     if (consentRequest.status === "expired" || 
         (consentRequest.expires_at && new Date(consentRequest.expires_at) < new Date())) {
+      log("warn", "Expired consent token used");
       return new Response(
         JSON.stringify({
           success: false,
@@ -95,6 +143,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Check if revoked
     if (consentRequest.status === "revoked") {
+      log("warn", "Revoked consent token used");
       return new Response(
         JSON.stringify({
           success: false,
@@ -118,7 +167,7 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", consentRequest.id);
 
     if (updateConsentError) {
-      console.error("Error updating consent request:", updateConsentError);
+      log("error", "Error updating consent request", { error: updateConsentError.message });
       throw new Error("Failed to verify consent");
     }
 
@@ -131,7 +180,7 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", consentRequest.child_user_id);
 
     if (updateProfileError) {
-      console.error("Error updating profile:", updateProfileError);
+      log("error", "Error updating profile", { error: updateProfileError.message });
       // Don't fail the request, consent is still valid
     }
 
@@ -142,7 +191,7 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", consentRequest.child_user_id)
       .single();
 
-    console.log(`Parental consent verified for user ${consentRequest.child_user_id}`);
+    log("info", "Parental consent verified successfully");
 
     return new Response(
       JSON.stringify({
@@ -157,7 +206,9 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error in verify-parental-consent:", error);
+    log("error", "Error in verify-parental-consent", { 
+      error: error.message || "Internal server error" 
+    });
     return new Response(
       JSON.stringify({ success: false, error: error.message || "Internal server error" }),
       {

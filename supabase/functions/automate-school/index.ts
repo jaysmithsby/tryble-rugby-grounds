@@ -25,6 +25,39 @@ const corsHeaders = {
 const RATE_LIMIT_MAX = 20;
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
+// ============= Structured Logger with PII Sanitization =============
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+const PII_PATTERNS = [
+  { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: "[EMAIL_REDACTED]" },
+  { pattern: /\b\d{10,15}\b/g, replacement: "[PHONE_REDACTED]" },
+  { pattern: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, replacement: "[UUID_REDACTED]" },
+  { pattern: /Bearer\s+[A-Za-z0-9\-._~+\/]+=*/g, replacement: "Bearer [TOKEN_REDACTED]" },
+  { pattern: /\b(sk_live_|pk_live_|sk_test_|pk_test_)[A-Za-z0-9]+/g, replacement: "[API_KEY_REDACTED]" },
+];
+
+function sanitizePII(value: unknown): string {
+  let str = typeof value === "string" ? value : JSON.stringify(value);
+  for (const { pattern, replacement } of PII_PATTERNS) {
+    str = str.replace(pattern, replacement);
+  }
+  return str;
+}
+
+function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    function: "automate-school",
+    message: sanitizePII(message),
+    ...(context ? { context: JSON.parse(sanitizePII(context)) } : {}),
+  };
+  
+  const logFn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  logFn(JSON.stringify(entry));
+}
+// ============= End Logger =============
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -50,7 +83,7 @@ Deno.serve(async (req) => {
     } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      console.error('Authentication error:', userError);
+      log("warn", "Authentication failed", { error: userError?.message });
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -66,7 +99,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (rolesError || !roles) {
-      console.error('Authorization error: User is not an admin');
+      log("warn", "Authorization failed - user is not admin", { userId: user.id });
       return new Response(
         JSON.stringify({ error: 'Forbidden - Admin access required' }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -89,10 +122,11 @@ Deno.serve(async (req) => {
       });
 
     if (rateLimitError) {
-      console.error("Rate limit check failed:", rateLimitError);
+      log("error", "Rate limit check failed", { error: rateLimitError.message });
       // Continue anyway - don't block on rate limit errors
     } else if (rateLimitResult && rateLimitResult[0] && !rateLimitResult[0].allowed) {
       const resetAt = new Date(rateLimitResult[0].reset_at).toLocaleTimeString();
+      log("info", "Rate limit exceeded", { userId: user.id, resetAt });
       return new Response(
         JSON.stringify({ 
           error: `Too many automation requests. Please try again after ${resetAt}`,
@@ -120,11 +154,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Admin ${user.id} fetching data for school: ${sanitizedSchoolName}`);
+    log("info", "Fetching school data", { schoolName: sanitizedSchoolName, adminId: user.id });
 
     const webhookUrl = Deno.env.get('N8N_SCHOOL_WEBHOOK_URL');
     if (!webhookUrl) {
-      console.error('N8N_SCHOOL_WEBHOOK_URL secret is not configured');
+      log("error", "N8N_SCHOOL_WEBHOOK_URL secret is not configured");
       return new Response(
         JSON.stringify({ error: 'School automation service not configured' }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -140,7 +174,7 @@ Deno.serve(async (req) => {
     });
 
     if (!response.ok) {
-      console.error(`Webhook returned status: ${response.status}`);
+      log("error", "Webhook request failed", { status: response.status });
       return new Response(
         JSON.stringify({ error: `Webhook error: ${response.status}` }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -148,7 +182,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Webhook response received successfully");
+    log("info", "Webhook response received successfully", { schoolName: sanitizedSchoolName });
     
     // If the webhook returns an array, extract the first item to simplify client handling
     const responseData = Array.isArray(data) && data.length > 0 ? data[0] : data;
@@ -158,7 +192,9 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in automate-school function:", error);
+    log("error", "Unexpected error in automate-school function", { 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    });
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),
