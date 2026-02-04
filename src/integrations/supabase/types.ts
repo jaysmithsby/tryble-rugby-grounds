@@ -578,11 +578,13 @@ export type Database = {
       }
       schools: {
         Row: {
+          archived_at: string | null
           created_at: string
           emblem_url: string | null
           established_year: number | null
           icon_url: string | null
           id: string
+          is_archived: boolean
           is_visible: boolean | null
           jersey_config: Json | null
           jersey_url: string | null
@@ -601,11 +603,13 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           emblem_url?: string | null
           established_year?: number | null
           icon_url?: string | null
           id?: string
+          is_archived?: boolean
           is_visible?: boolean | null
           jersey_config?: Json | null
           jersey_url?: string | null
@@ -624,11 +628,13 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           emblem_url?: string | null
           established_year?: number | null
           icon_url?: string | null
           id?: string
+          is_archived?: boolean
           is_visible?: boolean | null
           jersey_config?: Json | null
           jersey_url?: string | null

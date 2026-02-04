@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil, Trash2, Loader2, Search, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Pencil, Archive, ArchiveRestore, Loader2, Search, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,13 +40,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { 
   calculateCompleteness, 
-  getCompletenessColor,
   getCompletenessBadgeVariant,
   FIELD_LABELS,
 } from "@/lib/schoolCompleteness";
 
 type SortField = 'name' | 'province' | 'completeness' | 'established' | 'rival' | 'status';
 type SortDirection = 'asc' | 'desc';
+type ArchiveFilter = 'active' | 'archived' | 'all';
 
 interface School {
   id: string;
@@ -67,6 +67,8 @@ interface School {
   secondary_color?: string | null;
   status: string;
   is_visible?: boolean;
+  is_archived?: boolean;
+  archived_at?: string | null;
 }
 
 interface SchoolsTableProps {
@@ -78,11 +80,13 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const navigate = useNavigate();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [restoreId, setRestoreId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [completenessFilter, setCompletenessFilter] = useState("all");
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -131,27 +135,63 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleArchive = async (id: string) => {
     try {
-      const { error } = await supabase.from("schools").delete().eq("id", id);
+      const { error } = await supabase
+        .from("schools")
+        .update({ 
+          is_archived: true, 
+          archived_at: new Date().toISOString() 
+        })
+        .eq("id", id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "School deleted successfully",
+        description: "School archived successfully. You can restore it from the 'Archived' filter.",
       });
       
       fetchSchools();
     } catch (error) {
-      console.error("Error deleting school:", error);
+      console.error("Error archiving school:", error);
       toast({
         title: "Error",
-        description: "Failed to delete school",
+        description: "Failed to archive school",
         variant: "destructive",
       });
     } finally {
-      setDeleteId(null);
+      setArchiveId(null);
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("schools")
+        .update({ 
+          is_archived: false, 
+          archived_at: null 
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "School restored successfully",
+      });
+      
+      fetchSchools();
+    } catch (error) {
+      console.error("Error restoring school:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore school",
+        variant: "destructive",
+      });
+    } finally {
+      setRestoreId(null);
     }
   };
 
@@ -203,7 +243,12 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
         (completenessFilter === "complete" && school.completeness.percentage >= 100) ||
         (completenessFilter === "incomplete" && school.completeness.percentage < 100);
 
-      return matchesSearch && matchesProvince && matchesStatus && matchesCompleteness;
+      const matchesArchive =
+        archiveFilter === "all" ||
+        (archiveFilter === "active" && !school.is_archived) ||
+        (archiveFilter === "archived" && school.is_archived);
+
+      return matchesSearch && matchesProvince && matchesStatus && matchesCompleteness && matchesArchive;
     });
 
     // Sort results based on sortField and sortDirection
@@ -239,13 +284,14 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
       
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter, sortField, sortDirection]);
+  }, [schoolsWithCompleteness, debouncedSearch, provinceFilter, statusFilter, completenessFilter, archiveFilter, sortField, sortDirection]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setProvinceFilter("all");
     setStatusFilter("all");
     setCompletenessFilter("all");
+    setArchiveFilter("active");
     setSortField("name");
     setSortDirection("asc");
   };
@@ -303,6 +349,16 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
               <SelectItem value="all">All Schools</SelectItem>
               <SelectItem value="incomplete">Incomplete (&lt;100%)</SelectItem>
               <SelectItem value="complete">Complete (100%)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={archiveFilter} onValueChange={(v) => setArchiveFilter(v as ArchiveFilter)}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Archive" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+              <SelectItem value="all">All</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -462,16 +518,29 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(school)}
+                        disabled={school.is_archived}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteId(school.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {school.is_archived ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRestoreId(school.id)}
+                          title="Restore school"
+                        >
+                          <ArchiveRestore className="h-4 w-4 text-green-600" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setArchiveId(school.id)}
+                          title="Archive school"
+                        >
+                          <Archive className="h-4 w-4 text-orange-500" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -484,21 +553,41 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
       {/* Results count */}
       <div className="text-sm text-muted-foreground mt-4">
         Showing {filteredSchools.length} of {schools.length} schools
+        {archiveFilter === "archived" && " (archived)"}
       </div>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={archiveId !== null} onOpenChange={() => setArchiveId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Archive this school?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the school
-              from the database.
+              This school will be moved to the archive. It will no longer appear in the app,
+              but you can restore it later from the "Archived" filter if needed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteId && handleDelete(deleteId)}>
-              Delete
+            <AlertDialogAction onClick={() => archiveId && handleArchive(archiveId)}>
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore Confirmation Dialog */}
+      <AlertDialog open={restoreId !== null} onOpenChange={() => setRestoreId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore this school?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This school will be restored and become visible in the app again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => restoreId && handleRestore(restoreId)}>
+              Restore
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

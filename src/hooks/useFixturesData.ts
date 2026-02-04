@@ -269,6 +269,8 @@ export const useAllSchools = () => {
         .from("schools")
         .select("id, name, province")
         .eq("is_visible", true)
+        .eq("is_archived", false)
+        .eq("status", "verified")
         .order("name");
 
       if (error) throw error;
