@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, RefreshCw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { UserActionsDropdown } from "./UserActionsDropdown";
 import { format } from "date-fns";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "./PaginationControls";
+import { useDebounce } from "@/hooks/use-debounce";
 
 type SortField = 'display_name' | 'username' | 'school' | 'age_band' | 'joined' | 'type' | 'consent' | 'email' | 'sanction' | 'predictions';
 type SortDirection = 'asc' | 'desc';
@@ -52,6 +55,9 @@ export function UsersTable() {
   const [schools, setSchools] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>('joined');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  const pagination = usePagination(1, 25);
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -60,6 +66,8 @@ export function UsersTable() {
       setSortField(field);
       setSortDirection('asc');
     }
+    // Reset to first page when sorting changes
+    pagination.goToPage(1);
   };
 
   const getSortIcon = (field: SortField) => {
@@ -71,19 +79,80 @@ export function UsersTable() {
       : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
+  // Reset to page 1 when filters change
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    pagination.goToPage(1);
+  }, [debouncedSearch, schoolFilter, ageBandFilter, consentFilter]);
 
-  const fetchUsers = async () => {
+  // Fetch users with server-side pagination
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Fetch all profiles (this is the source of truth for users)
-      const { data: profiles, error: profilesError } = await supabase
+      // Build the base query for count
+      let countQuery = supabase
         .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact', head: true });
+
+      // Apply filters to count query
+      if (schoolFilter !== 'all') {
+        countQuery = countQuery.eq('school_name', schoolFilter);
+      }
+      if (ageBandFilter !== 'all') {
+        countQuery = countQuery.eq('age_band', ageBandFilter);
+      }
+      if (consentFilter !== 'all') {
+        countQuery = countQuery.eq('consent_status', consentFilter);
+      }
+      if (debouncedSearch) {
+        countQuery = countQuery.or(
+          `display_name.ilike.%${debouncedSearch}%,username.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,school_name.ilike.%${debouncedSearch}%,contact_value.ilike.%${debouncedSearch}%`
+        );
+      }
+
+      const { count, error: countError } = await countQuery;
+      
+      if (countError) {
+        console.error('Error getting count:', countError);
+      }
+
+      pagination.setTotalCount(count || 0);
+
+      // Build the data query with pagination
+      let dataQuery = supabase
+        .from('profiles')
+        .select('*');
+
+      // Apply the same filters
+      if (schoolFilter !== 'all') {
+        dataQuery = dataQuery.eq('school_name', schoolFilter);
+      }
+      if (ageBandFilter !== 'all') {
+        dataQuery = dataQuery.eq('age_band', ageBandFilter);
+      }
+      if (consentFilter !== 'all') {
+        dataQuery = dataQuery.eq('consent_status', consentFilter);
+      }
+      if (debouncedSearch) {
+        dataQuery = dataQuery.or(
+          `display_name.ilike.%${debouncedSearch}%,username.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,school_name.ilike.%${debouncedSearch}%,contact_value.ilike.%${debouncedSearch}%`
+        );
+      }
+
+      // Apply sorting
+      const sortColumn = sortField === 'joined' ? 'created_at' 
+        : sortField === 'school' ? 'school_name'
+        : sortField === 'type' ? 'account_type'
+        : sortField === 'consent' ? 'consent_status'
+        : sortField === 'email' ? 'contact_value'
+        : sortField;
+      
+      dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' });
+
+      // Apply pagination
+      dataQuery = dataQuery.range(pagination.from, pagination.to);
+
+      const { data: profiles, error: profilesError } = await dataQuery;
       
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
@@ -91,44 +160,45 @@ export function UsersTable() {
       }
 
       if (!profiles || profiles.length === 0) {
-        console.log('No profiles found in database');
         setUsers([]);
-        setSchools([]);
         setLoading(false);
         return;
       }
 
-      // Fetch active sanctions
-      const { data: sanctions, error: sanctionsError } = await supabase
-        .from('user_sanctions')
-        .select('*')
-        .eq('is_active', true);
-      if (sanctionsError) console.error('Error fetching sanctions:', sanctionsError);
+      const profileIds = profiles.map(p => p.id);
 
-      // Fetch user scores
-      const { data: scores, error: scoresError } = await supabase
-        .from('user_scores')
-        .select('user_id, predictions_made, predictions_correct');
-      if (scoresError) console.error('Error fetching scores:', scoresError);
+      // Fetch related data for the current page only
+      const [sanctionsResult, scoresResult, poolsResult, badgesResult] = await Promise.all([
+        supabase
+          .from('user_sanctions')
+          .select('*')
+          .eq('is_active', true)
+          .in('user_id', profileIds),
+        supabase
+          .from('user_scores')
+          .select('user_id, predictions_made, predictions_correct')
+          .in('user_id', profileIds),
+        supabase
+          .from('pool_members')
+          .select('user_id')
+          .in('user_id', profileIds),
+        supabase
+          .from('user_badges')
+          .select('user_id')
+          .in('user_id', profileIds),
+      ]);
 
-      // Fetch pool memberships count
-      const { data: poolMemberships, error: poolError } = await supabase
-        .from('pool_members')
-        .select('user_id');
-      if (poolError) console.error('Error fetching pool memberships:', poolError);
+      const sanctions = sanctionsResult.data || [];
+      const scores = scoresResult.data || [];
+      const poolMemberships = poolsResult.data || [];
+      const userBadges = badgesResult.data || [];
 
-      // Fetch badges count
-      const { data: userBadges, error: badgesError } = await supabase
-        .from('user_badges')
-        .select('user_id');
-      if (badgesError) console.error('Error fetching badges:', badgesError);
-
-      // Build users from profiles (profiles table is the source of truth)
+      // Build users from profiles
       const combinedUsers: UserData[] = profiles.map(profile => {
-        const userSanctions = sanctions?.filter(s => s.user_id === profile.id) || [];
-        const userScores = scores?.find(s => s.user_id === profile.id) || null;
-        const poolCount = poolMemberships?.filter(pm => pm.user_id === profile.id).length || 0;
-        const badgeCount = userBadges?.filter(b => b.user_id === profile.id).length || 0;
+        const userSanctions = sanctions.filter(s => s.user_id === profile.id);
+        const userScores = scores.find(s => s.user_id === profile.id) || null;
+        const poolCount = poolMemberships.filter(pm => pm.user_id === profile.id).length;
+        const badgeCount = userBadges.filter(b => b.user_id === profile.id).length;
 
         return {
           id: profile.id,
@@ -154,16 +224,33 @@ export function UsersTable() {
       });
 
       setUsers(combinedUsers);
-
-      // Extract unique schools for filter
-      const uniqueSchools = [...new Set(profiles.map(p => p.school_name).filter(Boolean))];
-      setSchools(uniqueSchools as string[]);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.from, pagination.to, debouncedSearch, schoolFilter, ageBandFilter, consentFilter, sortField, sortDirection]);
+
+  // Fetch schools list for filter (one-time)
+  useEffect(() => {
+    const fetchSchools = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('school_name')
+        .not('school_name', 'is', null);
+      
+      if (!error && data) {
+        const uniqueSchools = [...new Set(data.map(p => p.school_name).filter(Boolean))];
+        setSchools(uniqueSchools as string[]);
+      }
+    };
+    fetchSchools();
+  }, []);
+
+  // Fetch users when dependencies change
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const getActiveSanction = (sanctions: UserData['sanctions']) => {
     const active = sanctions.find(s => s.is_active);
@@ -179,94 +266,7 @@ export function UsersTable() {
     return active.sanction_type;
   };
 
-  // Get active sanction helper
-  const getActiveSanctionType = (sanctions: UserData['sanctions']) => {
-    const active = sanctions.find(s => s.is_active);
-    return active?.sanction_type || null;
-  };
-
-  const filteredAndSortedUsers = useMemo(() => {
-    const filtered = users.filter(user => {
-      const query = searchTerm.toLowerCase();
-      const activeSanctionType = getActiveSanctionType(user.sanctions);
-      
-      const matchesSearch = 
-        searchTerm === '' ||
-        user.profile?.display_name?.toLowerCase().includes(query) ||
-        user.profile?.username?.toLowerCase().includes(query) ||
-        user.profile?.first_name?.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query) ||
-        user.profile?.school_name?.toLowerCase().includes(query) ||
-        user.profile?.account_type?.toLowerCase().includes(query) ||
-        (activeSanctionType && activeSanctionType.toLowerCase().includes(query)) ||
-        (query.includes('ban') && activeSanctionType === 'ban') ||
-        (query.includes('suspend') && activeSanctionType === 'suspension');
-
-      const matchesSchool = schoolFilter === 'all' || user.profile?.school_name === schoolFilter;
-      const matchesAgeBand = ageBandFilter === 'all' || user.profile?.age_band === ageBandFilter;
-      const matchesConsent = consentFilter === 'all' || user.profile?.consent_status === consentFilter;
-
-      return matchesSearch && matchesSchool && matchesAgeBand && matchesConsent;
-    });
-
-    // Sort results
-    return [...filtered].sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'display_name':
-          const nameA = a.profile?.display_name || a.profile?.first_name || '';
-          const nameB = b.profile?.display_name || b.profile?.first_name || '';
-          comparison = nameA.localeCompare(nameB);
-          break;
-        case 'username':
-          const userA = a.profile?.username || '';
-          const userB = b.profile?.username || '';
-          comparison = userA.localeCompare(userB);
-          break;
-        case 'school':
-          const schoolA = a.profile?.school_name || '';
-          const schoolB = b.profile?.school_name || '';
-          comparison = schoolA.localeCompare(schoolB);
-          break;
-        case 'age_band':
-          const ageA = a.profile?.age_band || '';
-          const ageB = b.profile?.age_band || '';
-          comparison = ageA.localeCompare(ageB);
-          break;
-        case 'joined':
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          break;
-        case 'type':
-          const typeA = a.profile?.account_type || '';
-          const typeB = b.profile?.account_type || '';
-          comparison = typeA.localeCompare(typeB);
-          break;
-        case 'consent':
-          const consentA = a.profile?.consent_status || '';
-          const consentB = b.profile?.consent_status || '';
-          comparison = consentA.localeCompare(consentB);
-          break;
-        case 'email':
-          comparison = a.email.localeCompare(b.email);
-          break;
-        case 'sanction':
-          const sanctionA = getActiveSanctionType(a.sanctions) || '';
-          const sanctionB = getActiveSanctionType(b.sanctions) || '';
-          comparison = sanctionA.localeCompare(sanctionB);
-          break;
-        case 'predictions':
-          const predA = a.scores?.predictions_made || 0;
-          const predB = b.scores?.predictions_made || 0;
-          comparison = predA - predB;
-          break;
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [users, searchTerm, schoolFilter, ageBandFilter, consentFilter, sortField, sortDirection]);
-
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -402,34 +402,18 @@ export function UsersTable() {
                   {getSortIcon('email')}
                 </div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('sanction')}
-              >
-                <div className="flex items-center">
-                  Sanction
-                  {getSortIcon('sanction')}
-                </div>
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('predictions')}
-              >
-                <div className="flex items-center">
-                  Activity
-                  {getSortIcon('predictions')}
-                </div>
-              </TableHead>
+              <TableHead>Sanction</TableHead>
+              <TableHead>Activity</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedUsers.length === 0 ? (
+            {users.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <p>
-                      {users.length === 0
+                      {pagination.totalCount === 0
                         ? "No users found"
                         : "No matches found for your search"}
                     </p>
@@ -453,7 +437,7 @@ export function UsersTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAndSortedUsers.map(user => (
+              users.map(user => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
                     {user.profile?.display_name || user.profile?.first_name || 'N/A'}
@@ -513,9 +497,8 @@ export function UsersTable() {
         </Table>
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredAndSortedUsers.length} of {users.length} users
-      </div>
+      {/* Pagination Controls */}
+      <PaginationControls pagination={pagination} loading={loading} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -25,6 +25,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { BulkYearCorrectionDialog } from "./BulkYearCorrectionDialog";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "./PaginationControls";
 
 type SortField = 'date' | 'home' | 'away' | 'venue' | 'tournament' | 'status' | 'visible';
 type SortDirection = 'asc' | 'desc';
@@ -49,10 +51,12 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkYearDialogOpen, setBulkYearDialogOpen] = useState(false);
 
+  const pagination = usePagination(1, 25);
+
+  // Fetch schools and tournaments once
   useEffect(() => {
     fetchSchools();
     fetchTournaments();
-    fetchFixtures();
   }, []);
 
   const fetchSchools = async () => {
@@ -85,21 +89,81 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   };
 
-  const fetchFixtures = async (isManualRefresh = false) => {
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    pagination.goToPage(1);
+  }, [debouncedSearch, statusFilter, yearFilter]);
+
+  const fetchFixtures = useCallback(async (isManualRefresh = false) => {
     try {
       if (isManualRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
-      const { data, error } = await supabase
+
+      // Build count query
+      let countQuery = supabase
         .from('fixtures')
-        .select('*')
-        .order('match_date', { ascending: false });
+        .select('*', { count: 'exact', head: true });
+
+      if (statusFilter !== 'all') {
+        countQuery = countQuery.eq('status', statusFilter);
+      }
+      if (yearFilter !== 'all') {
+        countQuery = countQuery.eq('year', parseInt(yearFilter));
+      }
+
+      const { count, error: countError } = await countQuery;
+      if (countError) console.error('Count error:', countError);
+      
+      pagination.setTotalCount(count || 0);
+
+      // Build data query with pagination
+      let dataQuery = supabase
+        .from('fixtures')
+        .select('*');
+
+      if (statusFilter !== 'all') {
+        dataQuery = dataQuery.eq('status', statusFilter);
+      }
+      if (yearFilter !== 'all') {
+        dataQuery = dataQuery.eq('year', parseInt(yearFilter));
+      }
+
+      // Apply sorting
+      const sortColumn = sortField === 'date' ? 'match_date'
+        : sortField === 'home' ? 'home_school_id'
+        : sortField === 'away' ? 'away_school_id'
+        : sortField === 'visible' ? 'is_visible'
+        : sortField;
+      
+      dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' });
+      dataQuery = dataQuery.range(pagination.from, pagination.to);
+
+      const { data, error } = await dataQuery;
 
       if (error) throw error;
-      console.log(`Loaded ${data?.length || 0} fixtures`);
-      setFixtures(data || []);
+      
+      // Client-side filter for search (since we need school names which are looked up)
+      let filteredData = data || [];
+      if (debouncedSearch) {
+        const query = debouncedSearch.toLowerCase();
+        filteredData = filteredData.filter(fixture => {
+          const homeSchool = schools.get(fixture.home_school_id) || '';
+          const awaySchool = schools.get(fixture.away_school_id) || '';
+          const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
+          const matchDate = format(new Date(fixture.match_date), 'MMM dd yyyy').toLowerCase();
+          
+          return fixture.venue.toLowerCase().includes(query) ||
+            homeSchool.toLowerCase().includes(query) ||
+            awaySchool.toLowerCase().includes(query) ||
+            tournamentName.toLowerCase().includes(query) ||
+            matchDate.includes(query);
+        });
+      }
+
+      setFixtures(filteredData);
       
       if (isManualRefresh) {
         toast({
@@ -118,7 +182,14 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [pagination.from, pagination.to, debouncedSearch, statusFilter, yearFilter, sortField, sortDirection, schools, tournaments, toast]);
+
+  // Fetch fixtures when dependencies change
+  useEffect(() => {
+    if (schools.size > 0) {
+      fetchFixtures();
+    }
+  }, [fetchFixtures, schools.size]);
 
   const handleManualRefresh = () => {
     fetchFixtures(true);
@@ -156,6 +227,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       setSortField(field);
       setSortDirection('asc');
     }
+    pagination.goToPage(1);
   };
 
   const getSortIcon = (field: SortField) => {
@@ -167,80 +239,18 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
-  const filteredAndSortedFixtures = useMemo(() => {
-    const filtered = fixtures.filter((fixture) => {
-      const homeSchool = schools.get(fixture.home_school_id) || '';
-      const awaySchool = schools.get(fixture.away_school_id) || '';
-      const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
-      const query = debouncedSearch.toLowerCase();
-      const matchDate = format(new Date(fixture.match_date), 'MMM dd yyyy').toLowerCase();
-      
-      const matchesSearch =
-        debouncedSearch === "" ||
-        fixture.venue.toLowerCase().includes(query) ||
-        homeSchool.toLowerCase().includes(query) ||
-        awaySchool.toLowerCase().includes(query) ||
-        tournamentName.toLowerCase().includes(query) ||
-        matchDate.includes(query);
-
-      const matchesStatus =
-        statusFilter === "all" || fixture.status === statusFilter;
-
-      const matchesYear =
-        yearFilter === "all" || fixture.year.toString() === yearFilter;
-
-      return matchesSearch && matchesStatus && matchesYear;
-    });
-
-    // Sort the filtered results
-    return [...filtered].sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'date':
-          comparison = new Date(a.match_date).getTime() - new Date(b.match_date).getTime();
-          break;
-        case 'home':
-          const homeA = schools.get(a.home_school_id) || '';
-          const homeB = schools.get(b.home_school_id) || '';
-          comparison = homeA.localeCompare(homeB);
-          break;
-        case 'away':
-          const awayA = schools.get(a.away_school_id) || '';
-          const awayB = schools.get(b.away_school_id) || '';
-          comparison = awayA.localeCompare(awayB);
-          break;
-        case 'venue':
-          comparison = a.venue.localeCompare(b.venue);
-          break;
-        case 'tournament':
-          const tournA = a.tournament_id ? tournaments.get(a.tournament_id) || '' : '';
-          const tournB = b.tournament_id ? tournaments.get(b.tournament_id) || '' : '';
-          comparison = tournA.localeCompare(tournB);
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
-          break;
-        case 'visible':
-          comparison = (a.is_visible === b.is_visible) ? 0 : a.is_visible ? -1 : 1;
-          break;
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [fixtures, schools, tournaments, debouncedSearch, statusFilter, yearFilter, sortField, sortDirection]);
-
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
     setYearFilter("all");
+    pagination.goToPage(1);
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredAndSortedFixtures.length) {
+    if (selectedIds.size === fixtures.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredAndSortedFixtures.map((f) => f.id)));
+      setSelectedIds(new Set(fixtures.map((f) => f.id)));
     }
   };
 
@@ -255,7 +265,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   };
 
   const getSelectedFixturesWithNames = () => {
-    return filteredAndSortedFixtures
+    return fixtures
       .filter((f) => selectedIds.has(f.id))
       .map((f) => ({
         ...f,
@@ -284,7 +294,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   };
 
-  if (loading) {
+  if (loading && fixtures.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -344,10 +354,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       {/* Results count and bulk actions */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {filteredAndSortedFixtures.length} of {fixtures.length} fixtures
           {selectedIds.size > 0 && (
-            <span className="ml-2 text-primary">
-              ({selectedIds.size} selected)
+            <span className="text-primary">
+              {selectedIds.size} selected
             </span>
           )}
         </div>
@@ -371,8 +380,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
               <TableHead className="w-[40px]">
                 <Checkbox
                   checked={
-                    filteredAndSortedFixtures.length > 0 &&
-                    selectedIds.size === filteredAndSortedFixtures.length
+                    fixtures.length > 0 &&
+                    selectedIds.size === fixtures.length
                   }
                   onCheckedChange={toggleSelectAll}
                 />
@@ -446,12 +455,12 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedFixtures.length === 0 ? (
+            {fixtures.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="text-center py-8">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <p>
-                      {fixtures.length === 0 
+                      {pagination.totalCount === 0 
                         ? "No fixtures loaded. Import CSV data to get started."
                         : "No matches found for your search"}
                     </p>
@@ -470,7 +479,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAndSortedFixtures.map((fixture) => {
+              fixtures.map((fixture) => {
                 const homeSchool = schools.get(fixture.home_school_id) || 'Unknown School';
                 const awaySchool = schools.get(fixture.away_school_id) || 'Unknown School';
                 const tournamentName = fixture.tournament_id 
@@ -554,6 +563,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      <PaginationControls pagination={pagination} loading={loading} />
 
       <BulkYearCorrectionDialog
         open={bulkYearDialogOpen}
