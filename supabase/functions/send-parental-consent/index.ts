@@ -1,3 +1,22 @@
+/**
+ * Parental Consent Email Edge Function
+ * 
+ * DATA FLOW DISCLOSURE (GDPR/POPIA Compliance):
+ * This function sends parent email addresses to Resend for email delivery.
+ * - Data sent: Parent email address, child's first name only
+ * - Third-party: Resend (https://resend.com) - GDPR compliant, SOC 2 Type II certified
+ * - Purpose: Deliver parental consent verification emails as required by child safety regulations
+ * - Legal basis: Legitimate interest (child protection compliance)
+ * - Data minimization: Only essential data (email, first name) is transmitted
+ * - Retention: Resend retains delivery logs per their privacy policy
+ * 
+ * SECURITY CONTROLS:
+ * - Authenticated users only
+ * - Rate limited (5 requests/hour/user)
+ * - Email change limits enforced (3 per 24h)
+ * - Parent email capped at 10 children
+ * - PII redacted from logs
+ */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
