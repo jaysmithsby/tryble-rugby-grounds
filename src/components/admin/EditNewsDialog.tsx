@@ -86,8 +86,8 @@ export function EditNewsDialog({ open, onOpenChange, article, onSuccess }: EditN
 
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to update news article",
+        title: "Update Failed",
+        description: "Could not update the news article. Please try again.",
         variant: "destructive",
       });
     } else {

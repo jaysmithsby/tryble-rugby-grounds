@@ -51,8 +51,8 @@ export default function Tournament() {
     } catch (error) {
       console.error("Error fetching tournament:", error);
       toast({
-        title: "Error",
-        description: "Failed to load tournament details",
+        title: "Failed to Load Tournament",
+        description: "Could not retrieve tournament details. Returning to home.",
         variant: "destructive",
       });
       navigate("/home");

@@ -79,8 +79,8 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
     } catch (error) {
       console.error("Error fetching tournaments:", error);
       toast({
-        title: "Error",
-        description: "Failed to load tournaments",
+        title: "Failed to Load Tournaments",
+        description: "Could not retrieve tournament data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -108,8 +108,8 @@ export function TournamentsTable({ onEdit }: TournamentsTableProps) {
     } catch (error) {
       console.error("Error deleting tournament:", error);
       toast({
-        title: "Error",
-        description: "Failed to delete tournament",
+        title: "Delete Failed",
+        description: "Could not remove the tournament. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -154,8 +154,8 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
     } catch (error: any) {
       console.error("Error updating fixture:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update fixture",
+        title: "Update Failed",
+        description: error.message || "Could not update the fixture. Please try again.",
         variant: "destructive",
       });
     } finally {

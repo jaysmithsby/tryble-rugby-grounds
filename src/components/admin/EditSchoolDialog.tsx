@@ -289,8 +289,8 @@ export function EditSchoolDialog({
     } catch (error) {
       console.error("Error updating school:", error);
       toast({
-        title: "Error",
-        description: "Failed to update school",
+        title: "Update Failed",
+        description: "Could not update the school. Please try again.",
         variant: "destructive",
       });
     } finally {

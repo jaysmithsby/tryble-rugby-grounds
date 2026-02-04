@@ -208,8 +208,8 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     } catch (error) {
       console.error("Error fetching schools:", error);
       toast({
-        title: "Error",
-        description: "Failed to load schools",
+        title: "Failed to Load Schools",
+        description: "Could not retrieve school data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -242,8 +242,8 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     } catch (error) {
       console.error("Error archiving school:", error);
       toast({
-        title: "Error",
-        description: "Failed to archive school",
+        title: "Archive Failed",
+        description: "Could not archive the school. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -272,8 +272,8 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     } catch (error) {
       console.error("Error restoring school:", error);
       toast({
-        title: "Error",
-        description: "Failed to restore school",
+        title: "Restore Failed",
+        description: "Could not restore the school. Please try again.",
         variant: "destructive",
       });
     } finally {

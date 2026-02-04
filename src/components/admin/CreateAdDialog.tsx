@@ -52,8 +52,8 @@ export function CreateAdDialog({ open, onOpenChange, onSuccess }: CreateAdDialog
 
     if (error) {
       toast({
-        title: "Error",
-        description: "Failed to create advertisement",
+        title: "Creation Failed",
+        description: "Could not create the advertisement. Please try again.",
         variant: "destructive",
       });
     } else {
