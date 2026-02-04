@@ -16,6 +16,10 @@ interface ConsentRequest {
   isUpdate?: boolean;
 }
 
+// Rate limit: 5 requests per hour per user
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -39,6 +43,33 @@ serve(async (req: Request): Promise<Response> => {
     
     if (authError || !user) {
       throw new Error("Unauthorized");
+    }
+
+    // Check rate limit
+    const { data: rateLimitResult, error: rateLimitError } = await supabase
+      .rpc("check_rate_limit", {
+        p_identifier: user.id,
+        p_endpoint: "send-parental-consent",
+        p_max_requests: RATE_LIMIT_MAX,
+        p_window_minutes: RATE_LIMIT_WINDOW_MINUTES
+      });
+
+    if (rateLimitError) {
+      console.error("Rate limit check failed:", rateLimitError);
+      // Continue anyway - don't block on rate limit errors
+    } else if (rateLimitResult && rateLimitResult[0] && !rateLimitResult[0].allowed) {
+      const resetAt = new Date(rateLimitResult[0].reset_at).toLocaleTimeString();
+      return new Response(
+        JSON.stringify({
+          error: `Too many requests. Please try again after ${resetAt}`,
+          code: "RATE_LIMIT_EXCEEDED",
+          resetAt: rateLimitResult[0].reset_at,
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
     const { parentEmail, childFirstName, isUpdate }: ConsentRequest = await req.json();
@@ -253,7 +284,7 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Failed to send consent email");
     }
 
-    console.log(`Parental consent email sent to ${normalizedEmail} for user ${user.id}`);
+    console.log(`Parental consent email sent to [REDACTED] for user ${user.id}`);
 
     return new Response(
       JSON.stringify({

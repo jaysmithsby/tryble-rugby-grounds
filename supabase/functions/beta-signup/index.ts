@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -13,6 +14,10 @@ interface BetaSignupRequest {
   email: string;
 }
 
+// Rate limit: 3 requests per hour per IP
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -20,6 +25,41 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get client IP for rate limiting (use forwarded header or fallback)
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+      || req.headers.get("x-real-ip") 
+      || "unknown";
+
+    // Check rate limit
+    const { data: rateLimitResult, error: rateLimitError } = await supabase
+      .rpc("check_rate_limit", {
+        p_identifier: `ip:${clientIp}`,
+        p_endpoint: "beta-signup",
+        p_max_requests: RATE_LIMIT_MAX,
+        p_window_minutes: RATE_LIMIT_WINDOW_MINUTES
+      });
+
+    if (rateLimitError) {
+      console.error("Rate limit check failed:", rateLimitError);
+      // Continue anyway - don't block on rate limit errors
+    } else if (rateLimitResult && rateLimitResult[0] && !rateLimitResult[0].allowed) {
+      console.log(`Rate limit exceeded for IP: ${clientIp}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Too many signup attempts. Please try again later.",
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
     const { email }: BetaSignupRequest = await req.json();
 
     // Validate email
@@ -27,7 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Invalid email address");
     }
 
-    console.log("Processing beta signup for:", email);
+    console.log("Processing beta signup for: [REDACTED]");
 
     const emailResponse = await resend.emails.send({
       from: "Trybal Beta <onboarding@resend.dev>",
@@ -70,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Beta signup email sent successfully:", emailResponse);
+    console.log("Beta signup email sent successfully");
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
