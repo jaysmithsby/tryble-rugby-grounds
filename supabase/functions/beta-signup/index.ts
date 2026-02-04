@@ -1,3 +1,19 @@
+/**
+ * Beta Signup Edge Function
+ * 
+ * DATA FLOW DISCLOSURE (GDPR/POPIA Compliance):
+ * This function sends email addresses to Resend for notification delivery.
+ * - Data sent: User email address only
+ * - Third-party: Resend (https://resend.com) - GDPR compliant, SOC 2 Type II certified
+ * - Purpose: Notify admin team of new beta signup requests
+ * - Legal basis: Consent (user explicitly submits email for beta access)
+ * - Data minimization: Only email address is transmitted
+ * 
+ * SECURITY CONTROLS:
+ * - Rate limited (3 requests/hour/IP)
+ * - Input validation (email format)
+ * - PII redacted from logs
+ */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@4.0.0";

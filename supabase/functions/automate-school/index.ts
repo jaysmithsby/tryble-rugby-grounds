@@ -1,3 +1,19 @@
+/**
+ * School Automation Edge Function
+ * 
+ * DATA FLOW DISCLOSURE:
+ * This function sends school names to an external n8n webhook for automated data enrichment.
+ * - Data sent: School name only (public, non-PII data)
+ * - Third-party: n8n Cloud (user-controlled workflow)
+ * - Purpose: Fetch publicly available school information (motto, colors, etc.)
+ * - Retention: Data processed transiently, not stored by the webhook
+ * 
+ * SECURITY CONTROLS:
+ * - Admin-only access (role verified)
+ * - Rate limited (20 requests/hour)
+ * - Input sanitization applied
+ * - Audit logging of admin actions
+ */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
