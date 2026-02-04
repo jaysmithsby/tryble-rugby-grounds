@@ -985,7 +985,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          country: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string | null
+          province: string | null
+          school_name: string | null
+          username: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          province?: string | null
+          school_name?: string | null
+          username?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          province?: string | null
+          school_name?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_prediction_points: {
