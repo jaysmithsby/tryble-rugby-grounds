@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit: 20 requests per hour per admin
+const RATE_LIMIT_MAX = 20;
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -50,6 +54,35 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Forbidden - Admin access required' }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create service role client for rate limiting
+    const supabaseService = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Check rate limit
+    const { data: rateLimitResult, error: rateLimitError } = await supabaseService
+      .rpc("check_rate_limit", {
+        p_identifier: user.id,
+        p_endpoint: "automate-school",
+        p_max_requests: RATE_LIMIT_MAX,
+        p_window_minutes: RATE_LIMIT_WINDOW_MINUTES
+      });
+
+    if (rateLimitError) {
+      console.error("Rate limit check failed:", rateLimitError);
+      // Continue anyway - don't block on rate limit errors
+    } else if (rateLimitResult && rateLimitResult[0] && !rateLimitResult[0].allowed) {
+      const resetAt = new Date(rateLimitResult[0].reset_at).toLocaleTimeString();
+      return new Response(
+        JSON.stringify({ 
+          error: `Too many automation requests. Please try again after ${resetAt}`,
+          remaining: 0 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -99,11 +132,10 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Webhook raw response:", JSON.stringify(data, null, 2));
+    console.log("Webhook response received successfully");
     
     // If the webhook returns an array, extract the first item to simplify client handling
     const responseData = Array.isArray(data) && data.length > 0 ? data[0] : data;
-    console.log("Sending to client:", JSON.stringify(responseData, null, 2));
 
     return new Response(
       JSON.stringify(responseData),
