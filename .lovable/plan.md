@@ -1,268 +1,335 @@
 
-# Trybal v1 Onboarding Flow Implementation Plan
+# Fixtures Hub Implementation Plan
 
 ## Overview
 
-This plan redesigns the signup flow to get new users from zero to their first prediction with minimum friction. The new flow is linear, opinionated, and avoids dead ends or empty states.
+This plan adds a dedicated "Fixtures" page to the bottom navigation bar, positioned between Leaderboards and Profile. The page will serve as a centralized hub for all South African schoolboy rugby fixtures, styled after the World Rugby website's chronological fixture presentation.
 
 ---
 
-## Current State Analysis
+## Design Reference Analysis (World Rugby Style)
 
-### What Exists Now
-- **5-step signup flow**: Name → Contact (email/mobile toggle) → Role → School → Password → Completion
-- **Current order asks for**: First name before email (should be email first for account uniqueness)
-- **No email verification gate**: Users go straight to home after signup
-- **No "year of birth" field**: Required for the new flow
-- **No tournament following system**: Database has tournaments but no `user_tournament_follows` table
-- **Pool system exists**: But users land on Home without being guided to create/join one
-- **Home page shows "No Pools Yet" empty state**: Dead end for new users
+Based on the uploaded screenshots, the key design elements to implement:
 
-### Database Tables Available
-- `profiles`: Has `first_name`, `user_type`, `school_name`, `contact_method`, `contact_value`, `age_band` (exists but not used in signup)
-- `pools` and `pool_members`: Full pool/membership system
-- `tournaments`: Exists but no user following mechanism
-- `fixtures`: Full fixture data with school relationships
+1. **Month Navigation Bar**: Horizontal scrollable month selector (Jan, Feb, Mar, etc.) with year navigation
+2. **Date Grouping**: Fixtures grouped by date with clear date headers (e.g., "Thursday 5 February")
+3. **Match Counter**: Badge showing number of matches on each date
+4. **Fixture Cards**: Clean cards showing both teams with crests, tournament name, and venue
+5. **Chronological Order**: All fixtures in date order, not grouped by school
+6. **Calendar Sidebar** (desktop): Optional mini-calendar with fixture dots (lower priority for mobile-first)
 
 ---
 
-## New Onboarding Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        NEW USER JOURNEY                                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  Landing ──► Create Account ──► Verify Email ──► Profile Setup          │
-│     │              │                  │                │                 │
-│     │         (Email+Pass)       (Blocking)     (Name, Role,            │
-│     │                                           YoB, School)             │
-│     │                                                  │                 │
-│     │                                                  ▼                 │
-│     │                                        Welcome Interstitial        │
-│     │                                           (1.5s auto)              │
-│     │                                                  │                 │
-│     │                                                  ▼                 │
-│     │                                         Your Next Match            │
-│     │                                     (anchor with school's          │
-│     │                                      upcoming fixture)             │
-│     │                                                  │                 │
-│     │                                                  ▼                 │
-│     │                                      Follow a Tournament           │
-│     │                                                  │                 │
-│     │                                                  ▼                 │
-│     │                                       Join/Create Pool             │
-│     │                                                  │                 │
-│     │                                                  ▼                 │
-│     │                                            Home Screen             │
-│     ▼                                        (Ready to Predict)          │
-│  Log In ─────────────────────────────────────────────►│                  │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Implementation Phases
-
-### Phase 1: Database Changes
-
-**1.1 Create Tournament Following Table**
-```sql
-CREATE TABLE user_tournament_follows (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, tournament_id)
-);
-
-ALTER TABLE user_tournament_follows ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own follows"
-  ON user_tournament_follows FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can follow tournaments"
-  ON user_tournament_follows FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can unfollow tournaments"
-  ON user_tournament_follows FOR DELETE
-  USING (auth.uid() = user_id);
-```
-
-**1.2 Add Year of Birth to Profiles**
-```sql
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS year_of_birth INTEGER;
-```
-
-**1.3 Add Onboarding Status Tracking**
-```sql
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ;
-```
-
----
-
-### Phase 2: Restructured Auth Flow Components
-
-**2.1 New Step Order** (6 onboarding steps + verification gate)
-
-| Step | Screen | Component | Purpose |
-|------|--------|-----------|---------|
-| 1 | Create Account | `StepAccount.tsx` | Email + Password (hard gate) |
-| 2 | Verify Email | `StepVerifyEmail.tsx` | Blocking verification screen |
-| 3 | Profile Setup | `StepProfile.tsx` | First name, Role, Year of Birth, School |
-| 4 | Welcome | `StepWelcome.tsx` | Celebratory interstitial with user's name |
-| 5 | Your Next Match | `StepNextMatch.tsx` | Show school's upcoming fixture |
-| 6 | Follow Tournament | `StepTournament.tsx` | Select tournament(s) to follow |
-| 7 | Join/Create Pool | `StepPool.tsx` | Pool selection or creation |
-
-**2.2 Component Changes**
-
-**NEW: `StepAccount.tsx`**
-- Email address field (required)
-- Password field with validation checklist
-- Handle "email already exists" → show inline login prompt
-- On submit: call `supabase.auth.signUp()` and send verification email
-
-**NEW: `StepVerifyEmail.tsx`**
-- Shows: "We've sent a verification link to your email"
-- Blocks progress until email is verified
-- Polling or auth state listener for verification
-- "Resend email" button
-- "Change email" button (goes back to step 1)
-
-**REFACTORED: `StepProfile.tsx`** (combines Name + Role + YoB + School)
-- First name field
-- Account type (Scholar/Fan/Parent/Alumni) - single select buttons
-- Year of birth - dropdown (not free text)
-- School - searchable dropdown with "school not listed" option
-- All collected in single step to reduce friction
-
-**NEW: `StepWelcome.tsx`**
-- "Welcome to Trybal, {firstName}!" with celebratory icon
-- "Let's get you set up for your next match."
-- Auto-advances after 1.5 seconds (or tap to continue)
-
-**NEW: `StepNextMatch.tsx`**
-- Fetches next upcoming fixture for user's school
-- Shows: School crest, opponent, date, venue, countdown
-- If no fixture: "No upcoming match yet — we'll notify you when one is added."
-- CTA: "Follow a Tournament" (primary) / "Create a Pool" (secondary)
-
-**NEW: `StepTournament.tsx`**
-- Lists tournaments ordered by:
-  1. User's school is participating
-  2. Popular/featured tournaments
-  3. All others
-- Each card shows: Name, school count, follower count
-- "Follow Tournament" button per card
-- After following one: toast confirmation, auto-advance to pool step
-
-**NEW: `StepPool.tsx`**
-- Two options presented cleanly:
-  - **Join Existing Pool**: Show pools related to school/tournament
-  - **Create Pool**: Name field (pre-filled suggestion), school multi-select (user's school pre-selected)
-- Invite sharing is optional, never blocking
-- "Skip for now" option available
-
-**2.3 SignUpFlow.tsx Restructure**
-- New step state management (1-7)
-- Different progress indicator style (hide for verification step)
-- Handle email verification state via auth listener
-- Store intermediate data in localStorage for resilience
-
----
-
-### Phase 3: Entry Point Updates
-
-**3.1 Landing Page (`Hero.tsx`)**
-- Keep "Get Started" as primary CTA → navigates to `/auth`
-- Keep "Sign In" in header → navigates to `/auth` with signin mode
-
-**3.2 Auth Page (`Auth.tsx`)**
-- Default to signup mode (unchanged)
-- Handle redirect parameter from invite links
-
----
-
-### Phase 4: Home Page Refinements
-
-**4.1 Fixture Display Logic**
-- Show ONE next fixture per followed school (not all fixtures)
-- Keep cognitive load low
-- Scannable layout for daily habit formation
-
-**4.2 Post-Onboarding Detection**
-- Check if user has completed onboarding (`onboarding_completed_at` set)
-- If not, redirect to onboarding continuation point
-
----
-
-## File Changes Summary
+## Technical Architecture
 
 ### New Files to Create
+
 | File | Purpose |
 |------|---------|
-| `src/components/auth/signup-steps/StepAccount.tsx` | Email + password entry |
-| `src/components/auth/signup-steps/StepVerifyEmail.tsx` | Email verification gate |
-| `src/components/auth/signup-steps/StepProfile.tsx` | Combined profile fields |
-| `src/components/auth/signup-steps/StepWelcome.tsx` | Celebratory interstitial |
-| `src/components/auth/signup-steps/StepNextMatch.tsx` | School's next fixture display |
-| `src/components/auth/signup-steps/StepTournament.tsx` | Tournament following UI |
-| `src/components/auth/signup-steps/StepPool.tsx` | Pool join/create UI |
+| `src/pages/Fixtures.tsx` | Main fixtures hub page |
+| `src/components/fixtures/FixturesMonthNav.tsx` | Horizontal month/year navigation |
+| `src/components/fixtures/FixtureDateGroup.tsx` | Date header with fixture count badge |
+| `src/components/fixtures/FixtureListCard.tsx` | World Rugby-style fixture card |
+| `src/components/fixtures/FixturesFilters.tsx` | Filter drawer for school search, province |
 
 ### Files to Modify
+
 | File | Changes |
 |------|---------|
-| `src/components/auth/SignUpFlow.tsx` | Complete restructure for new 7-step flow |
-| `src/pages/Home.tsx` | Add onboarding completion check, refine fixture display |
-| `src/pages/Auth.tsx` | Handle email verification state |
-
-### Files to Remove/Deprecate
-| File | Action |
-|------|--------|
-| `src/components/auth/signup-steps/StepName.tsx` | Remove (merged into StepProfile) |
-| `src/components/auth/signup-steps/StepContact.tsx` | Remove (replaced by StepAccount) |
-| `src/components/auth/signup-steps/StepRole.tsx` | Remove (merged into StepProfile) |
-| `src/components/auth/signup-steps/StepPassword.tsx` | Remove (merged into StepAccount) |
-| `src/components/auth/signup-steps/StepComplete.tsx` | Remove (replaced by StepWelcome) |
+| `src/components/BottomNav.tsx` | Add "Fixtures" tab between Leaderboards and Profile |
+| `src/App.tsx` | Add route for `/fixtures` page |
 
 ---
 
-## Technical Considerations
+## UI/UX Design
 
-### Email Verification Handling
-- Use `supabase.auth.onAuthStateChange` to detect when email is verified
-- Event `USER_UPDATED` with `email_confirmed_at` timestamp indicates verification
-- Alternative: polling `supabase.auth.getUser()` every 3 seconds
+### Bottom Navigation Update
 
-### State Persistence
-- Store signup progress in localStorage under key `trybal_onboarding_state`
-- Clear on successful completion
-- Allows resumption if user closes browser during verification
+```text
+[ Home ] [ Leaderboards ] [ Fixtures ] [ Profile ]
+   🏠          🏆            📅          👤
+```
 
-### Mobile-First Design
-- All new steps must be mobile-optimized
-- Touch-friendly buttons (min 44px hit targets)
-- Avoid horizontal scrolling
+- Icon: `CalendarDays` from lucide-react (matches rugby fixtures context)
+- Active state: primary color when on `/fixtures`
 
-### Validation
-- Email: zod schema with email format validation
-- Password: 8+ chars, uppercase, number, special character (existing pattern)
-- Year of birth: 1920-current year dropdown
-- School: validated against database (existing pattern)
+### Page Layout (Mobile-First)
+
+```text
+┌─────────────────────────────────────────┐
+│ HEADER: "Fixtures"                      │
+│ [My Schools ▼] [All Schools ▼] 🔍       │
+├─────────────────────────────────────────┤
+│ < 2025  |  2026  |  2027 >              │
+│ Jan Feb [Mar] Apr May Jun Jul Aug Sep   │
+├─────────────────────────────────────────┤
+│ Friday 14 February        ○ 1 Match     │
+├─────────────────────────────────────────┤
+│ ┌─────────────────────────────────────┐ │
+│ │ GREY COLLEGE   🏛️  vs  🏛️   PAARL GIM │ │
+│ │         Grey College, Bloemfontein  │ │
+│ │ [Predict Now]                       │ │
+│ └─────────────────────────────────────┘ │
+├─────────────────────────────────────────┤
+│ Thursday 27 February      ○ 1 Match     │
+├─────────────────────────────────────────┤
+│ ┌─────────────────────────────────────┐ │
+│ │ HILTON COLLEGE  🏛️ vs 🏛️  MARITZBURG │ │
+│ │           Hilton College            │ │
+│ │ [Predict Now]                       │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+```
+
+### Key UX Decisions
+
+1. **Default View**: "My Schools" - shows fixtures for:
+   - User's selected school
+   - Schools from pools the user has joined
+   - Schools the user explicitly follows (via tournaments)
+
+2. **"All Schools" View**: Browse all fixtures with filters:
+   - Search by school name (autocomplete)
+   - Filter by province dropdown
+   - Filter by tournament (if applicable)
+
+3. **Chronological Order**: Fixtures sorted by date ascending, grouped by date header
+
+4. **No Pagination (Infinite Scroll)**: Load fixtures in batches as user scrolls
+
+---
+
+## Component Specifications
+
+### 1. FixturesMonthNav.tsx
+
+**Features:**
+- Year selector with arrows: `< 2025 | 2026 | 2027 >`
+- Horizontal scrollable month pills: Jan through Dec
+- Selected month highlighted in primary color
+- Auto-scroll to current month on load
+
+**Props:**
+```typescript
+interface FixturesMonthNavProps {
+  selectedYear: number;
+  selectedMonth: number; // 0-11
+  onYearChange: (year: number) => void;
+  onMonthChange: (month: number) => void;
+}
+```
+
+### 2. FixtureDateGroup.tsx
+
+**Features:**
+- Date header: "Friday 14 February" format
+- Match count badge: "○ 3 Matches" 
+- Collapsible (optional, for many fixtures on same day)
+
+**Props:**
+```typescript
+interface FixtureDateGroupProps {
+  date: Date;
+  fixtureCount: number;
+  children: React.ReactNode;
+}
+```
+
+### 3. FixtureListCard.tsx
+
+**Features (World Rugby inspired):**
+- Horizontal layout: `[Home Crest] HOME vs AWAY [Away Crest]`
+- School names in bold, uppercase
+- Venue displayed below
+- Tournament badge (if applicable)
+- Prediction CTA button
+- Tap on crest → navigate to school profile
+
+**Props:**
+```typescript
+interface FixtureListCardProps {
+  fixture: {
+    id: string;
+    match_date: string;
+    venue: string;
+    status: string;
+    home_school: { id: string; name: string; slug: string; jersey_url: string | null; };
+    away_school: { id: string; name: string; slug: string; jersey_url: string | null; };
+    tournament?: { id: string; name: string; } | null;
+  };
+  isPredicted?: boolean;
+  onPredictionMade?: (fixtureId: string, team: "home" | "away", margin: number) => void;
+}
+```
+
+### 4. FixturesFilters.tsx
+
+**Features:**
+- View toggle: "My Schools" / "All Schools"
+- School search input with autocomplete
+- Province filter dropdown (from `saProvinces.ts`)
+- Clear filters button
+
+**Props:**
+```typescript
+interface FixturesFiltersProps {
+  viewMode: "my-schools" | "all-schools";
+  onViewModeChange: (mode: "my-schools" | "all-schools") => void;
+  selectedSchoolId?: string;
+  onSchoolChange: (schoolId: string | undefined) => void;
+  selectedProvince?: string;
+  onProvinceChange: (province: string | undefined) => void;
+}
+```
+
+---
+
+## Data Fetching Strategy
+
+### Fixtures Query
+
+```typescript
+// Fetch fixtures for a specific month
+const fetchFixturesForMonth = async (year: number, month: number, filters: Filters) => {
+  const startOfMonth = new Date(year, month, 1).toISOString();
+  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+
+  let query = supabase
+    .from("fixtures")
+    .select(`
+      id,
+      match_date,
+      venue,
+      status,
+      home_school_id,
+      away_school_id,
+      home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
+      away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+      tournament:tournaments(id, name)
+    `)
+    .eq("is_visible", true)
+    .gte("match_date", startOfMonth)
+    .lte("match_date", endOfMonth)
+    .order("match_date", { ascending: true });
+
+  // Apply filters
+  if (filters.schoolId) {
+    query = query.or(`home_school_id.eq.${filters.schoolId},away_school_id.eq.${filters.schoolId}`);
+  }
+  if (filters.province) {
+    // Need to filter by school province
+    query = query.or(`home_school.province.eq.${filters.province},away_school.province.eq.${filters.province}`);
+  }
+
+  return query;
+};
+```
+
+### "My Schools" Logic
+
+For the default "My Schools" view:
+1. Get user's `school_name` from profiles
+2. Get schools from user's pool memberships
+3. Get schools from `user_tournament_follows` (tournaments the user follows)
+4. Filter fixtures to only those involving these schools
+
+---
+
+## State Management
+
+```typescript
+interface FixturesPageState {
+  // Navigation
+  selectedYear: number;
+  selectedMonth: number;
+  
+  // Filters
+  viewMode: "my-schools" | "all-schools";
+  searchQuery: string;
+  selectedSchoolId?: string;
+  selectedProvince?: string;
+  
+  // Data
+  fixtures: FixtureWithSchools[];
+  loading: boolean;
+  
+  // Predictions
+  predictions: Record<string, { team: "home" | "away"; margin: number }>;
+}
+```
+
+---
+
+## Implementation Sequence
+
+### Phase 1: Core Infrastructure
+1. Create `Fixtures.tsx` page skeleton
+2. Update `BottomNav.tsx` to add Fixtures tab
+3. Update `App.tsx` to add `/fixtures` route
+
+### Phase 2: Month Navigation
+1. Create `FixturesMonthNav.tsx` component
+2. Implement year/month selection logic
+3. Style to match World Rugby horizontal scrolling
+
+### Phase 3: Fixture Display
+1. Create `FixtureDateGroup.tsx` for date headers
+2. Create `FixtureListCard.tsx` for individual fixtures
+3. Implement chronological grouping logic
+
+### Phase 4: Filtering
+1. Create `FixturesFilters.tsx` component
+2. Implement "My Schools" default filtering
+3. Add school search autocomplete
+4. Add province filter dropdown
+
+### Phase 5: Predictions Integration
+1. Connect `PredictionDialog` to fixture cards
+2. Track prediction state
+3. Show "Predicted" status on cards
+
+---
+
+## Styling Notes
+
+- Use existing Trybal design tokens (primary, accent, muted colors)
+- Cards: `bg-gradient-card border-border/40 shadow-card`
+- Month nav: horizontal scroll with `overflow-x-auto scrollbar-hide`
+- Date headers: `text-lg font-bold` with subtle separator
+- Match count badges: `rounded-full bg-primary/20 text-primary`
+
+---
+
+## Empty States
+
+1. **No fixtures for selected month**: 
+   "No fixtures scheduled for [Month Year]. Try browsing other months."
+
+2. **No fixtures matching filters**:
+   "No fixtures found for [School Name] in [Province]. Clear filters to see all fixtures."
+
+3. **No followed schools** (My Schools mode with no pools/school):
+   "Join a pool or follow schools to see personalized fixtures here."
+
+---
+
+## Performance Considerations
+
+1. **Lazy Load Fixture Cards**: Only render visible cards using intersection observer
+2. **Image Preloading**: Use existing `usePreloadJerseyImages` hook for visible fixtures
+3. **Memoization**: Memoize date grouping computation with `useMemo`
+4. **Query Caching**: Use React Query for fixture data caching
 
 ---
 
 ## Success Criteria
 
-After implementation, a new user will:
-1. Have a verified email account
-2. Have a complete profile with school affiliation
-3. See their school's next match immediately
-4. Follow at least one tournament
-5. Be part of at least one pool (or have consciously skipped)
-6. See a populated Home screen with actionable prediction CTAs
-7. Know exactly what to do next
+After implementation:
+1. Users can access Fixtures from bottom nav
+2. Default view shows personalized fixtures from followed schools
+3. All Schools view shows complete fixture calendar
+4. Fixtures are displayed chronologically by date
+5. Users can filter by school name and province
+6. Month/year navigation works smoothly
+7. Prediction flow works from fixture cards
+8. School crests are clickable and navigate to school profiles
