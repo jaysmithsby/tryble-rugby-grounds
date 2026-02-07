@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PoolInvite } from "@/components/pools/PoolInvite";
 import { PoolVoting } from "@/components/pools/PoolVoting";
 import { BottomNav } from "@/components/BottomNav";
+import { getISOWeek } from "date-fns";
 
 type LeaderboardEntry = {
   rank: number;
@@ -19,6 +20,11 @@ type LeaderboardEntry = {
   badges?: string[];
 };
 
+type PoolHighlights = {
+  hilux: { name: string; points: number } | null;
+  spud: { name: string; points: number } | null;
+};
+
 export const PoolLeaderboard = () => {
   const { poolId } = useParams();
   const navigate = useNavigate();
@@ -27,16 +33,27 @@ export const PoolLeaderboard = () => {
   const [pool, setPool] = useState<any>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [highlights, setHighlights] = useState<PoolHighlights>({ hilux: null, spud: null });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadPoolData();
   }, [poolId, period]);
 
+  const getSchoolCode = (schoolName: string) => {
+    if (!schoolName) return "";
+    const words = schoolName.split(" ");
+    if (words.length === 1) return schoolName.substring(0, 3).toUpperCase();
+    return words.map(w => w[0]).join("").toUpperCase();
+  };
+
   const loadPoolData = async () => {
     if (!poolId) return;
     
     setLoading(true);
+    const currentWeek = getISOWeek(new Date());
+    const currentYear = new Date().getFullYear();
+
     try {
       // Load pool details
       const { data: poolData, error: poolError } = await supabase
@@ -48,7 +65,7 @@ export const PoolLeaderboard = () => {
       if (poolError) throw poolError;
       setPool(poolData);
 
-      // Load member count
+      // Load member count and member IDs
       const { data: members, error: membersError } = await supabase
         .from("pool_members")
         .select("user_id")
@@ -57,8 +74,85 @@ export const PoolLeaderboard = () => {
       if (membersError) throw membersError;
       setMemberCount(members?.length || 0);
 
-      // Load leaderboard data (mock for now)
-      loadLeaderboardData();
+      const memberIds = members?.map(m => m.user_id) || [];
+
+      if (memberIds.length === 0) {
+        setLeaderboard([]);
+        setHighlights({ hilux: null, spud: null });
+        setLoading(false);
+        return;
+      }
+
+      // Fetch user scores for pool members
+      const { data: scoresData, error: scoresError } = await supabase
+        .from("user_scores")
+        .select("*")
+        .in("user_id", memberIds)
+        .eq("season_year", currentYear)
+        .eq("week_number", currentWeek);
+
+      if (scoresError) {
+        console.error("Error fetching scores:", scoresError);
+      }
+
+      // Fetch profiles for members
+      const { data: profilesData } = await supabase
+        .from("profiles_public")
+        .select("id, display_name, school_name")
+        .in("id", memberIds);
+
+      const profilesMap: Record<string, { display_name: string | null; school_name: string | null }> = {};
+      profilesData?.forEach(p => {
+        if (p.id) {
+          profilesMap[p.id] = { display_name: p.display_name, school_name: p.school_name };
+        }
+      });
+
+      // Build leaderboard entries
+      const scoresMap: Record<string, any> = {};
+      scoresData?.forEach(s => {
+        scoresMap[s.user_id] = s;
+      });
+
+      const entries: LeaderboardEntry[] = memberIds.map(userId => {
+        const score = scoresMap[userId];
+        const profile = profilesMap[userId];
+        return {
+          rank: 0,
+          userId,
+          nickname: profile?.display_name || "Anonymous",
+          schoolCode: getSchoolCode(profile?.school_name || ""),
+          points: period === "weekly" 
+            ? (score?.weekly_points || 0) 
+            : (score?.season_points || 0),
+          badges: [],
+        };
+      });
+
+      // Sort by points and assign ranks
+      entries.sort((a, b) => b.points - a.points);
+      entries.forEach((e, i) => e.rank = i + 1);
+
+      setLeaderboard(entries);
+
+      // Calculate highlights (Hilux = top scorer, Spud = bottom scorer with points > 0)
+      if (entries.length >= 2) {
+        const hilux = entries[0];
+        const activeEntries = entries.filter(e => e.points > 0);
+        const spud = activeEntries.length >= 2 ? activeEntries[activeEntries.length - 1] : null;
+        
+        setHighlights({
+          hilux: hilux.points > 0 ? { name: hilux.nickname, points: hilux.points } : null,
+          spud: spud && spud.userId !== hilux.userId ? { name: spud.nickname, points: spud.points } : null,
+        });
+      } else if (entries.length === 1 && entries[0].points > 0) {
+        setHighlights({
+          hilux: { name: entries[0].nickname, points: entries[0].points },
+          spud: null,
+        });
+      } else {
+        setHighlights({ hilux: null, spud: null });
+      }
     } catch (error: any) {
       toast({
         title: "Error loading pool",
@@ -68,16 +162,6 @@ export const PoolLeaderboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadLeaderboardData = () => {
-    // Mock data - will be replaced with real queries
-    const mockData: LeaderboardEntry[] = [
-      { rank: 1, userId: "1", nickname: "James S", schoolCode: "MHS", points: 245, badges: ["top_dog"] },
-      { rank: 2, userId: "2", nickname: "Zanele T", schoolCode: "SACS", points: 238, badges: [] },
-      { rank: 3, userId: "3", nickname: "Thabo M", schoolCode: "GRY", points: 234, badges: [] },
-    ];
-    setLeaderboard(mockData);
   };
 
   const getRankStyle = (rank: number) => {
@@ -159,18 +243,28 @@ export const PoolLeaderboard = () => {
       </header>
 
       {/* Weekly Highlight Banner */}
-      <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
-            <div className="flex items-center gap-2">
-              <span>🚙 <strong>Hilux of the Week:</strong> James S (245 pts)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>🥔 <strong>Spud:</strong> Mike J (42 pts)</span>
+      {highlights.hilux ? (
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
+              <div className="flex items-center gap-2">
+                <span>🚙 <strong>Hilux of the Week:</strong> {highlights.hilux.name} ({highlights.hilux.points} pts)</span>
+              </div>
+              {highlights.spud && (
+                <div className="flex items-center gap-2">
+                  <span>🥔 <strong>Spud:</strong> {highlights.spud.name} ({highlights.spud.points} pts)</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
+          <div className="container mx-auto px-4 py-3 text-center text-sm text-muted-foreground">
+            Weekly highlights appear after matches are scored
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6">
@@ -237,31 +331,42 @@ export const PoolLeaderboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {leaderboard.map((entry) => (
-                <div
-                  key={entry.userId}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50`}
-                  style={{ minHeight: '60px' }}
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className={`text-lg font-bold w-12 text-center ${entry.rank <= 3 ? "text-accent" : "text-muted-foreground"}`}>
-                      #{entry.rank}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">
-                        {entry.nickname} — {entry.schoolCode}
-                        {entry.rank === 1 && <span className="ml-2 text-base">🚙</span>}
-                        {entry.badges?.includes("top_dog") && <span className="ml-2 text-base">👑</span>}
+            {leaderboard.length > 0 ? (
+              <div className="space-y-2">
+                {leaderboard.map((entry) => (
+                  <div
+                    key={entry.userId}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50`}
+                    style={{ minHeight: '60px' }}
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className={`text-lg font-bold w-12 text-center ${entry.rank <= 3 ? "text-accent" : "text-muted-foreground"}`}>
+                        #{entry.rank}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {entry.nickname} — {entry.schoolCode}
+                          {entry.rank === 1 && entry.points > 0 && <span className="ml-2 text-base">🚙</span>}
+                          {entry.badges?.includes("top_dog") && <span className="ml-2 text-base">👑</span>}
+                        </div>
+                      </div>
+                      <div className="text-lg font-bold text-primary">
+                        {entry.points} pts
                       </div>
                     </div>
-                    <div className="text-lg font-bold text-primary">
-                      {entry.points} pts
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Trophy className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="font-semibold mb-2">No rankings yet</h3>
+                <p className="text-muted-foreground text-sm">
+                  Pool rankings will appear once predictions are scored.
+                  <br />Make predictions on upcoming fixtures to get started!
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
