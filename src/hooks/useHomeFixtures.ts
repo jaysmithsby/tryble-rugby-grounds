@@ -5,6 +5,7 @@
  * - Upcoming fixtures from followed pools
  * - Recent completed fixtures
  * - User's school fixture for the current weekend
+ * - Tournament fixtures from followed tournaments (merged chronologically)
  */
 
 import { useMemo } from "react";
@@ -50,6 +51,7 @@ interface UseHomeFixturesResult {
   userSchoolFixture: FixtureWithSchools | null;
   hasNoPools: boolean;
   fixturesLoading: boolean;
+  tournamentFixtures: FixtureWithSchools[];
 }
 
 export function useHomeFixtures({
@@ -266,13 +268,103 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  const fixturesLoading = upcomingLoading || recentLoading;
+  // Fetch user's followed tournament IDs
+  const { data: tournamentData } = useQuery({
+    queryKey: ["home-tournament-follows", userId],
+    queryFn: async () => {
+      if (!userId) return { tournamentIds: [] };
+
+      const { data: follows } = await supabase
+        .from("user_tournament_follows")
+        .select("tournament_id")
+        .eq("user_id", userId);
+
+      return {
+        tournamentIds: follows?.map(f => f.tournament_id) || []
+      };
+    },
+    enabled: !!userId && profileLoaded,
+    staleTime: CACHE_TIMES.REFERENCE,
+  });
+
+  // Fetch fixtures for followed tournaments
+  const { data: rawTournamentFixtures = [], isLoading: tournamentLoading } = useQuery({
+    queryKey: ["home-tournament-fixtures", seasonYear, effectiveDateStr, tournamentData?.tournamentIds],
+    queryFn: async () => {
+      const tournamentIds = tournamentData?.tournamentIds || [];
+      if (tournamentIds.length === 0) return [];
+
+      const now = effectiveDate.toISOString();
+
+      const { data, error } = await supabase
+        .from("fixtures")
+        .select(`
+          id,
+          match_date,
+          venue,
+          status,
+          home_score,
+          away_score,
+          is_derby,
+          home_school_id,
+          away_school_id,
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
+        `)
+        .eq("is_visible", true)
+        .eq("status", "upcoming")
+        .eq("year", seasonYear)
+        .in("tournament_id", tournamentIds)
+        .gte("match_date", now)
+        .order("match_date", { ascending: true })
+        .limit(20);
+
+      if (error) {
+        console.error("Error fetching tournament fixtures:", error);
+        return [];
+      }
+
+      return (data || []).map((f) => ({
+        id: f.id,
+        match_date: f.match_date,
+        venue: f.venue,
+        status: f.status,
+        home_score: f.home_score,
+        away_score: f.away_score,
+        is_derby: f.is_derby,
+        home_school: f.home_school as unknown as FixtureWithSchools["home_school"],
+        away_school: f.away_school as unknown as FixtureWithSchools["away_school"],
+      }));
+    },
+    enabled: (tournamentData?.tournamentIds?.length ?? 0) > 0,
+    staleTime: CACHE_TIMES.DYNAMIC,
+  });
+
+  // Merge and deduplicate all upcoming fixtures (pools/school + tournaments)
+  const mergedUpcomingFixtures = useMemo(() => {
+    const existingIds = new Set(upcomingFixtures.map(f => f.id));
+    
+    // Add tournament fixtures that aren't already in the pool/school fixtures
+    const uniqueTournamentFixtures = rawTournamentFixtures.filter(
+      tf => !existingIds.has(tf.id)
+    );
+    
+    const allFixtures = [...upcomingFixtures, ...uniqueTournamentFixtures];
+    
+    // Sort chronologically and limit to 10
+    return allFixtures
+      .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
+      .slice(0, 10);
+  }, [upcomingFixtures, rawTournamentFixtures]);
+
+  const fixturesLoading = upcomingLoading || recentLoading || tournamentLoading;
 
   return {
-    upcomingFixtures,
+    upcomingFixtures: mergedUpcomingFixtures,
     recentFixtures,
     userSchoolFixture,
     hasNoPools,
     fixturesLoading,
+    tournamentFixtures: rawTournamentFixtures,
   };
 }

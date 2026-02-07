@@ -426,6 +426,7 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         return (
           <StepPool
             schoolName={state.schoolName}
+            userType={state.userType || "fan"}
             userId={state.userId || ""}
             onComplete={handleOnboardingComplete}
             onSkip={handleOnboardingComplete}
