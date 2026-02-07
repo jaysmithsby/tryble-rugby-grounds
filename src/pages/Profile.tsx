@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
-import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
+import { MatchScoreSubmission } from "@/components/scores/MatchScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChangeSchoolDialog } from "@/components/profile/ChangeSchoolDialog";
 import { ConsentStatusCard } from "@/components/consent/ConsentStatusCard";
@@ -279,7 +279,9 @@ const Profile = () => {
         </div>
 
         {/* Score Submission Section */}
-        <ScoreSubmission />
+        {profile?.schoolName && (
+          <MatchScoreSubmission userSchoolName={profile.schoolName} />
+        )}
 
         {/* Badges Section - Hidden for MVP, will be re-enabled in v2 */}
         {/* 
