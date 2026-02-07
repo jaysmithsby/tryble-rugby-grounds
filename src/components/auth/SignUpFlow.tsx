@@ -192,7 +192,7 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         return;
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         // Store the state first
         const newState = {
           ...state,
@@ -202,6 +202,7 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         };
         
         // Send verification email via our custom edge function
+        // We have a session from signup, so we can call the function immediately
         try {
           const { error: emailError } = await supabase.functions.invoke("send-verification-email", {});
           
@@ -217,6 +218,19 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         }
         
         updateState(newState);
+      } else if (data.user) {
+        // User created but no session (shouldn't happen with email/password signup)
+        // Still advance to verification step
+        updateState({
+          ...state,
+          email,
+          userId: data.user.id,
+          step: 2,
+        });
+        toast({
+          title: "Account created",
+          description: "Please check your email for the verification link.",
+        });
       }
     } catch (e: any) {
       setError(e.message || "An unexpected error occurred");
