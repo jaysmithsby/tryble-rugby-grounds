@@ -132,7 +132,7 @@ const Home = () => {
         <HomeCarousel unpickedFixturesCount={upcomingFixtures.filter(f => !predictions[f.id]).length} />
 
         {/* Weekly Summary Widget */}
-        <WeeklySummaryWidget />
+        <WeeklySummaryWidget userId={user?.id} />
 
         {/* Your School's Fixture - Special Highlight */}
         {userSchoolFixture && userSchoolName && (

@@ -14,6 +14,7 @@ import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
 import { PoolCard } from "@/components/pools/PoolCard";
 import { PoolInvite } from "@/components/pools/PoolInvite";
 import { BottomNav } from "@/components/BottomNav";
+import { getISOWeek } from "date-fns";
 
 type LeaderboardEntry = {
   rank: number;
@@ -31,6 +32,11 @@ type SchoolLeaderboardEntry = {
   totalUsers: number;
 };
 
+type WeeklyHighlights = {
+  topClimber: { name: string; spotsGained: number } | null;
+  bestAccuracy: { percentage: number } | null;
+};
+
 const Leaderboard = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<"weekly" | "season">("weekly");
@@ -41,6 +47,7 @@ const Leaderboard = () => {
   const [poolMemberCounts, setPoolMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [joinPoolCode, setJoinPoolCode] = useState("");
+  const [highlights, setHighlights] = useState<WeeklyHighlights>({ topClimber: null, bestAccuracy: null });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -48,8 +55,16 @@ const Leaderboard = () => {
     loadUserPools();
   }, [period]);
 
+  const getSchoolCode = (schoolName: string) => {
+    const words = schoolName.split(" ");
+    if (words.length === 1) return schoolName.substring(0, 3).toUpperCase();
+    return words.map(w => w[0]).join("").toUpperCase();
+  };
+
   const loadLeaderboardData = async () => {
     setLoading(true);
+    const currentWeek = getISOWeek(new Date());
+    const currentYear = new Date().getFullYear();
     
     // Load school slugs for navigation
     const { data: schoolsData } = await supabase
@@ -62,25 +77,98 @@ const Leaderboard = () => {
     });
     setSchoolIdMap(slugMap);
     
-    // Mock data for now - will be replaced with real queries
-    const mockGlobal: LeaderboardEntry[] = [
-      { rank: 1, userId: "1", nickname: "James S", schoolCode: "MHS", points: 245, badges: ["top_dog", "climber"] },
-      { rank: 2, userId: "2", nickname: "Zanele T", schoolCode: "SACS", points: 238, badges: ["podium_place"] },
-      { rank: 3, userId: "3", nickname: "Thabo M", schoolCode: "GRY", points: 234, badges: ["podium_place", "school_hero"] },
-      { rank: 4, userId: "4", nickname: "Sarah K", schoolCode: "DSG", points: 228, badges: [] },
-      { rank: 5, userId: "5", nickname: "Liam R", schoolCode: "BHS", points: 221, badges: ["consistent_contender"] },
-    ];
+    // Fetch real global leaderboard data from user_scores joined with profiles_public
+    const { data: globalData, error: globalError } = await supabase
+      .from("user_scores")
+      .select(`
+        user_id,
+        weekly_points,
+        season_points,
+        rank_global,
+        accuracy_percentage
+      `)
+      .eq("season_year", currentYear)
+      .eq("week_number", currentWeek)
+      .order(period === "weekly" ? "weekly_points" : "season_points", { ascending: false })
+      .limit(50);
 
-    const mockSchools: SchoolLeaderboardEntry[] = [
-      { rank: 1, schoolName: "Michaelhouse", averagePoints: 186.4, totalUsers: 45 },
-      { rank: 2, schoolName: "Grey College", averagePoints: 182.1, totalUsers: 52 },
-      { rank: 3, schoolName: "SACS", averagePoints: 178.9, totalUsers: 38 },
-      { rank: 4, schoolName: "Bishops", averagePoints: 175.2, totalUsers: 41 },
-      { rank: 5, schoolName: "Hilton College", averagePoints: 172.8, totalUsers: 36 },
-    ];
+    if (globalError) {
+      console.error("Error fetching leaderboard:", globalError);
+    }
 
-    setGlobalLeaderboard(mockGlobal);
-    setSchoolLeaderboard(mockSchools);
+    // Fetch profiles for the users
+    const userIds = globalData?.map(d => d.user_id) || [];
+    let profilesMap: Record<string, { display_name: string | null; school_name: string | null }> = {};
+    
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles_public")
+        .select("id, display_name, school_name")
+        .in("id", userIds);
+      
+      profilesData?.forEach(p => {
+        if (p.id) {
+          profilesMap[p.id] = { display_name: p.display_name, school_name: p.school_name };
+        }
+      });
+    }
+
+    // Transform to LeaderboardEntry format
+    const entries: LeaderboardEntry[] = (globalData || []).map((item, index) => {
+      const profile = profilesMap[item.user_id];
+      return {
+        rank: index + 1,
+        userId: item.user_id,
+        nickname: profile?.display_name || "Anonymous",
+        schoolCode: getSchoolCode(profile?.school_name || ""),
+        points: period === "weekly" ? (item.weekly_points || 0) : (item.season_points || 0),
+        badges: [],
+      };
+    });
+
+    setGlobalLeaderboard(entries);
+
+    // Fetch real school leaderboard from school_scores
+    const { data: schoolScoresData, error: schoolError } = await supabase
+      .from("school_scores")
+      .select("*")
+      .eq("season_year", currentYear)
+      .eq("week_number", currentWeek)
+      .order("average_points", { ascending: false })
+      .limit(20);
+
+    if (schoolError) {
+      console.error("Error fetching school scores:", schoolError);
+    }
+
+    const schoolEntries: SchoolLeaderboardEntry[] = (schoolScoresData || []).map((item, index) => ({
+      rank: index + 1,
+      schoolName: item.school_name,
+      averagePoints: Number(item.average_points) || 0,
+      totalUsers: item.total_users || 0,
+    }));
+
+    setSchoolLeaderboard(schoolEntries);
+
+    // Weekly highlights - calculate if we have data
+    if (entries.length > 0) {
+      // Find best accuracy from the data
+      const bestAccuracyEntry = globalData?.reduce((best, curr) => {
+        const currAcc = Number(curr.accuracy_percentage) || 0;
+        const bestAcc = Number(best?.accuracy_percentage) || 0;
+        return currAcc > bestAcc ? curr : best;
+      }, globalData[0]);
+
+      setHighlights({
+        topClimber: null, // Would need to compare with previous week's data
+        bestAccuracy: bestAccuracyEntry?.accuracy_percentage 
+          ? { percentage: Number(bestAccuracyEntry.accuracy_percentage) } 
+          : null,
+      });
+    } else {
+      setHighlights({ topClimber: null, bestAccuracy: null });
+    }
+
     setLoading(false);
   };
 
@@ -292,20 +380,32 @@ const Leaderboard = () => {
       </header>
 
       {/* Weekly Highlight Banner */}
-      <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-accent" />
-              <span><strong>Top Climber:</strong> James S jumped 12 places!</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              <span><strong>Best Accuracy:</strong> 80% this week!</span>
+      {(highlights.topClimber || highlights.bestAccuracy) ? (
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
+              {highlights.topClimber && (
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-accent" />
+                  <span><strong>Top Climber:</strong> {highlights.topClimber.name} jumped {highlights.topClimber.spotsGained} places!</span>
+                </div>
+              )}
+              {highlights.bestAccuracy && (
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-primary" />
+                  <span><strong>Best Accuracy:</strong> {highlights.bestAccuracy.percentage}% this week!</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
+          <div className="container mx-auto px-4 py-3 text-center text-sm text-muted-foreground">
+            Weekly highlights will appear after this weekend's matches are scored
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
@@ -340,8 +440,17 @@ const Leaderboard = () => {
               <CardContent>
                 {loading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : (
+                ) : globalLeaderboard.length > 0 ? (
                   <LeaderboardTable entries={globalLeaderboard} />
+                ) : (
+                  <div className="text-center py-12">
+                    <Trophy className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h3 className="font-semibold mb-2">No rankings yet</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Rankings will appear once the first predictions are scored.
+                      <br />Check back after the weekend's matches!
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -358,8 +467,16 @@ const Leaderboard = () => {
               <CardContent>
                 {loading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : (
+                ) : schoolLeaderboard.length > 0 ? (
                   <SchoolLeaderboardTable entries={schoolLeaderboard} />
+                ) : (
+                  <div className="text-center py-12">
+                    <School className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h3 className="font-semibold mb-2">No school rankings yet</h3>
+                    <p className="text-muted-foreground text-sm">
+                      School rankings are calculated after predictions are scored.
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>

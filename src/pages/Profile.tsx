@@ -25,12 +25,12 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/BottomNav";
-// Badge imports preserved for v2
-// import { allBadges } from "@/data/badgesData";
 import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChangeSchoolDialog } from "@/components/profile/ChangeSchoolDialog";
 import { ConsentStatusCard } from "@/components/consent/ConsentStatusCard";
+import { useUserStats } from "@/hooks/useUserStats";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProfileData {
   firstName: string;
@@ -39,6 +39,7 @@ interface ProfileData {
   userType: string;
   province: string | null;
   schoolChangedAt: string | null;
+  displayName: string | null;
 }
 
 interface UserPool {
@@ -58,13 +59,10 @@ const Profile = () => {
   const [pools, setPools] = useState<UserPool[]>([]);
   const [poolsLoading, setPoolsLoading] = useState(true);
   const [changeSchoolOpen, setChangeSchoolOpen] = useState(false);
+  const [userId, setUserId] = useState<string | undefined>();
 
-  // Mock data - replace with real data from backend
-  const stats = {
-    seasonPoints: 1450,
-    accuracy: 63,
-    currentStreak: 3
-  };
+  // Real user stats from database
+  const { seasonPoints, accuracy, currentStreak, isLoading: statsLoading, hasData: hasStats } = useUserStats(userId);
 
   useEffect(() => {
     fetchProfile();
@@ -117,9 +115,11 @@ const Profile = () => {
         return;
       }
 
+      setUserId(user.id);
+
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, school_name, contact_method, user_type, province, school_changed_at")
+        .select("first_name, school_name, contact_method, user_type, province, school_changed_at, display_name")
         .eq("id", user.id)
         .single();
 
@@ -131,7 +131,8 @@ const Profile = () => {
         contactMethod: data.contact_method,
         userType: data.user_type,
         province: data.province,
-        schoolChangedAt: data.school_changed_at
+        schoolChangedAt: data.school_changed_at,
+        displayName: data.display_name
       });
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -156,11 +157,12 @@ const Profile = () => {
     return words.map(w => w[0]).join("").toUpperCase();
   };
 
+  // Fixed display name logic - just use first name or display_name, no erroneous suffix
   const getDisplayName = () => {
     if (!profile) return "";
-    const lastInitial = profile.firstName.length > 1 ? profile.firstName[profile.firstName.length - 1].toUpperCase() : "";
     const schoolCode = getSchoolCode(profile.schoolName);
-    return `${profile.firstName} ${lastInitial}. — ${schoolCode}`;
+    const name = profile.displayName || profile.firstName;
+    return `${name} — ${schoolCode}`;
   };
 
   if (loading) {
@@ -222,7 +224,13 @@ const Profile = () => {
                   <Trophy className="w-6 h-6 text-accent" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.seasonPoints}</div>
+                  {statsLoading ? (
+                    <Skeleton className="w-16 h-7 mb-1" />
+                  ) : hasStats && seasonPoints !== null ? (
+                    <div className="text-2xl font-bold">{seasonPoints}</div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Make predictions to earn points!</div>
+                  )}
                   <div className="text-sm text-muted-foreground">Season Points</div>
                 </div>
               </div>
@@ -236,7 +244,13 @@ const Profile = () => {
                   <Target className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.accuracy}%</div>
+                  {statsLoading ? (
+                    <Skeleton className="w-16 h-7 mb-1" />
+                  ) : hasStats && accuracy !== null ? (
+                    <div className="text-2xl font-bold">{accuracy}%</div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Accuracy after first result</div>
+                  )}
                   <div className="text-sm text-muted-foreground">Accuracy</div>
                 </div>
               </div>
@@ -250,7 +264,13 @@ const Profile = () => {
                   <Flame className="w-6 h-6 text-destructive" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.currentStreak}</div>
+                  {statsLoading ? (
+                    <Skeleton className="w-16 h-7 mb-1" />
+                  ) : currentStreak > 0 ? (
+                    <div className="text-2xl font-bold">{currentStreak}</div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Build your streak!</div>
+                  )}
                   <div className="text-sm text-muted-foreground">Win Streak</div>
                 </div>
               </div>
