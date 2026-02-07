@@ -25,6 +25,8 @@ import {
 import { GraduationCap, Users, Heart, Trophy, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import SchoolSearchDrawer from "./SchoolSearchDrawer";
 
 const userTypes = [
   { value: "scholar", label: "Scholar", icon: GraduationCap, description: "Current student" },
@@ -77,11 +79,12 @@ const StepProfile = ({
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
   const [schoolOpen, setSchoolOpen] = useState(false);
-
-
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  const isMobile = useIsMobile();
   const showParentEmail = isMinorYear(yearOfBirth);
 
-  // Fetch schools based on search
+  // Fetch schools based on search (for desktop popover)
   useEffect(() => {
     const fetchSchools = async () => {
       if (schoolSearch.length < 2) {
@@ -135,6 +138,14 @@ const StepProfile = ({
         schoolName: schoolName.trim(),
         parentEmail: showParentEmail ? parentEmail.trim() : undefined,
       });
+    }
+  };
+
+  const handleSchoolButtonClick = () => {
+    if (isMobile) {
+      setDrawerOpen(true);
+    } else {
+      setSchoolOpen(true);
     }
   };
 
@@ -208,76 +219,105 @@ const StepProfile = ({
           </Select>
         </div>
 
-        {/* School */}
+        {/* School - Responsive: Drawer on mobile, Popover on desktop */}
         <div className="space-y-2">
           <Label htmlFor="school">School</Label>
-          <Popover open={schoolOpen} onOpenChange={setSchoolOpen}>
-            <PopoverTrigger asChild>
+          
+          {isMobile ? (
+            // Mobile: Use button that opens drawer
+            <>
               <Button
+                type="button"
                 variant="outline"
-                role="combobox"
-                aria-expanded={schoolOpen}
+                onClick={handleSchoolButtonClick}
                 className="w-full justify-between font-normal"
               >
                 {schoolName || "Search for your school..."}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0" align="start">
-              <Command shouldFilter={false}>
-                <CommandInput
-                  placeholder="Type to search schools..."
-                  value={schoolSearch}
-                  onValueChange={setSchoolSearch}
-                />
-                <CommandList>
-                  {schoolsLoading ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Searching...
-                    </div>
-                  ) : schools.length === 0 && schoolSearch.length >= 2 ? (
-                    <CommandEmpty>
-                      <div className="p-2 space-y-2">
-                        <p>No schools found.</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSchoolName(schoolSearch);
-                            setSchoolOpen(false);
-                          }}
-                        >
-                          Use "{schoolSearch}" anyway
-                        </Button>
+              <SchoolSearchDrawer
+                open={drawerOpen}
+                onOpenChange={setDrawerOpen}
+                selectedSchool={schoolName}
+                onSelectSchool={setSchoolName}
+              />
+            </>
+          ) : (
+            // Desktop: Use popover with fixed positioning
+            <Popover open={schoolOpen} onOpenChange={setSchoolOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={schoolOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {schoolName || "Search for your school..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-[var(--radix-popover-trigger-width)] p-0 max-h-60 overflow-hidden" 
+                align="start"
+                side="bottom"
+                sideOffset={8}
+                avoidCollisions={false}
+              >
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Type to search schools..."
+                    value={schoolSearch}
+                    onValueChange={setSchoolSearch}
+                  />
+                  <CommandList className="max-h-48 overflow-y-auto">
+                    {schoolsLoading ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        Searching...
                       </div>
-                    </CommandEmpty>
-                  ) : (
-                    <CommandGroup>
-                      {schools.map((school) => (
-                        <CommandItem
-                          key={school.id}
-                          value={school.name}
-                          onSelect={() => {
-                            setSchoolName(school.name);
-                            setSchoolOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              schoolName === school.name ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {school.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  )}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                    ) : schools.length === 0 && schoolSearch.length >= 2 ? (
+                      <CommandEmpty>
+                        <div className="p-2 space-y-2">
+                          <p>No schools found.</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSchoolName(schoolSearch);
+                              setSchoolOpen(false);
+                            }}
+                          >
+                            Use "{schoolSearch}" anyway
+                          </Button>
+                        </div>
+                      </CommandEmpty>
+                    ) : (
+                      <CommandGroup>
+                        {schools.map((school) => (
+                          <CommandItem
+                            key={school.id}
+                            value={school.name}
+                            onSelect={() => {
+                              setSchoolName(school.name);
+                              setSchoolOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                schoolName === school.name ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {school.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         {/* Parent Email - Only shown for minors */}

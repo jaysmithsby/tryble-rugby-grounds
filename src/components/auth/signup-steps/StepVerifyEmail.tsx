@@ -14,6 +14,7 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
   const [resending, setResending] = useState(false);
   const [checking, setChecking] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
   // Poll for email verification
@@ -24,7 +25,11 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
         if (error) return;
         
         if (user?.email_confirmed_at) {
-          onVerified();
+          // Show success animation before advancing
+          setShowSuccess(true);
+          setTimeout(() => {
+            onVerified();
+          }, 1500);
         }
       } catch (e) {
         // Silently handle errors during polling
@@ -40,7 +45,10 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
     // Also listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'USER_UPDATED' && session?.user?.email_confirmed_at) {
-        onVerified();
+        setShowSuccess(true);
+        setTimeout(() => {
+          onVerified();
+        }, 1500);
       }
     });
 
@@ -61,13 +69,8 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
   const handleResendEmail = async () => {
     setResending(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
+      // Use our custom edge function to resend
+      const { error } = await supabase.functions.invoke("send-verification-email", {});
 
       if (error) throw error;
 
@@ -99,11 +102,17 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
         if (userError) throw userError;
         
         if (user?.email_confirmed_at) {
-          onVerified();
+          setShowSuccess(true);
+          setTimeout(() => {
+            onVerified();
+          }, 1500);
           return;
         }
       } else if (session?.user?.email_confirmed_at) {
-        onVerified();
+        setShowSuccess(true);
+        setTimeout(() => {
+          onVerified();
+        }, 1500);
         return;
       }
       
@@ -122,6 +131,25 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
       setChecking(false);
     }
   };
+
+  // Success state
+  if (showSuccess) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center animate-in zoom-in-50 duration-300">
+              <CheckCircle2 className="w-10 h-10 text-primary animate-in zoom-in-50 duration-500" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold animate-in fade-in-50 duration-300">Email verified! 🎉</h2>
+          <p className="text-muted-foreground animate-in fade-in-50 duration-500">
+            Let's set up your profile...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
