@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { MapPin, Clock, Check } from "lucide-react";
+import { MapPin, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,10 +40,7 @@ export const FixtureListCard = ({
   const navigate = useNavigate();
   const [predictionOpen, setPredictionOpen] = useState(false);
 
-  const matchDate = new Date(fixture.match_date);
-  const timeString = format(matchDate, "HH:mm");
   const isUpcoming = fixture.status === "upcoming";
-  const isCompleted = fixture.status === "completed";
 
   const handleSchoolClick = (slug: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -88,7 +85,7 @@ export const FixtureListCard = ({
               />
               <span 
                 className={cn(
-                  "text-xs font-semibold text-center uppercase leading-tight line-clamp-2 cursor-pointer hover:text-primary transition-colors",
+                  "text-xs font-semibold text-center leading-tight line-clamp-2 cursor-pointer hover:text-primary transition-colors",
                   userPrediction?.team === "home" && "text-primary"
                 )}
                 onClick={(e) => handleSchoolClick(fixture.home_school.slug, e)}
@@ -99,19 +96,7 @@ export const FixtureListCard = ({
 
             {/* VS / Score */}
             <div className="flex flex-col items-center px-2">
-              {isCompleted ? (
-                <div className="text-lg font-bold text-foreground">
-                  vs
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <span className="text-lg font-bold text-muted-foreground">vs</span>
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {timeString}
-                  </span>
-                </div>
-              )}
+            <span className="text-lg font-bold text-muted-foreground">vs</span>
             </div>
 
             {/* Away Team */}
@@ -126,7 +111,7 @@ export const FixtureListCard = ({
               />
               <span 
                 className={cn(
-                  "text-xs font-semibold text-center uppercase leading-tight line-clamp-2 cursor-pointer hover:text-primary transition-colors",
+                  "text-xs font-semibold text-center leading-tight line-clamp-2 cursor-pointer hover:text-primary transition-colors",
                   userPrediction?.team === "away" && "text-accent"
                 )}
                 onClick={(e) => handleSchoolClick(fixture.away_school.slug, e)}
