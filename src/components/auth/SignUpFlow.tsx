@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import StepWelcome from "./signup-steps/StepWelcome";
 import StepNextMatch from "./signup-steps/StepNextMatch";
 import StepTournament from "./signup-steps/StepTournament";
 import StepPool from "./signup-steps/StepPool";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const STORAGE_KEY = "trybal_onboarding_state";
 
@@ -32,13 +33,16 @@ const defaultState: OnboardingState = {
 
 interface SignUpFlowProps {
   onSwitchToSignIn: () => void;
+  initialVerified?: boolean;
 }
 
-const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
+const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowProps) => {
   const [state, setState] = useState<OnboardingState>(defaultState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const prevStepRef = useRef<number>(1);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -49,6 +53,7 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         setState(parsed);
+        prevStepRef.current = parsed.step;
       }
     } catch (e) {
       // Ignore parse errors
@@ -61,6 +66,14 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
   }, [state, initialCheckDone]);
+
+  // Handle verification success from URL token
+  useEffect(() => {
+    if (initialVerified && initialCheckDone) {
+      // User just verified their email, advance to profile step
+      setState(prev => ({ ...prev, step: 3 }));
+    }
+  }, [initialVerified, initialCheckDone]);
 
   // Check if user is already authenticated and verified - run only once on mount
   useEffect(() => {
@@ -131,10 +144,29 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     return () => {
       isMounted = false;
     };
-  }, [navigate]); // Remove state.step dependency to prevent loops
+  }, [navigate]);
+
+  // Smooth transitions between steps
+  const updateStepWithTransition = useCallback((newStep: number) => {
+    setTransitioning(true);
+    setTimeout(() => {
+      setState(prev => ({ ...prev, step: newStep }));
+      prevStepRef.current = newStep;
+      setTimeout(() => setTransitioning(false), 50);
+    }, 150);
+  }, []);
 
   const updateState = (updates: Partial<OnboardingState>) => {
-    setState(prev => ({ ...prev, ...updates }));
+    if (updates.step !== undefined && updates.step !== state.step) {
+      setTransitioning(true);
+      setTimeout(() => {
+        setState(prev => ({ ...prev, ...updates }));
+        prevStepRef.current = updates.step!;
+        setTimeout(() => setTransitioning(false), 50);
+      }, 150);
+    } else {
+      setState(prev => ({ ...prev, ...updates }));
+    }
   };
 
   // Step 1: Create Account
@@ -161,11 +193,30 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
       }
 
       if (data.user) {
-        updateState({
+        // Store the state first
+        const newState = {
+          ...state,
           email,
           userId: data.user.id,
           step: 2,
-        });
+        };
+        
+        // Send verification email via our custom edge function
+        try {
+          const { error: emailError } = await supabase.functions.invoke("send-verification-email", {});
+          
+          if (emailError) {
+            console.error("Failed to send verification email:", emailError);
+            toast({
+              title: "Account created",
+              description: "Please check your email for the verification link. If you don't see it, you can request a new one.",
+            });
+          }
+        } catch (emailErr) {
+          console.error("Error calling send-verification-email:", emailErr);
+        }
+        
+        updateState(newState);
       }
     } catch (e: any) {
       setError(e.message || "An unexpected error occurred");
@@ -372,6 +423,28 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
     }
   };
 
+  // Show loading skeleton during initial auth check
+  if (!initialCheckDone) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center gap-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-1.5 w-10 rounded-full" />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-4 w-64 mx-auto" />
+          <div className="space-y-3 pt-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-12 w-full mt-4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Progress indicator (hide for verification step and welcome)
   const showProgress = state.step !== 2 && state.step !== 4;
   const progressSteps = [1, 3, 5, 6, 7]; // Skip verification (2) and welcome (4) in progress
@@ -393,7 +466,14 @@ const SignUpFlow = ({ onSwitchToSignIn }: SignUpFlowProps) => {
         </div>
       )}
 
-      {renderStep()}
+      {/* Step Content with Transition */}
+      <div 
+        className={`transition-all duration-200 ease-out ${
+          transitioning ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+        }`}
+      >
+        {renderStep()}
+      </div>
     </div>
   );
 };
