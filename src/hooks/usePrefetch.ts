@@ -141,6 +141,10 @@ export function usePrefetch() {
         prefetchProfile();
         prefetchUserPools();
         break;
+      case "/pools":
+        prefetchUserPools();
+        prefetchSchools();
+        break;
       case "/fixtures":
         prefetchSchools();
         prefetchFixtures();
