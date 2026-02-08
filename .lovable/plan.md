@@ -1,190 +1,193 @@
 
-# Replace Fixtures Tab with Pools Tab
+# Pool Creation Flow & Pool Management Enhancement
 
-This plan restructures the bottom navigation to replace the "Fixtures" tab with a "Pools" tab, making pools the primary focus with leaderboards accessible as a secondary section within that tab.
-
----
-
-## Current State
-
-| Tab | Route | Focus |
-|-----|-------|-------|
-| Home | `/home` | Feed, predictions |
-| **Leaderboards** | `/leaderboard` | Global/School/Province rankings + Pools section |
-| **Fixtures** | `/fixtures` | Calendar of all matches |
-| Profile | `/profile` | User stats, settings |
+This plan enhances the pool creation experience and pool detail page with admin management capabilities, member lists, and improved information architecture.
 
 ---
 
-## Proposed State
+## Overview of Changes
 
-| Tab | Route | Focus |
-|-----|-------|-------|
-| Home | `/home` | Feed, predictions |
-| **Pools** | `/pools` | User's pools + tournaments + leaderboards section |
-| Profile | `/profile` | User stats, settings |
+| Area | Current State | Proposed State |
+|------|---------------|----------------|
+| After pool creation | Closes dialog, stays on Pools page | Navigates directly to the new pool's page |
+| Pool detail page | Shows leaderboard + invite only | Full management hub with members, editing, info |
+| Admin controls | None | Edit name/icon, manage members, add/remove schools |
+| Member visibility | Count only | Full member list + pending invites (future) |
+| Scoring info | No link | Link to "How Points Work" section |
 
 ---
 
-## Architecture Changes
+## 1. Post-Creation Navigation
 
-### 1. Create New Pools Page
+### Changes to `CreatePoolDialog.tsx`
 
-**New file: `src/pages/Pools.tsx`**
+After successful pool creation, instead of just calling `onPoolCreated()` and closing the dialog, navigate the user directly to their new pool.
 
-A dedicated page with two main sections:
+**Current flow:**
+```text
+Create Pool → Success Toast → Dialog Closes → Stay on /pools
+```
+
+**New flow:**
+```text
+Create Pool → Success Toast → Navigate to /pool/{poolId}
+```
+
+This requires passing `useNavigate` into the dialog and navigating after the pool is created.
+
+---
+
+## 2. Enhanced Pool Detail Page
+
+### Restructured `PoolLeaderboard.tsx` → Pool Hub
+
+Transform the pool leaderboard page into a comprehensive pool management hub with the following sections:
 
 ```text
 ┌─────────────────────────────────────────┐
-│  Header: My Pools                       │
+│  Header: Pool Name + Icon + Code        │
+│  [Edit Pool] (admin only, if editable)  │
 ├─────────────────────────────────────────┤
-│  [Create Pool]    [Join Pool]           │
-├─────────────────────────────────────────┤
-│  Section: Your Pools                    │
+│  Section: Members (X joined)            │
 │  ┌─────────────────────────────────────┐│
-│  │ Pool Card 1 (with View Leaderboard) ││
-│  │ Pool Card 2                         ││
-│  │ Pool Card 3                         ││
+│  │ Member 1 (Admin) ★                  ││
+│  │ Member 2                            ││
+│  │ Member 3                            ││
+│  │ [Invite More Members]               ││
 │  └─────────────────────────────────────┘│
 ├─────────────────────────────────────────┤
-│  Section: Tournaments You Follow        │
+│  Section: Schools in Pool (5-10)        │
 │  ┌─────────────────────────────────────┐│
-│  │ Tournament Card 1                   ││
-│  │ Tournament Card 2                   ││
+│  │ School badges with icons            ││
+│  │ [Edit Schools] (admin, if editable) ││
 │  └─────────────────────────────────────┘│
 ├─────────────────────────────────────────┤
-│  Section: Leaderboards                  │
+│  Section: Leaderboard                   │
+│  [Weekly | Season toggle]               │
 │  ┌─────────────────────────────────────┐│
-│  │ [Global] [School] [Province]        ││
-│  │ Top 5 preview with "View All" link  ││
+│  │ Ranking entries                     ││
 │  └─────────────────────────────────────┘│
+├─────────────────────────────────────────┤
+│  Link: How Points Work →                │
+├─────────────────────────────────────────┤
+│  Section: Invite Friends (Share Card)   │
 └─────────────────────────────────────────┘
 ```
 
-**Key Features:**
-- User's pools displayed prominently at top
-- Each pool card has "View Leaderboard" button leading to `/pool/:poolId`
-- Tournaments the user follows (from `user_tournament_follows` table)
-- Condensed leaderboards section with Global/School/Province tabs showing top 5 entries
-- "View Full Leaderboard" link for each category
+---
 
-### 2. Update Bottom Navigation
+## 3. Admin Controls with Time-Based Lock
 
-**File: `src/components/BottomNav.tsx`**
+### Editing Window Logic
 
-| Change | Before | After |
-|--------|--------|-------|
-| Icon | `CalendarDays` | `Users` |
-| Label | "Fixtures" | "Pools" |
-| Route | `/fixtures` | `/pools` |
-| Active check | `/fixtures` | `/pools` or `/pool/*` or `/leaderboard` |
+Pool admins (creators) can edit the pool up to **1 hour before the first fixture** involving any of the pool's schools for the current week.
 
-```typescript
-// New nav item replacing Fixtures
-<button
-  onClick={() => navigate("/pools")}
-  onMouseEnter={handlePrefetch("/pools")}
-  onFocus={handlePrefetch("/pools")}
-  className={`flex flex-col items-center gap-1 transition-colors ${
-    isActive("/pools") || 
-    location.pathname.startsWith("/pool/") || 
-    location.pathname === "/leaderboard"
-      ? "text-primary"
-      : "text-muted-foreground hover:text-foreground"
-  }`}
->
-  <Users className="w-5 h-5" />
-  <span className="text-xs font-medium">Pools</span>
-</button>
-```
+**Calculation:**
+1. Query fixtures where `home_school` or `away_school` matches any school in the pool
+2. Filter to fixtures this weekend (Saturday/Sunday or upcoming weekday tournaments)
+3. Find the earliest `match_date`
+4. Lock editing at `earliest_match_date - 1 hour`
 
-### 3. Update App Routes
+**Editable elements (before lock):**
+- Pool name (with profanity filter)
+- Pool icon (optional - can be emoji or school-based)
+- Add/remove members (kick members)
+- Add/remove schools (within 5-10 limit)
 
-**File: `src/App.tsx`**
+**After lock:**
+- All editing disabled
+- Show message: "Pool locked for this week's matches"
 
-Add new route and keep leaderboard accessible:
+### Components to Create
 
-```typescript
-<Route path="/pools" element={<Pools />} />
-<Route path="/leaderboard" element={<Leaderboard />} />  // Keep for deep linking
-<Route path="/fixtures" element={<Fixtures />} />  // Keep for deep linking from Home cards
-```
-
-### 4. Update Prefetch Hook
-
-**File: `src/hooks/usePrefetch.ts`**
-
-Add `/pools` route prefetching:
-
-```typescript
-case "/pools":
-  prefetchUserPools();
-  prefetchSchools();  // For leaderboard preview
-  break;
-```
+**`EditPoolDialog.tsx`** - Modal for editing pool details:
+- Name input (max 50 chars, profanity filtered)
+- School selector (add/remove within limits)
+- Lock status indicator with countdown if approaching
 
 ---
 
-## Pools Page Structure
+## 4. Member Management
 
-### Header Section
-- Title: "My Pools"
-- Quick actions: Create Pool + Join Pool buttons
+### Member List Display
 
-### Your Pools Section
-- List of user's pools using existing `PoolCard` component
-- Each card shows pool name, invite code, member count
-- "View Leaderboard" button on each card
-- Empty state: "Create or join a pool to compete with friends!"
+Show all current pool members with:
+- Display name and school abbreviation
+- Admin badge for pool creator
+- Join date (optional subtle text)
 
-### Tournaments You Follow Section
-- Query `user_tournament_follows` joined with `tournaments`
-- Display tournament name and school count
-- Link to `/tournament/:tournamentId`
-- Empty state: "Follow tournaments to see them here"
+### Admin Actions (Before Lock)
 
-### Leaderboards Section
-- Condensed view with tabs: Global | School | Province
-- Show top 5 entries only (preview)
-- Weekly/Season toggle
-- "View Full Rankings" button linking to `/leaderboard`
+- **Remove Member**: Pool creator can remove members (except themselves)
+- **Invite**: Share button (existing PoolInvite component)
 
----
+### Data Structure
 
-## Data Queries
+Uses existing `pool_members` table:
+```sql
+pool_members: pool_id, user_id, joined_at
+```
 
-### User Pools Query (existing)
+Query with profile join:
 ```typescript
-const { data: pools } = await supabase
+const { data: members } = await supabase
   .from("pool_members")
   .select(`
-    pool_id,
-    pools (id, name, invite_code, schools, voting_mode, pool_members(count))
+    user_id,
+    joined_at,
+    profiles_public (display_name, school_name)
   `)
-  .eq("user_id", user.id);
+  .eq("pool_id", poolId);
 ```
 
-### User Tournament Follows Query (new)
-```typescript
-const { data: followedTournaments } = await supabase
-  .from("user_tournament_follows")
-  .select(`
-    tournament_id,
-    tournaments (id, name, year, start_date, end_date)
-  `)
-  .eq("user_id", user.id);
+---
+
+## 5. Schools Management
+
+### Current Schools Display
+
+Show pool's schools as badges with:
+- School icon (if available)
+- School name
+- Remove button (X) for admin before lock
+
+### Add Schools (Admin Before Lock)
+
+- Search/select schools from available list
+- Maximum 10 schools enforced
+- Minimum 5 schools required
+- Confirmation before removing
+
+---
+
+## 6. How Points Work Link
+
+Add an info section linking to scoring explanation:
+
+```text
+┌─────────────────────────────────────────┐
+│  ℹ️ How Points Work                     │
+│  Correct winner: 10 pts                 │
+│  Exact margin: +25 bonus                │
+│  Within 3 pts: +15 bonus                │
+│  Within 7 pts: +10 bonus                │
+│  [Learn More →]                         │
+└─────────────────────────────────────────┘
 ```
 
-### Leaderboard Preview Query
-```typescript
-const { data: topUsers } = await supabase
-  .from("user_scores")
-  .select("user_id, weekly_points, season_points")
-  .eq("season_year", currentYear)
-  .eq("week_number", currentWeek)
-  .order("weekly_points", { ascending: false })
-  .limit(5);
-```
+This links to an expanded page or modal explaining the full scoring system (referencing `calculate_prediction_points` function logic).
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/pools/EditPoolDialog.tsx` | Modal for editing pool name, icon, schools |
+| `src/components/pools/PoolMembersList.tsx` | Display member list with admin actions |
+| `src/components/pools/PoolSchoolsList.tsx` | Display/edit schools in pool |
+| `src/components/pools/ScoringInfoCard.tsx` | Condensed scoring explanation with link |
+| `src/pages/HowScoringWorks.tsx` | Full page explaining the scoring system |
 
 ---
 
@@ -192,50 +195,41 @@ const { data: topUsers } = await supabase
 
 | File | Changes |
 |------|---------|
-| `src/pages/Pools.tsx` | **Create** - New pools-focused page |
-| `src/components/BottomNav.tsx` | Replace Fixtures with Pools tab |
-| `src/App.tsx` | Add `/pools` route |
-| `src/hooks/usePrefetch.ts` | Add prefetch for `/pools` route |
-| `src/pages/PoolLeaderboard.tsx` | Update back button to go to `/pools` instead of `/leaderboard` |
+| `src/components/pools/CreatePoolDialog.tsx` | Add navigation to pool after creation |
+| `src/pages/PoolLeaderboard.tsx` | Restructure into pool hub with new sections |
+| `src/App.tsx` | Add route for `/how-scoring-works` |
 
 ---
 
-## Navigation Flow
+## Database Changes
 
-```text
-Home Feed
-    │
-    ├── Fixture Card → (still works, deep links to fixtures)
-    │
-    └── Bottom Nav: "Pools" → /pools
-                                  │
-                                  ├── Pool Card → /pool/:poolId (leaderboard)
-                                  │                    │
-                                  │                    └── Back → /pools
-                                  │
-                                  ├── Tournament Card → /tournament/:id
-                                  │
-                                  └── "View Full Rankings" → /leaderboard
-                                                               │
-                                                               └── Back → /pools
-```
+**No schema changes required.** All data needed is available:
+- Pool details: `pools` table
+- Members: `pool_members` table
+- Profiles: `profiles_public` view
+- Fixtures: `fixtures` table (for lock calculation)
+- Schools: `schools` table
 
 ---
 
-## Empty States
+## UI/UX Considerations
 
-| Section | Message |
-|---------|---------|
-| No Pools | "You haven't joined any pools yet. Create a pool to compete with friends or enter a pool code to join an existing one." |
-| No Tournaments | "You're not following any tournaments yet. Follow tournaments from the Fixtures page to see them here." |
-| No Leaderboard Data | "Rankings appear once predictions are scored. Check back after the weekend's matches!" |
+### Member List Design
+- Compact rows with avatar placeholder or initials
+- School abbreviation as subtle badge
+- Admin (creator) marked with star icon
+- "Remove" action revealed on swipe (mobile) or hover (desktop)
 
----
+### Lock State Communication
+- Clear visual indicator when pool is locked
+- Countdown timer if lock is approaching (within 2 hours)
+- Explanation text: "Editing closes 1 hour before kickoff"
 
-## Technical Considerations
+### Empty States
+- No members yet (impossible - creator auto-joins)
+- Pool just created: Welcome message + share prompt
 
-1. **Fixtures Access**: Fixtures page remains accessible via direct URL and from Home feed fixture cards - it's just removed from bottom nav
-2. **Deep Links**: All existing routes (`/leaderboard`, `/pool/:id`, `/fixtures`) continue to work
-3. **Cache Strategy**: Pools page shares cached data with existing queries (pools, schools)
-4. **Active State**: Pools tab highlights for `/pools`, `/pool/*`, and `/leaderboard` routes
-
+### Accessibility
+- All interactive elements keyboard navigable
+- Screen reader friendly member list
+- Clear focus states on edit buttons
