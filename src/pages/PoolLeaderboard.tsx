@@ -4,12 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Trophy, Users, Lock, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PoolInvite } from "@/components/pools/PoolInvite";
 import { PoolVoting } from "@/components/pools/PoolVoting";
+import { PoolMembersList } from "@/components/pools/PoolMembersList";
+import { PoolSchoolsList } from "@/components/pools/PoolSchoolsList";
+import { EditPoolDialog } from "@/components/pools/EditPoolDialog";
+import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
 import { BottomNav } from "@/components/BottomNav";
-import { getISOWeek } from "date-fns";
+import { getISOWeek, differenceInMinutes, format } from "date-fns";
 
 type LeaderboardEntry = {
   rank: number;
@@ -18,6 +22,13 @@ type LeaderboardEntry = {
   schoolCode: string;
   points: number;
   badges?: string[];
+};
+
+type PoolMember = {
+  user_id: string;
+  joined_at: string | null;
+  display_name: string | null;
+  school_name: string | null;
 };
 
 type PoolHighlights = {
@@ -31,20 +42,85 @@ export const PoolLeaderboard = () => {
   const { toast } = useToast();
   const [period, setPeriod] = useState<"weekly" | "season">("weekly");
   const [pool, setPool] = useState<any>(null);
-  const [memberCount, setMemberCount] = useState(0);
+  const [members, setMembers] = useState<PoolMember[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [highlights, setHighlights] = useState<PoolHighlights>({ hilux: null, spud: null });
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isEditable, setIsEditable] = useState(true);
+  const [lockReason, setLockReason] = useState<string | undefined>();
+  const [lockCountdown, setLockCountdown] = useState<string | null>(null);
 
   useEffect(() => {
+    loadCurrentUser();
     loadPoolData();
   }, [poolId, period]);
+
+  const loadCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUserId(user?.id || null);
+  };
 
   const getSchoolCode = (schoolName: string) => {
     if (!schoolName) return "";
     const words = schoolName.split(" ");
     if (words.length === 1) return schoolName.substring(0, 3).toUpperCase();
     return words.map(w => w[0]).join("").toUpperCase();
+  };
+
+  const checkEditableLock = async (poolSchools: string[]) => {
+    if (!poolSchools || poolSchools.length === 0) {
+      setIsEditable(true);
+      setLockReason(undefined);
+      return;
+    }
+
+    try {
+      // Get schools by name to get their IDs
+      const { data: schoolsData } = await supabase
+        .from("schools")
+        .select("id, name")
+        .in("name", poolSchools);
+
+      if (!schoolsData || schoolsData.length === 0) {
+        setIsEditable(true);
+        return;
+      }
+
+      const schoolIds = schoolsData.map(s => s.id);
+
+      // Find the earliest upcoming fixture for these schools
+      const now = new Date();
+      const { data: fixtures } = await supabase
+        .from("fixtures")
+        .select("match_date")
+        .or(`home_school_id.in.(${schoolIds.join(",")}),away_school_id.in.(${schoolIds.join(",")})`)
+        .gte("match_date", now.toISOString())
+        .order("match_date", { ascending: true })
+        .limit(1);
+
+      if (fixtures && fixtures.length > 0) {
+        const firstMatch = new Date(fixtures[0].match_date);
+        const minutesUntilMatch = differenceInMinutes(firstMatch, now);
+        
+        if (minutesUntilMatch <= 60) {
+          setIsEditable(false);
+          setLockReason("Pool is locked - match starting soon");
+        } else if (minutesUntilMatch <= 120) {
+          setIsEditable(true);
+          setLockCountdown(`Editing closes in ${minutesUntilMatch - 60} minutes`);
+          setLockReason(`Editing closes at ${format(new Date(firstMatch.getTime() - 60 * 60 * 1000), "h:mm a")}`);
+        } else {
+          setIsEditable(true);
+          setLockReason(undefined);
+        }
+      } else {
+        setIsEditable(true);
+      }
+    } catch (error) {
+      console.error("Error checking edit lock:", error);
+      setIsEditable(true);
+    }
   };
 
   const loadPoolData = async () => {
@@ -65,34 +141,25 @@ export const PoolLeaderboard = () => {
       if (poolError) throw poolError;
       setPool(poolData);
 
-      // Load member count and member IDs
-      const { data: members, error: membersError } = await supabase
+      // Check if editing should be locked
+      await checkEditableLock(poolData.schools || []);
+
+      // Load members with profiles
+      const { data: membersData, error: membersError } = await supabase
         .from("pool_members")
-        .select("user_id")
+        .select("user_id, joined_at")
         .eq("pool_id", poolId);
 
       if (membersError) throw membersError;
-      setMemberCount(members?.length || 0);
 
-      const memberIds = members?.map(m => m.user_id) || [];
+      const memberIds = membersData?.map(m => m.user_id) || [];
 
       if (memberIds.length === 0) {
+        setMembers([]);
         setLeaderboard([]);
         setHighlights({ hilux: null, spud: null });
         setLoading(false);
         return;
-      }
-
-      // Fetch user scores for pool members
-      const { data: scoresData, error: scoresError } = await supabase
-        .from("user_scores")
-        .select("*")
-        .in("user_id", memberIds)
-        .eq("season_year", currentYear)
-        .eq("week_number", currentWeek);
-
-      if (scoresError) {
-        console.error("Error fetching scores:", scoresError);
       }
 
       // Fetch profiles for members
@@ -107,6 +174,27 @@ export const PoolLeaderboard = () => {
           profilesMap[p.id] = { display_name: p.display_name, school_name: p.school_name };
         }
       });
+
+      // Build members list
+      const membersList: PoolMember[] = membersData.map(m => ({
+        user_id: m.user_id,
+        joined_at: m.joined_at,
+        display_name: profilesMap[m.user_id]?.display_name || null,
+        school_name: profilesMap[m.user_id]?.school_name || null,
+      }));
+      setMembers(membersList);
+
+      // Fetch user scores for pool members
+      const { data: scoresData, error: scoresError } = await supabase
+        .from("user_scores")
+        .select("*")
+        .in("user_id", memberIds)
+        .eq("season_year", currentYear)
+        .eq("week_number", currentWeek);
+
+      if (scoresError) {
+        console.error("Error fetching scores:", scoresError);
+      }
 
       // Build leaderboard entries
       const scoresMap: Record<string, any> = {};
@@ -171,6 +259,8 @@ export const PoolLeaderboard = () => {
     return "";
   };
 
+  const isAdmin = currentUserId === pool?.creator_id;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -215,12 +305,35 @@ export const PoolLeaderboard = () => {
                   </Badge>
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <Users className="w-3 h-3" />
-                    {memberCount} members
+                    {members.length} members
                   </span>
                 </div>
               </div>
             </div>
+
+            {isAdmin && (
+              <EditPoolDialog
+                pool={{ id: pool.id, name: pool.name }}
+                isEditable={isEditable}
+                lockReason={lockReason}
+                onPoolUpdated={loadPoolData}
+              />
+            )}
           </div>
+
+          {/* Lock Status Banner */}
+          {!isEditable && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4">
+              <Lock className="w-4 h-4" />
+              <span>Pool locked for this week's matches</span>
+            </div>
+          )}
+          {lockCountdown && isEditable && (
+            <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 rounded-lg px-3 py-2 mb-4">
+              <Clock className="w-4 h-4" />
+              <span>{lockCountdown}</span>
+            </div>
+          )}
 
           {/* Weekly/Season Toggle */}
           <div className="flex gap-2 justify-center">
@@ -268,6 +381,29 @@ export const PoolLeaderboard = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Members Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span>Members</span>
+              <Badge variant="secondary">{members.length}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Pool participants and their standings
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PoolMembersList
+              members={members}
+              creatorId={pool.creator_id}
+              currentUserId={currentUserId}
+              isEditable={isEditable}
+              onMemberRemoved={loadPoolData}
+              poolId={poolId!}
+            />
+          </CardContent>
+        </Card>
+
         {/* Invite Card */}
         <Card>
           <CardHeader>
@@ -280,6 +416,30 @@ export const PoolLeaderboard = () => {
             <PoolInvite poolName={pool.name} inviteCode={pool.invite_code} />
           </CardContent>
         </Card>
+
+        {/* Schools Section */}
+        {!pool.voting_mode && pool.schools?.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <span>Pool Schools</span>
+                <Badge variant="secondary">{pool.schools.length}</Badge>
+              </CardTitle>
+              <CardDescription>
+                Fixtures from these schools are eligible for predictions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PoolSchoolsList
+                schools={pool.schools}
+                poolId={poolId!}
+                isAdmin={isAdmin}
+                isEditable={isEditable}
+                onSchoolsUpdated={loadPoolData}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Voting Section (if voting mode and not finalized) */}
         {pool.voting_mode && !pool.is_voting_finalized && pool.voting_closes_at && (
@@ -301,7 +461,7 @@ export const PoolLeaderboard = () => {
           </Card>
         )}
 
-        {/* Finalized Schools (if voting is done) */}
+        {/* Finalized Schools from Voting */}
         {pool.voting_mode && pool.is_voting_finalized && pool.schools?.length > 0 && (
           <Card>
             <CardHeader>
@@ -369,6 +529,9 @@ export const PoolLeaderboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Scoring Info */}
+        <ScoringInfoCard />
 
         {/* Safety Notice */}
         <p className="text-xs text-muted-foreground text-center">
