@@ -31,6 +31,7 @@ import Admin from "./pages/Admin";
 import ResetPassword from "./pages/ResetPassword";
 import JoinPool from "./pages/JoinPool";
 import ParentConsent from "./pages/ParentConsent";
+import Pools from "./pages/Pools";
 import NotFound from "./pages/NotFound";
 
 /**
@@ -95,6 +96,7 @@ const App = () => {
                   <Route path="/profile" element={<Profile />} />
                   {/* Badges hidden for MVP - will be re-enabled in v2 */}
                   {/* <Route path="/badges" element={<Badges />} /> */}
+                  <Route path="/pools" element={<Pools />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
                   <Route path="/school/:schoolSlug" element={<SchoolProfile />} />

@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Trophy, CalendarDays, User } from "lucide-react";
+import { Home, Users, User } from "lucide-react";
 import { usePrefetch } from "@/hooks/usePrefetch";
 
 export const BottomNav = () => {
@@ -8,6 +8,11 @@ export const BottomNav = () => {
   const { prefetchForRoute } = usePrefetch();
 
   const isActive = (path: string) => location.pathname === path;
+  
+  const isPoolsActive = () => 
+    isActive("/pools") || 
+    location.pathname.startsWith("/pool/") || 
+    isActive("/leaderboard");
 
   /**
    * Prefetch data when user hovers or focuses a nav item.
@@ -36,31 +41,17 @@ export const BottomNav = () => {
           </button>
           
           <button
-            onClick={() => navigate("/leaderboard")}
-            onMouseEnter={handlePrefetch("/leaderboard")}
-            onFocus={handlePrefetch("/leaderboard")}
+            onClick={() => navigate("/pools")}
+            onMouseEnter={handlePrefetch("/pools")}
+            onFocus={handlePrefetch("/pools")}
             className={`flex flex-col items-center gap-1 transition-colors ${
-              isActive("/leaderboard") || location.pathname.startsWith("/pool/")
+              isPoolsActive()
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Trophy className="w-5 h-5" />
-            <span className="text-xs font-medium">Leaderboards</span>
-          </button>
-
-          <button
-            onClick={() => navigate("/fixtures")}
-            onMouseEnter={handlePrefetch("/fixtures")}
-            onFocus={handlePrefetch("/fixtures")}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              isActive("/fixtures")
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CalendarDays className="w-5 h-5" />
-            <span className="text-xs font-medium">Fixtures</span>
+            <Users className="w-5 h-5" />
+            <span className="text-xs font-medium">Pools</span>
           </button>
           
           <button

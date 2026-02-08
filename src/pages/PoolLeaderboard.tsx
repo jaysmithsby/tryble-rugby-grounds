@@ -195,11 +195,11 @@ export const PoolLeaderboard = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/leaderboard")}
+            onClick={() => navigate("/pools")}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Leaderboards
+            Back to Pools
           </Button>
 
           <div className="flex items-center justify-between mb-4">
