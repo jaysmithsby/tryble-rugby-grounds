@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ interface CreatePoolDialogProps {
 }
 
 export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"configure" | "preview">("configure");
   const [poolName, setPoolName] = useState("");
@@ -158,11 +160,15 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
         description: `Invite code: ${inviteCode}`
       });
 
+      // Reset state
       setPoolName("");
       setSelectedSchools([]);
       setVotingMode(false);
       setStep("configure");
       setOpen(false);
+      
+      // Navigate to the new pool
+      navigate(`/pool/${pool.id}`);
       onPoolCreated();
     } catch (error: any) {
       toast({
