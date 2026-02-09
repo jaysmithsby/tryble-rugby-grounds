@@ -15,6 +15,13 @@ const Hero = () => {
           <h2 className="text-2xl font-bold text-primary">Trybal</h2>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/learn-more")}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Learn More
+            </Button>
             <Button 
               variant="default"
               onClick={() => navigate("/auth", { state: { mode: "signin" } })}
