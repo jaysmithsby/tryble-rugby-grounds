@@ -59,7 +59,7 @@ const LearnMore = () => {
               controls
               className="w-full"
               preload="metadata"
-              src="/audio/trybal-podcast.mp3"
+              src="/audio/trybal-podcast.m4a"
             >
               Your browser does not support the audio element.
             </audio>
