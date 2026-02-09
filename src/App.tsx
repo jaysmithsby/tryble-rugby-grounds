@@ -34,6 +34,7 @@ import ParentConsent from "./pages/ParentConsent";
 import Pools from "./pages/Pools";
 import NotFound from "./pages/NotFound";
 import HowScoringWorks from "./pages/HowScoringWorks";
+import LearnMore from "./pages/LearnMore";
 
 /**
  * QueryClient Configuration
@@ -107,6 +108,7 @@ const App = () => {
                   <Route path="/join-pool/:inviteCode" element={<JoinPool />} />
                   <Route path="/consent/:token" element={<ParentConsent />} />
                   <Route path="/how-scoring-works" element={<HowScoringWorks />} />
+                  <Route path="/learn-more" element={<LearnMore />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
