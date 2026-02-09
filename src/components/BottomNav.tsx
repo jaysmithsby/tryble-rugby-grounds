@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, User } from "lucide-react";
+import { Home, CalendarDays, Users, User } from "lucide-react";
 import { usePrefetch } from "@/hooks/usePrefetch";
 
 export const BottomNav = () => {
@@ -38,6 +38,20 @@ export const BottomNav = () => {
           >
             <Home className="w-5 h-5" />
             <span className="text-xs font-medium">Home</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/fixtures")}
+            onMouseEnter={handlePrefetch("/fixtures")}
+            onFocus={handlePrefetch("/fixtures")}
+            className={`flex flex-col items-center gap-1 transition-colors ${
+              isActive("/fixtures")
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CalendarDays className="w-5 h-5" />
+            <span className="text-xs font-medium">Fixtures</span>
           </button>
           
           <button
