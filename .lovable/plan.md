@@ -1,181 +1,162 @@
 
-# Pool Creation Flow & Pool Management Enhancement
 
-This plan enhances the pool creation experience and pool detail page with admin management capabilities, member lists, and improved information architecture.
+# "Learn More" Page with Podcast & App Overview
 
----
-
-## Overview of Changes
-
-| Area | Current State | Proposed State |
-|------|---------------|----------------|
-| After pool creation | Closes dialog, stays on Pools page | Navigates directly to the new pool's page |
-| Pool detail page | Shows leaderboard + invite only | Full management hub with members, editing, info |
-| Admin controls | None | Edit name/icon, manage members, add/remove schools |
-| Member visibility | Count only | Full member list + pending invites (future) |
-| Scoring info | No link | Link to "How Points Work" section |
+Create a new public-facing "Learn More" page accessible from the landing page header, designed to educate visitors about Trybal with an embedded podcast, app visuals, and safety information.
 
 ---
 
-## 1. Post-Creation Navigation
+## Changes Overview
 
-### Changes to `CreatePoolDialog.tsx`
-
-After successful pool creation, instead of just calling `onPoolCreated()` and closing the dialog, navigate the user directly to their new pool.
-
-**Current flow:**
-```text
-Create Pool → Success Toast → Dialog Closes → Stay on /pools
-```
-
-**New flow:**
-```text
-Create Pool → Success Toast → Navigate to /pool/{poolId}
-```
-
-This requires passing `useNavigate` into the dialog and navigating after the pool is created.
+| Area | What Changes |
+|------|-------------|
+| Landing header (`Hero.tsx`) | Add "Learn More" button next to "Sign In" |
+| New page (`/learn-more`) | Full informational page with podcast, visuals, safety info |
+| Routing (`App.tsx`) | Register `/learn-more` route |
 
 ---
 
-## 2. Enhanced Pool Detail Page
-
-### Restructured `PoolLeaderboard.tsx` → Pool Hub
-
-Transform the pool leaderboard page into a comprehensive pool management hub with the following sections:
+## Page Structure
 
 ```text
-┌─────────────────────────────────────────┐
-│  Header: Pool Name + Icon + Code        │
-│  [Edit Pool] (admin only, if editable)  │
-├─────────────────────────────────────────┤
-│  Section: Members (X joined)            │
-│  ┌─────────────────────────────────────┐│
-│  │ Member 1 (Admin) ★                  ││
-│  │ Member 2                            ││
-│  │ Member 3                            ││
-│  │ [Invite More Members]               ││
-│  └─────────────────────────────────────┘│
-├─────────────────────────────────────────┤
-│  Section: Schools in Pool (5-10)        │
-│  ┌─────────────────────────────────────┐│
-│  │ School badges with icons            ││
-│  │ [Edit Schools] (admin, if editable) ││
-│  └─────────────────────────────────────┘│
-├─────────────────────────────────────────┤
-│  Section: Leaderboard                   │
-│  [Weekly | Season toggle]               │
-│  ┌─────────────────────────────────────┐│
-│  │ Ranking entries                     ││
-│  └─────────────────────────────────────┘│
-├─────────────────────────────────────────┤
-│  Link: How Points Work →                │
-├─────────────────────────────────────────┤
-│  Section: Invite Friends (Share Card)   │
-└─────────────────────────────────────────┘
++--------------------------------------------------+
+|  Header: Back to Home | Trybal | Theme Toggle     |
++--------------------------------------------------+
+|                                                    |
+|  Section 1: PODCAST (Hero area)                    |
+|  "Hear Our Story" heading                          |
+|  Embedded audio player for uploaded podcast         |
+|  Brief description of what listeners will learn    |
+|                                                    |
++--------------------------------------------------+
+|                                                    |
+|  Section 2: WHAT IS TRYBAL?                        |
+|  The game explained simply:                        |
+|  - Pick your school                                |
+|  - Predict match outcomes                          |
+|  - Earn points, climb ranks                        |
+|  - Compete in pools with friends                   |
+|                                                    |
++--------------------------------------------------+
+|                                                    |
+|  Section 3: WHY TRYBAL EXISTS                      |
+|  The story and mission behind the platform         |
+|  - Born from school rugby passion                  |
+|  - Community over competition                      |
+|  - No gambling, no betting, just bragging rights   |
+|                                                    |
++--------------------------------------------------+
+|                                                    |
+|  Section 4: APP PREVIEW                            |
+|  Screenshots of the app interfaces                 |
+|  (reusing existing fixture + leaderboard images)   |
+|  - Fixtures screen                                 |
+|  - Leaderboard screen                              |
+|  Brief captions explaining each                    |
+|                                                    |
++--------------------------------------------------+
+|                                                    |
+|  Section 5: SAFE & SECURE                          |
+|  Cards for key audiences:                          |
+|  - For Students: What you can do, how it works     |
+|  - For Parents: No gambling, parental consent,     |
+|    data protection, age verification               |
+|  - For Schools: IP protection, moderation,         |
+|    transparency, partnership info                  |
+|  Links to /for-parents, /for-schools,              |
+|  /for-players, /privacy-policy                     |
+|                                                    |
++--------------------------------------------------+
+|                                                    |
+|  Section 6: HOW POINTS WORK                        |
+|  Condensed scoring summary                         |
+|  Link to /how-scoring-works for full details       |
+|                                                    |
++--------------------------------------------------+
+|                                                    |
+|  Section 7: CTA                                    |
+|  "Ready to join?" with Get Started button           |
+|                                                    |
++--------------------------------------------------+
+|  Footer                                            |
++--------------------------------------------------+
 ```
 
 ---
 
-## 3. Admin Controls with Time-Based Lock
+## 1. Header Update (`Hero.tsx`)
 
-### Editing Window Logic
+Add a "Learn More" button in the header between the ThemeToggle and "Sign In" button:
 
-Pool admins (creators) can edit the pool up to **1 hour before the first fixture** involving any of the pool's schools for the current week.
+```tsx
+<Button
+  variant="ghost"
+  onClick={() => navigate("/learn-more")}
+  className="text-muted-foreground hover:text-foreground"
+>
+  Learn More
+</Button>
+```
 
-**Calculation:**
-1. Query fixtures where `home_school` or `away_school` matches any school in the pool
-2. Filter to fixtures this weekend (Saturday/Sunday or upcoming weekday tournaments)
-3. Find the earliest `match_date`
-4. Lock editing at `earliest_match_date - 1 hour`
-
-**Editable elements (before lock):**
-- Pool name (with profanity filter)
-- Pool icon (optional - can be emoji or school-based)
-- Add/remove members (kick members)
-- Add/remove schools (within 5-10 limit)
-
-**After lock:**
-- All editing disabled
-- Show message: "Pool locked for this week's matches"
-
-### Components to Create
-
-**`EditPoolDialog.tsx`** - Modal for editing pool details:
-- Name input (max 50 chars, profanity filtered)
-- School selector (add/remove within limits)
-- Lock status indicator with countdown if approaching
+This keeps the header clean -- just "Learn More" and "Sign In" alongside the theme toggle.
 
 ---
 
-## 4. Member Management
+## 2. New Learn More Page
 
-### Member List Display
+**File: `src/pages/LearnMore.tsx`**
 
-Show all current pool members with:
-- Display name and school abbreviation
-- Admin badge for pool creator
-- Join date (optional subtle text)
+### Podcast Section (Top Priority)
+- Large heading: "Hear the Trybal Story"
+- HTML5 `<audio>` player with controls for the uploaded podcast file
+- Podcast stored in `public/audio/` directory for direct access
+- Description text explaining what listeners will learn
+- Note: The user will upload the actual podcast file in a follow-up message; a placeholder audio element will be added with a note
 
-### Admin Actions (Before Lock)
+### What Is Trybal Section
+- Step-by-step visual explanation:
+  1. Pick your school
+  2. Browse upcoming fixtures
+  3. Predict match outcomes and margins
+  4. Earn points and climb leaderboards
+  5. Compete in pools with friends
+- Clean iconography using existing Lucide icons
 
-- **Remove Member**: Pool creator can remove members (except themselves)
-- **Invite**: Share button (existing PoolInvite component)
+### Why Trybal Exists Section
+- Storytelling format -- the passion behind school rugby
+- Key differentiators: no gambling, no odds, community-first
+- Quote from a school principal (from existing Safety component)
 
-### Data Structure
+### App Preview Section
+- Reuse existing `app-fixtures.jpg` and `app-leaderboard.jpg` assets
+- Side-by-side phone mockup style display
+- Brief captions: "Browse and predict fixtures" / "Track your rankings"
 
-Uses existing `pool_members` table:
-```sql
-pool_members: pool_id, user_id, joined_at
-```
+### Safe and Secure Section
+- Three audience cards with icons:
+  - **Students**: How the game works, what to expect
+  - **Parents**: No gambling, parental consent system, data protection, links to /for-parents and /privacy-policy
+  - **Schools**: IP protection, moderation tools, transparency, link to /for-schools
+- Each card links to the dedicated audience page for deeper info
 
-Query with profile join:
-```typescript
-const { data: members } = await supabase
-  .from("pool_members")
-  .select(`
-    user_id,
-    joined_at,
-    profiles_public (display_name, school_name)
-  `)
-  .eq("pool_id", poolId);
-```
+### How Points Work Section
+- Condensed version of the scoring system (correct winner: 10pts, margin bonuses)
+- "View Full Scoring Details" link to `/how-scoring-works`
 
----
-
-## 5. Schools Management
-
-### Current Schools Display
-
-Show pool's schools as badges with:
-- School icon (if available)
-- School name
-- Remove button (X) for admin before lock
-
-### Add Schools (Admin Before Lock)
-
-- Search/select schools from available list
-- Maximum 10 schools enforced
-- Minimum 5 schools required
-- Confirmation before removing
+### CTA Section
+- "Ready to join the community?" with "Get Started" button linking to `/auth`
 
 ---
 
-## 6. How Points Work Link
+## 3. Routing (`App.tsx`)
 
-Add an info section linking to scoring explanation:
+Add the new route (publicly accessible, no auth required):
 
-```text
-┌─────────────────────────────────────────┐
-│  ℹ️ How Points Work                     │
-│  Correct winner: 10 pts                 │
-│  Exact margin: +25 bonus                │
-│  Within 3 pts: +15 bonus                │
-│  Within 7 pts: +10 bonus                │
-│  [Learn More →]                         │
-└─────────────────────────────────────────┘
+```tsx
+import LearnMore from "./pages/LearnMore";
+// ...
+<Route path="/learn-more" element={<LearnMore />} />
 ```
-
-This links to an expanded page or modal explaining the full scoring system (referencing `calculate_prediction_points` function logic).
 
 ---
 
@@ -183,53 +164,30 @@ This links to an expanded page or modal explaining the full scoring system (refe
 
 | File | Purpose |
 |------|---------|
-| `src/components/pools/EditPoolDialog.tsx` | Modal for editing pool name, icon, schools |
-| `src/components/pools/PoolMembersList.tsx` | Display member list with admin actions |
-| `src/components/pools/PoolSchoolsList.tsx` | Display/edit schools in pool |
-| `src/components/pools/ScoringInfoCard.tsx` | Condensed scoring explanation with link |
-| `src/pages/HowScoringWorks.tsx` | Full page explaining the scoring system |
-
----
+| `src/pages/LearnMore.tsx` | Full "Learn More" informational page |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/pools/CreatePoolDialog.tsx` | Add navigation to pool after creation |
-| `src/pages/PoolLeaderboard.tsx` | Restructure into pool hub with new sections |
-| `src/App.tsx` | Add route for `/how-scoring-works` |
+| `src/components/Hero.tsx` | Add "Learn More" button to header |
+| `src/App.tsx` | Register `/learn-more` route |
 
 ---
 
-## Database Changes
+## Podcast Handling
 
-**No schema changes required.** All data needed is available:
-- Pool details: `pools` table
-- Members: `pool_members` table
-- Profiles: `profiles_public` view
-- Fixtures: `fixtures` table (for lock calculation)
-- Schools: `schools` table
+The page will include an audio player section ready for the podcast file. Since the podcast hasn't been uploaded yet:
+- The audio element will be set up pointing to `/audio/trybal-podcast.mp3`
+- A `public/audio/` directory placeholder will be created
+- When you upload the podcast file, it will be placed at that path and work immediately
 
 ---
 
-## UI/UX Considerations
+## Technical Notes
 
-### Member List Design
-- Compact rows with avatar placeholder or initials
-- School abbreviation as subtle badge
-- Admin (creator) marked with star icon
-- "Remove" action revealed on swipe (mobile) or hover (desktop)
-
-### Lock State Communication
-- Clear visual indicator when pool is locked
-- Countdown timer if lock is approaching (within 2 hours)
-- Explanation text: "Editing closes 1 hour before kickoff"
-
-### Empty States
-- No members yet (impossible - creator auto-joins)
-- Pool just created: Welcome message + share prompt
-
-### Accessibility
-- All interactive elements keyboard navigable
-- Screen reader friendly member list
-- Clear focus states on edit buttons
+- No authentication required -- fully public page
+- Reuses existing image assets from `src/assets/` (no new images needed)
+- Links to existing pages (`/for-parents`, `/for-schools`, `/for-players`, `/privacy-policy`, `/how-scoring-works`)
+- Mobile-responsive layout with stacked sections
+- Follows existing design patterns (gradient cards, border styling, Lucide icons)
