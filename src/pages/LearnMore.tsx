@@ -19,8 +19,10 @@ import {
   Eye,
   Scale,
 } from "lucide-react";
-import appFixtures from "@/assets/app-fixtures.jpg";
-import appLeaderboard from "@/assets/app-leaderboard.jpg";
+import screen1 from "@/assets/mockups/screen-1.svg";
+import screen2 from "@/assets/mockups/screen-2.svg";
+import screen3 from "@/assets/mockups/screen-3.svg";
+import screen4 from "@/assets/mockups/screen-4.svg";
 
 const LearnMore = () => {
   const navigate = useNavigate();
@@ -153,44 +155,55 @@ const LearnMore = () => {
       </section>
 
       {/* Section 4: App Preview */}
-      <section className="py-16 px-6 bg-muted/30">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+      <section className="py-20 px-6 bg-muted/30 overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">See It in Action</h2>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               A taste of the Trybal experience — designed for mobile, built for school rugby fans.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            <div className="text-center">
-              <div className="bg-card border border-border rounded-2xl p-4 shadow-sm mb-4 overflow-hidden">
-                <img
-                  src={appFixtures}
-                  alt="Trybal fixtures screen showing upcoming school rugby matches"
-                  className="w-full rounded-lg"
-                  loading="lazy"
-                />
-              </div>
-              <h3 className="font-semibold mb-1">Browse & Predict Fixtures</h3>
-              <p className="text-sm text-muted-foreground">
-                See upcoming matches and make your predictions before kickoff.
-              </p>
+          <div className="flex justify-center items-end gap-4 md:gap-6 lg:gap-8">
+            {/* Phone 1 - tilted left, shorter */}
+            <div className="hidden md:block w-44 lg:w-52 -rotate-6 translate-y-8 opacity-90 hover:opacity-100 hover:-translate-y-0 transition-all duration-500">
+              <img
+                src={screen1}
+                alt="Trybal app home screen"
+                className="w-full drop-shadow-2xl"
+                loading="lazy"
+              />
             </div>
-            <div className="text-center">
-              <div className="bg-card border border-border rounded-2xl p-4 shadow-sm mb-4 overflow-hidden">
-                <img
-                  src={appLeaderboard}
-                  alt="Trybal leaderboard screen showing school rankings"
-                  className="w-full rounded-lg"
-                  loading="lazy"
-                />
-              </div>
-              <h3 className="font-semibold mb-1">Track Your Rankings</h3>
-              <p className="text-sm text-muted-foreground">
-                Climb the leaderboard and see how your school stacks up nationally.
-              </p>
+            {/* Phone 2 - slightly tilted, medium height */}
+            <div className="w-48 sm:w-52 lg:w-60 -rotate-3 translate-y-4 hover:-translate-y-0 transition-all duration-500">
+              <img
+                src={screen2}
+                alt="Trybal app fixtures screen"
+                className="w-full drop-shadow-2xl"
+                loading="lazy"
+              />
+            </div>
+            {/* Phone 3 - center, tallest / hero */}
+            <div className="w-52 sm:w-56 lg:w-64 z-10 hover:-translate-y-2 transition-all duration-500">
+              <img
+                src={screen3}
+                alt="Trybal app predictions screen"
+                className="w-full drop-shadow-2xl"
+                loading="lazy"
+              />
+            </div>
+            {/* Phone 4 - tilted right */}
+            <div className="w-48 sm:w-52 lg:w-60 rotate-3 translate-y-4 hover:-translate-y-0 transition-all duration-500">
+              <img
+                src={screen4}
+                alt="Trybal app leaderboard screen"
+                className="w-full drop-shadow-2xl"
+                loading="lazy"
+              />
             </div>
           </div>
+          <p className="text-center text-sm text-muted-foreground mt-12">
+            Predict matches, track your school, and climb the leaderboard — all from your phone.
+          </p>
         </div>
       </section>
 
