@@ -21,8 +21,6 @@ import {
 } from "lucide-react";
 import screen1 from "@/assets/mockups/screen-1.svg";
 import screen2 from "@/assets/mockups/screen-2.svg";
-import screen3 from "@/assets/mockups/screen-3.svg";
-import screen4 from "@/assets/mockups/screen-4.svg";
 
 const LearnMore = () => {
   const navigate = useNavigate();
@@ -163,39 +161,21 @@ const LearnMore = () => {
               A taste of the Trybal experience — designed for mobile, built for school rugby fans.
             </p>
           </div>
-          <div className="flex justify-center items-end gap-4 md:gap-6 lg:gap-8">
-            {/* Phone 1 - tilted left, shorter */}
-            <div className="hidden md:block w-44 lg:w-52 -rotate-6 translate-y-8 opacity-90 hover:opacity-100 hover:-translate-y-0 transition-all duration-500">
+          <div className="flex justify-center items-end gap-8 md:gap-12 lg:gap-16">
+            {/* Phone 1 - tilted left */}
+            <div className="w-52 sm:w-60 lg:w-72 -rotate-3 translate-y-4 hover:-translate-y-0 hover:rotate-0 transition-all duration-500">
               <img
                 src={screen1}
-                alt="Trybal app home screen"
+                alt="Trybal app home and fixtures screen"
                 className="w-full drop-shadow-2xl"
                 loading="lazy"
               />
             </div>
-            {/* Phone 2 - slightly tilted, medium height */}
-            <div className="w-48 sm:w-52 lg:w-60 -rotate-3 translate-y-4 hover:-translate-y-0 transition-all duration-500">
+            {/* Phone 2 - tilted right */}
+            <div className="w-52 sm:w-60 lg:w-72 rotate-3 translate-y-4 hover:-translate-y-0 hover:rotate-0 transition-all duration-500">
               <img
                 src={screen2}
-                alt="Trybal app fixtures screen"
-                className="w-full drop-shadow-2xl"
-                loading="lazy"
-              />
-            </div>
-            {/* Phone 3 - center, tallest / hero */}
-            <div className="w-52 sm:w-56 lg:w-64 z-10 hover:-translate-y-2 transition-all duration-500">
-              <img
-                src={screen3}
-                alt="Trybal app predictions screen"
-                className="w-full drop-shadow-2xl"
-                loading="lazy"
-              />
-            </div>
-            {/* Phone 4 - tilted right */}
-            <div className="w-48 sm:w-52 lg:w-60 rotate-3 translate-y-4 hover:-translate-y-0 transition-all duration-500">
-              <img
-                src={screen4}
-                alt="Trybal app leaderboard screen"
+                alt="Trybal app profile and tournaments screen"
                 className="w-full drop-shadow-2xl"
                 loading="lazy"
               />
