@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizePoolName } from "@/lib/profanityFilter";
 import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
+import { PoolIconSelector, type PoolIconConfig } from "./PoolIconSelector";
 
 interface School {
   id: string;
@@ -40,6 +41,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
   const [poolTemplates, setPoolTemplates] = useState<PoolTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [iconConfig, setIconConfig] = useState<PoolIconConfig>({ iconId: "trophy", colorId: "green" });
   const { toast } = useToast();
 
   // Use the simulation-aware hook
@@ -138,7 +140,9 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
           voting_mode: votingMode,
           voting_closes_at: votingClosesAt,
           is_voting_finalized: !votingMode,
-          max_schools: 10
+          max_schools: 10,
+          icon_id: iconConfig.iconId,
+          color_id: iconConfig.colorId
         })
         .select()
         .single();
@@ -196,6 +200,7 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
         setSelectedSchools([]);
         setVotingMode(false);
         setSearchQuery("");
+        setIconConfig({ iconId: "trophy", colorId: "green" });
       }
     }}>
       <DialogTrigger asChild>
@@ -231,6 +236,12 @@ export const CreatePoolDialog = ({ onPoolCreated }: CreatePoolDialogProps) => {
               <p className="text-xs text-muted-foreground">
                 Choose a respectful, school-appropriate name
               </p>
+            </div>
+
+            {/* Pool Icon Selector */}
+            <div className="space-y-2">
+              <Label>Pool Icon & Color</Label>
+              <PoolIconSelector config={iconConfig} onChange={setIconConfig} />
             </div>
 
             <div className="flex items-center justify-between p-4 border rounded-lg bg-card">

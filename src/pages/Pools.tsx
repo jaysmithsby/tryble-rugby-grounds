@@ -19,6 +19,8 @@ type Pool = {
   invite_code: string;
   voting_mode: boolean;
   schools: string[];
+  icon_id: string | null;
+  color_id: string | null;
   pool_members: { count: number }[];
 };
 
@@ -91,6 +93,8 @@ export const Pools = () => {
             invite_code,
             schools,
             voting_mode,
+            icon_id,
+            color_id,
             pool_members(count)
           )
         `)

@@ -188,6 +188,8 @@ const Leaderboard = () => {
             invite_code,
             schools,
             voting_mode,
+            icon_id,
+            color_id,
             pool_members(count)
           )
         `)
