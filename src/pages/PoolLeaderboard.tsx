@@ -313,7 +313,7 @@ export const PoolLeaderboard = () => {
 
             {isAdmin && (
               <EditPoolDialog
-                pool={{ id: pool.id, name: pool.name }}
+                pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id }}
                 isEditable={isEditable}
                 lockReason={lockReason}
                 onPoolUpdated={loadPoolData}

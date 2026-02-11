@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Trophy } from "lucide-react";
+import { Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getPoolIconComponent, getPoolColorValue } from "./PoolIconSelector";
 
 interface PoolCardProps {
   pool: {
@@ -11,6 +12,8 @@ interface PoolCardProps {
     invite_code: string;
     voting_mode: boolean;
     schools: string[];
+    icon_id?: string | null;
+    color_id?: string | null;
   };
   memberCount?: number;
 }
@@ -18,13 +21,19 @@ interface PoolCardProps {
 export const PoolCard = ({ pool, memberCount = 0 }: PoolCardProps) => {
   const navigate = useNavigate();
 
-  return (
+    const PoolIcon = getPoolIconComponent(pool.icon_id || "trophy");
+    const poolColor = getPoolColorValue(pool.color_id || "green");
+
+    return (
     <Card className="hover:bg-muted/30 transition-colors">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Trophy className="w-6 h-6 text-primary" />
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+              style={{ backgroundColor: `${poolColor}15` }}
+            >
+              <PoolIcon className="w-6 h-6" style={{ color: poolColor }} />
             </div>
             <div>
               <CardTitle className="text-lg">{pool.name}</CardTitle>

@@ -420,8 +420,10 @@ export type Database = {
       }
       pools: {
         Row: {
+          color_id: string | null
           created_at: string | null
           creator_id: string
+          icon_id: string | null
           id: string
           invite_code: string
           is_active: boolean | null
@@ -434,8 +436,10 @@ export type Database = {
           voting_mode: boolean | null
         }
         Insert: {
+          color_id?: string | null
           created_at?: string | null
           creator_id: string
+          icon_id?: string | null
           id?: string
           invite_code: string
           is_active?: boolean | null
@@ -448,8 +452,10 @@ export type Database = {
           voting_mode?: boolean | null
         }
         Update: {
+          color_id?: string | null
           created_at?: string | null
           creator_id?: string
+          icon_id?: string | null
           id?: string
           invite_code?: string
           is_active?: boolean | null

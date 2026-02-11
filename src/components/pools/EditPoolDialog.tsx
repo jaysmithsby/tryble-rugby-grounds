@@ -14,11 +14,14 @@ import {
 import { Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { sanitizePoolName } from "@/lib/profanityFilter";
+import { PoolIconSelector, type PoolIconConfig } from "./PoolIconSelector";
 
 interface EditPoolDialogProps {
   pool: {
     id: string;
     name: string;
+    icon_id?: string | null;
+    color_id?: string | null;
   };
   isEditable: boolean;
   lockReason?: string;
@@ -34,6 +37,10 @@ export const EditPoolDialog = ({
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [poolName, setPoolName] = useState(pool.name);
+  const [iconConfig, setIconConfig] = useState<PoolIconConfig>({
+    iconId: pool.icon_id || "trophy",
+    colorId: pool.color_id || "green",
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -60,14 +67,18 @@ export const EditPoolDialog = ({
     try {
       const { error } = await supabase
         .from("pools")
-        .update({ name: poolName.trim() })
+        .update({
+          name: poolName.trim(),
+          icon_id: iconConfig.iconId,
+          color_id: iconConfig.colorId,
+        })
         .eq("id", pool.id);
 
       if (error) throw error;
 
       toast({
         title: "Pool updated",
-        description: "Your pool name has been updated.",
+        description: "Your pool has been updated.",
       });
 
       setOpen(false);
@@ -104,7 +115,7 @@ export const EditPoolDialog = ({
         <DialogHeader>
           <DialogTitle>Edit Pool</DialogTitle>
           <DialogDescription>
-            Update your pool's name. Changes take effect immediately.
+            Update your pool's name and icon. Changes take effect immediately.
             {lockReason && (
               <span className="block mt-2 text-warning">
                 ⚠️ {lockReason}
@@ -126,6 +137,11 @@ export const EditPoolDialog = ({
             <p className="text-xs text-muted-foreground">
               Choose a respectful, school-appropriate name
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Pool Icon & Color</Label>
+            <PoolIconSelector config={iconConfig} onChange={setIconConfig} />
           </div>
         </div>
 
