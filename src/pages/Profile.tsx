@@ -29,6 +29,7 @@ import { MatchScoreSubmission } from "@/components/scores/MatchScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChangeSchoolDialog } from "@/components/profile/ChangeSchoolDialog";
 import { ConsentStatusCard } from "@/components/consent/ConsentStatusCard";
+import { ProfileIconSelector, getIconComponent, getColorValue, type ProfileIconConfig } from "@/components/profile/ProfileIconSelector";
 import { useUserStats } from "@/hooks/useUserStats";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -59,6 +60,8 @@ const Profile = () => {
   const [pools, setPools] = useState<UserPool[]>([]);
   const [poolsLoading, setPoolsLoading] = useState(true);
   const [changeSchoolOpen, setChangeSchoolOpen] = useState(false);
+  const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
+  const [iconConfig, setIconConfig] = useState<ProfileIconConfig>({ iconId: "shield", colorId: "green" });
   const [userId, setUserId] = useState<string | undefined>();
 
   // Real user stats from database
@@ -193,10 +196,22 @@ const Profile = () => {
         <Card className="mb-6 bg-gradient-card border-border/40">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
-              {/* Avatar */}
-              <div className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center mb-4">
-                <Shield className="w-12 h-12 text-primary" />
-              </div>
+              {/* Avatar - clickable to customize */}
+              {(() => {
+                const AvatarIcon = getIconComponent(iconConfig.iconId);
+                const avatarColor = getColorValue(iconConfig.colorId);
+                return (
+                  <button
+                    onClick={() => setIconSelectorOpen(true)}
+                    className="w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-300 hover:scale-105 cursor-pointer group relative"
+                    style={{ borderWidth: 2, borderStyle: "solid", borderColor: avatarColor, backgroundColor: `${avatarColor}15` }}
+                    title="Customize icon"
+                  >
+                    <AvatarIcon className="w-12 h-12 transition-colors duration-300" style={{ color: avatarColor }} />
+                    <span className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
+                  </button>
+                );
+              })()}
 
               {/* Display Name */}
               <h1 className="text-2xl font-bold mb-2">{getDisplayName()}</h1>
@@ -535,6 +550,14 @@ const Profile = () => {
           onSchoolChanged={fetchProfile}
         />
       )}
+
+      {/* Profile Icon Selector */}
+      <ProfileIconSelector
+        open={iconSelectorOpen}
+        onOpenChange={setIconSelectorOpen}
+        currentConfig={iconConfig}
+        onSave={setIconConfig}
+      />
 
       {/* Bottom Navigation */}
       <BottomNav />
