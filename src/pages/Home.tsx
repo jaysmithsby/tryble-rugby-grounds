@@ -147,6 +147,7 @@ const Home = () => {
               opponentSchoolIcon={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.jersey_url : userSchoolFixture.home_school.jersey_url}
               opponentSchoolSlug={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.slug : userSchoolFixture.home_school.slug}
               time={formatMatchTime(userSchoolFixture.match_date, userSchoolFixture.status)}
+              matchDate={userSchoolFixture.match_date}
               venue={userSchoolFixture.venue}
               matchId={userSchoolFixture.id}
               priority
@@ -176,6 +177,8 @@ const Home = () => {
                   awaySchoolSlug={fixture.away_school.slug}
                   time={formatMatchTime(fixture.match_date, fixture.status)}
                   venue={fixture.venue}
+                  matchDate={fixture.match_date}
+                  tournamentName={fixture.tournament_name}
                   matchId={fixture.id}
                   priority={index < 2}
                   isPredicted={!!predictions[fixture.id]}

@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock } from "lucide-react";
+import { Lock, Trophy } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
+import { format } from "date-fns";
 
 interface FixtureCardProps {
   homeTeam: string;
@@ -17,6 +18,8 @@ interface FixtureCardProps {
   awaySchoolSlug?: string;
   time: string;
   venue: string;
+  matchDate?: string;
+  tournamentName?: string;
   matchId?: string;
   appliesTo?: string[];
   isPredicted?: boolean;
@@ -37,6 +40,8 @@ export const FixtureCard = ({
   awaySchoolSlug,
   time,
   venue,
+  matchDate,
+  tournamentName,
   matchId,
   appliesTo = [],
   isPredicted = false,
@@ -72,11 +77,27 @@ export const FixtureCard = ({
     <Card className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300">
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{venue}</span>
+          <div className="flex items-center gap-2">
+            {matchDate && (
+              <span className="text-xs font-semibold text-foreground">
+                {format(new Date(matchDate), "EEE d MMM")}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{venue}</span>
+          </div>
           {isPredicted && (
             <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
           )}
         </div>
+
+        {tournamentName && (
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-3 h-3 text-primary" />
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+              {tournamentName}
+            </span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">

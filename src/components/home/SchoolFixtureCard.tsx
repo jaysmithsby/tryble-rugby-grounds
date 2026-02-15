@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
+import { format } from "date-fns";
 
 interface SchoolFixtureCardProps {
   userSchool: string;
@@ -17,6 +18,7 @@ interface SchoolFixtureCardProps {
   opponentSchoolSlug?: string;
   time: string;
   venue: string;
+  matchDate?: string;
   matchId?: string;
   isPredicted?: boolean;
   predictedTeam?: "home" | "away";
@@ -36,6 +38,7 @@ export const SchoolFixtureCard = ({
   opponentSchoolSlug,
   time,
   venue,
+  matchDate,
   matchId,
   isPredicted = false,
   predictedTeam,
@@ -75,7 +78,12 @@ export const SchoolFixtureCard = ({
             <Star className="w-4 h-4 text-primary fill-primary" />
           </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          {matchDate && (
+            <span className="text-sm font-semibold text-foreground">
+              {format(new Date(matchDate), "EEE d MMM")}
+            </span>
+          )}
           <span className="text-sm font-medium text-muted-foreground">{venue}</span>
         </div>
 
