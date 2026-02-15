@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
-import { ScoreSubmission } from "@/components/scores/ScoreSubmission";
+
 import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
 import { HomeCarousel } from "@/components/home/HomeCarousel";
 import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
@@ -251,8 +251,6 @@ const Home = () => {
           <SchoolScoreSubmission userSchoolName={userSchoolName} />
         )}
 
-        {/* General Score Submission Section */}
-        <ScoreSubmission />
 
         {/* Become an Official Scorekeeper CTA */}
         {userSchoolName && (
