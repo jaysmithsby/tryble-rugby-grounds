@@ -244,8 +244,7 @@ const Home = () => {
           )}
         </div>
 
-        {/* Trivia / News Carousel */}
-        <TriviaCarousel />
+        {/* Trivia / News Carousel - removed for MVP */}
 
         {/* School-Specific Score Submission (Official Scorekeepers) */}
         {userSchoolName && (
