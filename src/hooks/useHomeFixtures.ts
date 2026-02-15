@@ -21,6 +21,8 @@ export interface FixtureWithSchools {
   home_score: number | null;
   away_score: number | null;
   is_derby: boolean | null;
+  tournament_id: string | null;
+  tournament_name: string | null;
   home_school: {
     id: string;
     name: string;
@@ -32,6 +34,38 @@ export interface FixtureWithSchools {
     name: string;
     slug: string;
     jersey_url: string | null;
+  };
+}
+
+const FIXTURE_SELECT = `
+  id,
+  match_date,
+  venue,
+  status,
+  home_score,
+  away_score,
+  is_derby,
+  tournament_id,
+  home_school_id,
+  away_school_id,
+  home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
+  away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url),
+  tournament:tournaments!fixtures_tournament_id_fkey(name)
+`;
+
+function mapFixture(f: any): FixtureWithSchools {
+  return {
+    id: f.id,
+    match_date: f.match_date,
+    venue: f.venue,
+    status: f.status,
+    home_score: f.home_score,
+    away_score: f.away_score,
+    is_derby: f.is_derby,
+    tournament_id: f.tournament_id ?? null,
+    tournament_name: f.tournament?.name ?? null,
+    home_school: f.home_school as FixtureWithSchools["home_school"],
+    away_school: f.away_school as FixtureWithSchools["away_school"],
   };
 }
 
@@ -111,7 +145,7 @@ export function useHomeFixtures({
       };
     },
     enabled: !!userId && profileLoaded,
-    staleTime: CACHE_TIMES.REFERENCE, // Pool memberships don't change often
+    staleTime: CACHE_TIMES.REFERENCE,
   });
 
   const poolSchoolIds = poolData?.poolSchoolIds || [];
@@ -125,19 +159,7 @@ export function useHomeFixtures({
 
       const { data, error } = await supabase
         .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          venue,
-          status,
-          home_score,
-          away_score,
-          is_derby,
-          home_school_id,
-          away_school_id,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-        `)
+        .select(FIXTURE_SELECT)
         .eq("is_visible", true)
         .eq("status", "upcoming")
         .eq("year", seasonYear)
@@ -153,26 +175,16 @@ export function useHomeFixtures({
       let filtered = data || [];
       if (poolSchoolIds.length > 0) {
         filtered = filtered.filter(
-          (f) =>
+          (f: any) =>
             poolSchoolIds.includes(f.home_school_id) ||
             poolSchoolIds.includes(f.away_school_id)
         );
       }
 
-      return filtered.slice(0, 10).map((f) => ({
-        id: f.id,
-        match_date: f.match_date,
-        venue: f.venue,
-        status: f.status,
-        home_score: f.home_score,
-        away_score: f.away_score,
-        is_derby: f.is_derby,
-        home_school: f.home_school as unknown as FixtureWithSchools["home_school"],
-        away_school: f.away_school as unknown as FixtureWithSchools["away_school"],
-      }));
+      return filtered.slice(0, 10).map(mapFixture);
     },
     enabled: !!userId && profileLoaded,
-    staleTime: CACHE_TIMES.DYNAMIC, // Fixtures update during match days
+    staleTime: CACHE_TIMES.DYNAMIC,
   });
 
   // Fetch recent completed fixtures
@@ -186,17 +198,7 @@ export function useHomeFixtures({
 
       const { data, error } = await supabase
         .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          venue,
-          status,
-          home_score,
-          away_score,
-          is_derby,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-        `)
+        .select(FIXTURE_SELECT)
         .eq("is_visible", true)
         .eq("status", "completed")
         .eq("year", seasonYear)
@@ -210,11 +212,7 @@ export function useHomeFixtures({
         return [];
       }
 
-      return (data || []).map((f) => ({
-        ...f,
-        home_school: f.home_school as unknown as FixtureWithSchools["home_school"],
-        away_school: f.away_school as unknown as FixtureWithSchools["away_school"],
-      }));
+      return (data || []).map(mapFixture);
     },
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
@@ -236,17 +234,7 @@ export function useHomeFixtures({
 
       const { data: fixture } = await supabase
         .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          venue,
-          status,
-          home_score,
-          away_score,
-          is_derby,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-        `)
+        .select(FIXTURE_SELECT)
         .eq("is_visible", true)
         .eq("year", seasonYear)
         .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
@@ -258,11 +246,7 @@ export function useHomeFixtures({
 
       if (!fixture) return null;
 
-      return {
-        ...fixture,
-        home_school: fixture.home_school as unknown as FixtureWithSchools["home_school"],
-        away_school: fixture.away_school as unknown as FixtureWithSchools["away_school"],
-      };
+      return mapFixture(fixture);
     },
     enabled: !!userId && !!userSchoolName && profileLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
@@ -298,19 +282,7 @@ export function useHomeFixtures({
 
       const { data, error } = await supabase
         .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          venue,
-          status,
-          home_score,
-          away_score,
-          is_derby,
-          home_school_id,
-          away_school_id,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url)
-        `)
+        .select(FIXTURE_SELECT)
         .eq("is_visible", true)
         .eq("status", "upcoming")
         .eq("year", seasonYear)
@@ -324,23 +296,13 @@ export function useHomeFixtures({
         return [];
       }
 
-      return (data || []).map((f) => ({
-        id: f.id,
-        match_date: f.match_date,
-        venue: f.venue,
-        status: f.status,
-        home_score: f.home_score,
-        away_score: f.away_score,
-        is_derby: f.is_derby,
-        home_school: f.home_school as unknown as FixtureWithSchools["home_school"],
-        away_school: f.away_school as unknown as FixtureWithSchools["away_school"],
-      }));
+      return (data || []).map(mapFixture);
     },
     enabled: (tournamentData?.tournamentIds?.length ?? 0) > 0,
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  // Merge and deduplicate all upcoming fixtures (pools/school + tournaments)
+  // Merge, deduplicate, and limit upcoming fixtures
   const mergedUpcomingFixtures = useMemo(() => {
     const existingIds = new Set(upcomingFixtures.map(f => f.id));
     
@@ -351,10 +313,44 @@ export function useHomeFixtures({
     
     const allFixtures = [...upcomingFixtures, ...uniqueTournamentFixtures];
     
-    // Sort chronologically and limit to 10
-    return allFixtures
-      .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
-      .slice(0, 10);
+    // Sort chronologically
+    const sorted = allFixtures.sort(
+      (a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
+    );
+
+    // Deduplicate: one next game per school, with tournament exception
+    const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
+    const seenSchools = new Map<string, number>(); // schoolId -> earliest match timestamp
+    const result: FixtureWithSchools[] = [];
+
+    for (const fixture of sorted) {
+      const homeId = fixture.home_school.id;
+      const awayId = fixture.away_school.id;
+      const matchTime = new Date(fixture.match_date).getTime();
+
+      const homeSeen = seenSchools.has(homeId);
+      const awaySeen = seenSchools.has(awayId);
+
+      if (!homeSeen || !awaySeen) {
+        // At least one school hasn't been seen yet — include
+        result.push(fixture);
+        if (!homeSeen) seenSchools.set(homeId, matchTime);
+        if (!awaySeen) seenSchools.set(awayId, matchTime);
+      } else if (fixture.tournament_id) {
+        // Both schools seen, but this is a tournament fixture — check 6-day window
+        const homeEarliest = seenSchools.get(homeId)!;
+        const awayEarliest = seenSchools.get(awayId)!;
+        if (
+          matchTime - homeEarliest <= SIX_DAYS_MS ||
+          matchTime - awayEarliest <= SIX_DAYS_MS
+        ) {
+          result.push(fixture);
+        }
+      }
+      // else: both schools already represented and not a qualifying tournament fixture — skip
+    }
+
+    return result.slice(0, 10);
   }, [upcomingFixtures, rawTournamentFixtures]);
 
   const fixturesLoading = upcomingLoading || recentLoading || tournamentLoading;
