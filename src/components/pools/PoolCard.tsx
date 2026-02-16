@@ -25,7 +25,10 @@ export const PoolCard = ({ pool, memberCount = 0 }: PoolCardProps) => {
     const poolColor = getPoolColorValue(pool.color_id || "green");
 
     return (
-    <Card className="hover:bg-muted/30 transition-colors">
+    <Card 
+      className="hover:bg-muted/30 transition-colors cursor-pointer"
+      onClick={() => navigate(`/pool/${pool.id}`)}
+    >
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -76,9 +79,8 @@ export const PoolCard = ({ pool, memberCount = 0 }: PoolCardProps) => {
           variant="default"
           size="sm"
           className="w-full"
-          onClick={() => navigate(`/pool/${pool.id}`)}
         >
-          View Leaderboard
+          View Pool
         </Button>
       </CardContent>
     </Card>
