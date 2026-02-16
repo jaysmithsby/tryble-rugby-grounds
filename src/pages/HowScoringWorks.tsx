@@ -42,10 +42,11 @@ const HowScoringWorks = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Our scoring system rewards accurate predictions with brags. You earn a base 
-              score for picking the correct winner, plus bonus brags for predicting the margin 
-              of victory accurately. Even a wrong winner can earn you a bonus brag if your 
-              margin prediction is close!
+              Our scoring system rewards accurate predictions with brags. Pick the correct 
+              winner to earn 4 brags — guaranteed, no matter how far off your margin is. 
+              Get close on the margin (within 7 points) for a bonus brag, and nail the exact 
+              margin for yet another. Even a wrong winner can earn you 1 brag if your 
+              margin prediction is within 7 points!
             </p>
           </CardContent>
         </Card>
@@ -63,14 +64,14 @@ const HowScoringWorks = () => {
               <div>
                 <p className="font-medium">Correct Winner</p>
                 <p className="text-sm text-muted-foreground">
-                  Pick the winning team correctly
+                  Pick the winning team correctly — even if your margin is way off
                 </p>
               </div>
               <div className="text-2xl font-bold text-primary">4 brags</div>
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              Picking the correct winner is the foundation. Additional brags come from 
-              how close your margin prediction is.
+              Picking the correct winner always earns you 4 brags, regardless of how 
+              accurate your margin prediction is. Bonus brags stack on top of this base.
             </p>
           </CardContent>
         </Card>
@@ -91,7 +92,7 @@ const HowScoringWorks = () => {
               <div>
                 <p className="font-medium">Exact Margin</p>
                 <p className="text-sm text-muted-foreground">
-                  Nail the exact point difference
+                  Correct winner + nail the exact point difference
                 </p>
               </div>
               <div className="text-xl font-bold text-yellow-600">6 brags</div>
@@ -101,10 +102,20 @@ const HowScoringWorks = () => {
               <div>
                 <p className="font-medium">Within 7 Points</p>
                 <p className="text-sm text-muted-foreground">
-                  Off by 1–7 points from actual margin
+                  Correct winner + margin off by 1–7 points
                 </p>
               </div>
               <div className="text-xl font-bold text-gray-500">5 brags</div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+              <div>
+                <p className="font-medium">Correct Winner, Margin Off</p>
+                <p className="text-sm text-muted-foreground">
+                  Right winner but margin off by more than 7
+                </p>
+              </div>
+              <div className="text-xl font-bold text-primary">4 brags</div>
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-lg bg-gradient-to-r from-amber-700/10 to-amber-600/5 border border-amber-700/20">
@@ -118,9 +129,9 @@ const HowScoringWorks = () => {
             </div>
 
             <p className="text-xs text-muted-foreground mt-3">
-              Correct winner + within 7 margin = 5 brags total (4 base + 1 margin bonus).
-              Exact margin adds another bonus brag for 6 total.
-              Even with a wrong winner, a close margin earns 1 bonus brag.
+              Correct winner = 4 brags guaranteed. Within 7 margin adds +1 bonus brag (5 total).
+              Exact margin adds another +1 bonus brag (6 total).
+              Wrong winner but close margin = 1 brag. Wrong winner and far off = 0 brags.
             </p>
           </CardContent>
         </Card>
@@ -146,13 +157,13 @@ const HowScoringWorks = () => {
             </div>
 
             <div className="p-4 rounded-lg border bg-card">
-              <p className="text-sm font-medium mb-2">Example 2: Close Prediction</p>
+              <p className="text-sm font-medium mb-2">Example 2: Right Winner, Off on Margin</p>
               <p className="text-xs text-muted-foreground mb-2">
-                You predict: Paul Roos to win by 7 points<br />
-                Actual result: Paul Roos wins 21-10 (11 point margin)
+                You predict: Grey College to win by 3 points<br />
+                Actual result: Grey College wins 40-12 (28 point margin)
               </p>
               <p className="text-sm">
-                Brags earned: <span className="font-bold text-primary">5 brags</span> (4 correct winner + 1 within 7)
+                Brags earned: <span className="font-bold text-primary">4 brags</span> (correct winner, margin off by more than 7)
               </p>
             </div>
 

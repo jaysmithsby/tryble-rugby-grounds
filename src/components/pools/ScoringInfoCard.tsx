@@ -15,9 +15,9 @@ export const ScoringInfoCard = () => {
             <h4 className="font-medium text-sm">How Brags Work</h4>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>✓ Correct winner: <strong>4 brags</strong></li>
-              <li>✓ Correct winner within 7 margin: <strong>5 brags</strong></li>
+              <li>✓ Within 7 margin: <strong>+1 bonus brag</strong></li>
               <li>✓ Exact margin: <strong>+1 bonus brag</strong></li>
-              <li>✓ Wrong winner within 7 margin: <strong>1 bonus brag</strong></li>
+              <li>✓ Wrong winner within 7: <strong>1 brag</strong></li>
             </ul>
             <Button
               variant="link"
