@@ -474,7 +474,7 @@ export const Pools = () => {
                         </span>
                         <span className="font-medium">{entry.displayName}</span>
                       </div>
-                      <span className="font-bold text-primary">{entry.points} pts</span>
+                      <span className="font-bold text-primary">{entry.points} brags</span>
                     </div>
                   ))}
                 </div>

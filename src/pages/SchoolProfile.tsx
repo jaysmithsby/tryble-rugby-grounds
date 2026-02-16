@@ -466,7 +466,7 @@ export default function SchoolProfile() {
                     </div>
                   </div>
                   <div className="text-lg font-bold text-primary">
-                    {user.points} pts
+                    {user.points} brags
                   </div>
                 </div>
               ))}

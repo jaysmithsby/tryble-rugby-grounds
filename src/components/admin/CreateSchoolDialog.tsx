@@ -60,7 +60,7 @@ const FieldWrapper = ({ field, children, label, isIncomplete }: FieldWrapperProp
               <AlertCircle className="h-3.5 w-3.5 text-red-500" />
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs">This field is optional but improves profile completeness (+{FIELD_WEIGHTS[field]} pts)</p>
+              <p className="text-xs">This field is optional but improves profile completeness (+{FIELD_WEIGHTS[field]} brags)</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

@@ -335,7 +335,7 @@ const Profile = () => {
                       {badge.name}
                     </div>
                     <div className="text-xs text-primary font-medium">
-                      {badge.points} pts
+                      {badge.points} brags
                     </div>
                   </div>
                 </div>

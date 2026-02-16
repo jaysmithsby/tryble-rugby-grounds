@@ -313,7 +313,7 @@ const Leaderboard = () => {
               </div>
             </div>
             <div className="text-lg font-bold text-primary">
-              {entry.points} pts
+              {entry.points} brags
             </div>
           </div>
         </div>
@@ -340,7 +340,7 @@ const Leaderboard = () => {
                 <div className="text-sm text-muted-foreground">{entry.totalUsers} users</div>
               </div>
               <div className="text-lg font-bold text-primary">
-                {entry.averagePoints.toFixed(1)} pts
+                {entry.averagePoints.toFixed(1)} brags
               </div>
             </div>
           </div>

@@ -361,11 +361,11 @@ export const PoolLeaderboard = () => {
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
               <div className="flex items-center gap-2">
-                <span>🚙 <strong>Hilux of the Week:</strong> {highlights.hilux.name} ({highlights.hilux.points} pts)</span>
+                <span>🚙 <strong>Hilux of the Week:</strong> {highlights.hilux.name} ({highlights.hilux.points} brags)</span>
               </div>
               {highlights.spud && (
                 <div className="flex items-center gap-2">
-                  <span>🥔 <strong>Spud:</strong> {highlights.spud.name} ({highlights.spud.points} pts)</span>
+                  <span>🥔 <strong>Spud:</strong> {highlights.spud.name} ({highlights.spud.points} brags)</span>
                 </div>
               )}
             </div>
@@ -511,7 +511,7 @@ export const PoolLeaderboard = () => {
                         </div>
                       </div>
                       <div className="text-lg font-bold text-primary">
-                        {entry.points} pts
+                        {entry.points} brags
                       </div>
                     </div>
                   </div>
