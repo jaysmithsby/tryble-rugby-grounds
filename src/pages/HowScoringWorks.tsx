@@ -23,7 +23,7 @@ const HowScoringWorks = () => {
           </Button>
           <h1 className="text-2xl font-bold">How Scoring Works</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Everything you need to know about earning points
+            Everything you need to know about earning brags
           </p>
         </div>
       </header>
@@ -34,27 +34,28 @@ const HowScoringWorks = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="w-5 h-5 text-primary" />
-              Point System Overview
+              Brags System Overview
             </CardTitle>
             <CardDescription>
-              Earn points by making accurate predictions on rugby fixtures
+              Earn brags by making accurate predictions on rugby fixtures
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Our scoring system rewards accurate predictions with a base score for 
-              picking the correct winner, plus bonus points for predicting the margin 
-              of victory accurately.
+              Our scoring system rewards accurate predictions with brags. You earn a base 
+              score for picking the correct winner, plus bonus brags for predicting the margin 
+              of victory accurately. Even a wrong winner can earn you a bonus brag if your 
+              margin prediction is close!
             </p>
           </CardContent>
         </Card>
 
-        {/* Base Points */}
+        {/* Base Brags */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Target className="w-5 h-5 text-primary" />
-              Base Points
+              Base Brags
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -65,11 +66,11 @@ const HowScoringWorks = () => {
                   Pick the winning team correctly
                 </p>
               </div>
-              <div className="text-2xl font-bold text-primary">10 pts</div>
+              <div className="text-2xl font-bold text-primary">4 brags</div>
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              You must predict the correct winner to be eligible for margin bonuses.
-              If your winner prediction is wrong, you earn 0 points for that fixture.
+              Picking the correct winner is the foundation. Additional brags come from 
+              how close your margin prediction is.
             </p>
           </CardContent>
         </Card>
@@ -82,7 +83,7 @@ const HowScoringWorks = () => {
               Margin Bonuses
             </CardTitle>
             <CardDescription>
-              Predict the winning margin for extra points
+              Predict the winning margin for extra brags
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -93,32 +94,33 @@ const HowScoringWorks = () => {
                   Nail the exact point difference
                 </p>
               </div>
-              <div className="text-xl font-bold text-yellow-600">+25 pts</div>
+              <div className="text-xl font-bold text-yellow-600">6 brags</div>
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-lg bg-gradient-to-r from-gray-400/10 to-gray-300/5 border border-gray-400/20">
               <div>
-                <p className="font-medium">Within 3 Points</p>
+                <p className="font-medium">Within 7 Points</p>
                 <p className="text-sm text-muted-foreground">
-                  Off by 1–3 points from actual margin
+                  Off by 1–7 points from actual margin
                 </p>
               </div>
-              <div className="text-xl font-bold text-gray-500">+15 pts</div>
+              <div className="text-xl font-bold text-gray-500">5 brags</div>
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-lg bg-gradient-to-r from-amber-700/10 to-amber-600/5 border border-amber-700/20">
               <div>
-                <p className="font-medium">Within 7 Points</p>
+                <p className="font-medium">Wrong Winner, Close Margin</p>
                 <p className="text-sm text-muted-foreground">
-                  Off by 4–7 points from actual margin
+                  Wrong winner but margin within 7 points
                 </p>
               </div>
-              <div className="text-xl font-bold text-amber-700">+10 pts</div>
+              <div className="text-xl font-bold text-amber-700">1 brag</div>
             </div>
 
             <p className="text-xs text-muted-foreground mt-3">
-              Margin bonuses are cumulative with the base points. For example, 
-              predicting the exact winning margin earns you 10 + 25 = 35 points total.
+              Correct winner + within 7 margin = 5 brags total (4 base + 1 margin bonus).
+              Exact margin adds another bonus brag for 6 total.
+              Even with a wrong winner, a close margin earns 1 bonus brag.
             </p>
           </CardContent>
         </Card>
@@ -139,7 +141,7 @@ const HowScoringWorks = () => {
                 Actual result: Maritzburg College wins 25-13 (12 point margin)
               </p>
               <p className="text-sm">
-                Points earned: <span className="font-bold text-primary">35 pts</span> (10 base + 25 exact)
+                Brags earned: <span className="font-bold text-primary">6 brags</span> (4 correct winner + 1 within 7 + 1 exact bonus)
               </p>
             </div>
 
@@ -150,18 +152,29 @@ const HowScoringWorks = () => {
                 Actual result: Paul Roos wins 21-10 (11 point margin)
               </p>
               <p className="text-sm">
-                Points earned: <span className="font-bold text-primary">20 pts</span> (10 base + 10 within 7)
+                Brags earned: <span className="font-bold text-primary">5 brags</span> (4 correct winner + 1 within 7)
               </p>
             </div>
 
             <div className="p-4 rounded-lg border bg-card">
-              <p className="text-sm font-medium mb-2">Example 3: Wrong Winner</p>
+              <p className="text-sm font-medium mb-2">Example 3: Wrong Winner, Close Margin</p>
               <p className="text-xs text-muted-foreground mb-2">
                 You predict: Glenwood to win by 5 points<br />
-                Actual result: Michaelhouse wins 18-14
+                Actual result: Michaelhouse wins 18-14 (4 point margin)
               </p>
               <p className="text-sm">
-                Points earned: <span className="font-bold text-destructive">0 pts</span> (wrong winner)
+                Brags earned: <span className="font-bold text-primary">1 brag</span> (wrong winner but within 7 margin bonus)
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg border bg-card">
+              <p className="text-sm font-medium mb-2">Example 4: Wrong Winner, Far Off</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                You predict: Hilton to win by 20 points<br />
+                Actual result: Kearsney wins 30-10 (20 point margin)
+              </p>
+              <p className="text-sm">
+                Brags earned: <span className="font-bold text-destructive">0 brags</span> (wrong winner, margin off by more than 7)
               </p>
             </div>
           </CardContent>
@@ -172,7 +185,7 @@ const HowScoringWorks = () => {
           <CardContent className="p-4">
             <h4 className="font-medium mb-2">💡 Pro Tips</h4>
             <ul className="text-sm text-muted-foreground space-y-2">
-              <li>• Focus on getting the winner right first—that's your guaranteed 10 points</li>
+              <li>• Focus on getting the winner right first—that's your guaranteed 4 brags</li>
               <li>• Research recent head-to-head results for more accurate margin predictions</li>
               <li>• Consider factors like home advantage, injuries, and weather conditions</li>
               <li>• Derby matches are often closer than expected—adjust your margins accordingly</li>

@@ -84,7 +84,7 @@ export const BadgeGrid = ({ badges }: BadgeGridProps) => {
 
                   {/* Points */}
                   <div className={`text-xs font-medium ${getDifficultyColor(badge.difficulty)}`}>
-                    {badge.points} pts
+                    {badge.points} brags
                   </div>
 
                   {/* Progress bar for unearned badges with progress */}

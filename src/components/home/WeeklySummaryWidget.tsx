@@ -62,7 +62,7 @@ export const WeeklySummaryWidget = ({ userId }: WeeklySummaryWidgetProps) => {
             <span className="text-lg font-bold text-accent">
               {weeklyPoints !== null ? weeklyPoints : "0"}
             </span>
-            <span className="text-xs text-muted-foreground">Points</span>
+            <span className="text-xs text-muted-foreground">Brags</span>
           </div>
           
           <div className="flex flex-col items-center gap-1.5 p-3 bg-secondary rounded-lg border border-border">

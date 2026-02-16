@@ -12,12 +12,12 @@ export const ScoringInfoCard = () => {
             <Info className="w-4 h-4 text-primary" />
           </div>
           <div className="flex-1 space-y-2">
-            <h4 className="font-medium text-sm">How Points Work</h4>
+            <h4 className="font-medium text-sm">How Brags Work</h4>
             <ul className="text-xs text-muted-foreground space-y-1">
-              <li>✓ Correct winner: <strong>10 pts</strong></li>
-              <li>✓ Exact margin: <strong>+25 bonus</strong></li>
-              <li>✓ Within 3 pts: <strong>+15 bonus</strong></li>
-              <li>✓ Within 7 pts: <strong>+10 bonus</strong></li>
+              <li>✓ Correct winner: <strong>4 brags</strong></li>
+              <li>✓ Correct winner within 7 margin: <strong>5 brags</strong></li>
+              <li>✓ Exact margin: <strong>+1 bonus brag</strong></li>
+              <li>✓ Wrong winner within 7 margin: <strong>1 bonus brag</strong></li>
             </ul>
             <Button
               variant="link"
