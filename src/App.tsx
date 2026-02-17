@@ -35,6 +35,7 @@ import Pools from "./pages/Pools";
 import NotFound from "./pages/NotFound";
 import HowScoringWorks from "./pages/HowScoringWorks";
 import LearnMore from "./pages/LearnMore";
+import SchoolSetup from "./pages/SchoolSetup";
 
 /**
  * QueryClient Configuration
@@ -109,6 +110,7 @@ const App = () => {
                   <Route path="/consent/:token" element={<ParentConsent />} />
                   <Route path="/how-scoring-works" element={<HowScoringWorks />} />
                   <Route path="/learn-more" element={<LearnMore />} />
+                  <Route path="/school-setup/:token" element={<SchoolSetup />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

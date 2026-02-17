@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, FileQuestion, FlaskConical, Newspaper } from "lucide-react";
+import { Calendar, School, Users, Trophy, Megaphone, BarChart3, Plus, Layers, FileQuestion, FlaskConical, Newspaper, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SchoolsTable } from "./SchoolsTable";
 import { EditSchoolDialog } from "./EditSchoolDialog";
@@ -19,6 +19,7 @@ import { TestingCenter } from "./TestingCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdsTable } from "./AdsTable";
 import { NewsTable } from "./NewsTable";
+import { SchoolOnboardingTab } from "./SchoolOnboardingTab";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -67,7 +68,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <Tabs defaultValue="fixtures" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-11 lg:w-auto">
             <TabsTrigger value="fixtures" className="gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Fixtures</span>
@@ -107,6 +108,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <TabsTrigger value="testing" className="gap-2">
               <FlaskConical className="h-4 w-4" />
               <span className="hidden sm:inline">Testing</span>
+            </TabsTrigger>
+            <TabsTrigger value="onboarding" className="gap-2">
+              <GraduationCap className="h-4 w-4" />
+              <span className="hidden sm:inline">Onboarding</span>
             </TabsTrigger>
           </TabsList>
 
@@ -199,6 +204,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           <TabsContent value="testing" className="space-y-4">
             <TestingCenter />
+          </TabsContent>
+
+          <TabsContent value="onboarding" className="space-y-4">
+            <SchoolOnboardingTab />
           </TabsContent>
         </Tabs>
       </div>

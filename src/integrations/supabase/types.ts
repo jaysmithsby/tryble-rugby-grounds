@@ -603,6 +603,60 @@ export type Database = {
         }
         Relationships: []
       }
+      school_invitations: {
+        Row: {
+          contact_email: string
+          created_at: string
+          expires_at: string
+          expiry_days: number
+          id: string
+          otp_attempts: number
+          otp_code: string | null
+          otp_expires_at: string | null
+          otp_verified: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_name: string
+          status: string
+          submitted_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          contact_email: string
+          created_at?: string
+          expires_at?: string
+          expiry_days?: number
+          id?: string
+          otp_attempts?: number
+          otp_code?: string | null
+          otp_expires_at?: string | null
+          otp_verified?: boolean
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_name: string
+          status?: string
+          submitted_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          contact_email?: string
+          created_at?: string
+          expires_at?: string
+          expiry_days?: number
+          id?: string
+          otp_attempts?: number
+          otp_code?: string | null
+          otp_expires_at?: string | null
+          otp_verified?: boolean
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_name?: string
+          status?: string
+          submitted_at?: string | null
+          token_hash?: string
+        }
+        Relationships: []
+      }
       school_requests: {
         Row: {
           admin_response: string | null
@@ -683,6 +737,74 @@ export type Database = {
           week_number?: number
         }
         Relationships: []
+      }
+      school_submissions: {
+        Row: {
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          crest_image_url: string | null
+          full_official_name: string
+          id: string
+          invitation_id: string
+          main_rival: string | null
+          nickname: string
+          number_of_springboks: number
+          primary_colour: string | null
+          province: string
+          school_motto: string | null
+          school_trivia: string | null
+          secondary_colour: string | null
+          year_established: number
+        }
+        Insert: {
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          crest_image_url?: string | null
+          full_official_name: string
+          id?: string
+          invitation_id: string
+          main_rival?: string | null
+          nickname: string
+          number_of_springboks?: number
+          primary_colour?: string | null
+          province: string
+          school_motto?: string | null
+          school_trivia?: string | null
+          secondary_colour?: string | null
+          year_established: number
+        }
+        Update: {
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          crest_image_url?: string | null
+          full_official_name?: string
+          id?: string
+          invitation_id?: string
+          main_rival?: string | null
+          nickname?: string
+          number_of_springboks?: number
+          primary_colour?: string | null
+          province?: string
+          school_motto?: string | null
+          school_trivia?: string | null
+          secondary_colour?: string | null
+          year_established?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_submissions_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "school_invitations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schools: {
         Row: {
