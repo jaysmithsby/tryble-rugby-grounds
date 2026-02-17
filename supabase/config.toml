@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.confirm-email-verification]
 verify_jwt = false
+
+[functions.school-onboarding]
+verify_jwt = false
