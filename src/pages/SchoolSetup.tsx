@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Loader2, CheckCircle, AlertCircle, Clock, Lock, Upload, X } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { saProvinces } from "@/data/saProvinces";
 import trybalLogo from "@/assets/trybal-logo.png";
@@ -48,15 +48,12 @@ const SchoolSetup = () => {
     main_rival: "",
     number_of_springboks: "0",
     school_trivia: "",
-    primary_colour: "",
-    secondary_colour: "",
     contact_name: "",
     contact_email: "",
     contact_phone: "",
   });
-  const [crestUrl, setCrestUrl] = useState("");
-  const [crestUploading, setCrestUploading] = useState(false);
-  const [crestPreview, setCrestPreview] = useState("");
+
+
 
   // Validate token on mount
   useEffect(() => {
@@ -115,37 +112,8 @@ const SchoolSetup = () => {
     }
   };
 
-  // Upload crest
-  const handleCrestUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 2MB", variant: "destructive" });
-      return;
-    }
-    setCrestUploading(true);
-    setCrestPreview(URL.createObjectURL(file));
-    const fd = new FormData();
-    fd.append("file", file);
-    try {
-      const res = await fetch(`${FUNCTION_URL}?action=upload-crest&token=${token}`, {
-        method: "POST",
-        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        body: fd,
-      });
-      const data = await res.json();
-      if (data.url) {
-        setCrestUrl(data.url);
-      } else {
-        toast({ title: "Upload failed", description: data.error || "Please try again", variant: "destructive" });
-        setCrestPreview("");
-      }
-    } catch {
-      toast({ title: "Upload failed", description: "Please try again", variant: "destructive" });
-      setCrestPreview("");
-    }
-    setCrestUploading(false);
-  };
+
+
 
   // Form validation
   const isFormValid = () => {
@@ -171,7 +139,7 @@ const SchoolSetup = () => {
       ...form,
       year_established: Number(form.year_established),
       number_of_springboks: Number(form.number_of_springboks) || 0,
-      crest_image_url: crestUrl || null,
+      crest_image_url: null,
     });
     if (data.error) {
       toast({ title: "Submission failed", description: data.error, variant: "destructive" });
@@ -367,39 +335,9 @@ const SchoolSetup = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="number_of_springboks">Number of Springboks</Label>
-                <Input id="number_of_springboks" type="number" min={0} value={form.number_of_springboks} onChange={e => updateField("number_of_springboks", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="primary_colour">Primary School Colour</Label>
-                <Input id="primary_colour" value={form.primary_colour} onChange={e => updateField("primary_colour", e.target.value)} placeholder="e.g. Royal Blue" />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="secondary_colour">Secondary School Colour</Label>
-                <Input id="secondary_colour" value={form.secondary_colour} onChange={e => updateField("secondary_colour", e.target.value)} placeholder="e.g. Gold" />
-              </div>
-              <div className="space-y-2">
-                <Label>School Crest/Badge</Label>
-                {crestPreview ? (
-                  <div className="relative w-20 h-20">
-                    <img src={crestPreview} alt="Crest" className="w-20 h-20 object-contain rounded border" />
-                    <button onClick={() => { setCrestPreview(""); setCrestUrl(""); }} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors">
-                    {crestUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {crestUploading ? "Uploading..." : "Upload image (PNG, JPG, SVG — max 2MB)"}
-                    <input type="file" accept="image/png,image/jpeg,image/svg+xml" className="hidden" onChange={handleCrestUpload} disabled={crestUploading} />
-                  </label>
-                )}
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="number_of_springboks">Number of Springboks</Label>
+              <Input id="number_of_springboks" type="number" min={0} value={form.number_of_springboks} onChange={e => updateField("number_of_springboks", e.target.value)} />
             </div>
 
             <div className="space-y-2">
