@@ -24,6 +24,7 @@ import {
   MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { buildWhatsAppUrl } from "@/lib/constants";
 import { BottomNav } from "@/components/BottomNav";
 import { MatchScoreSubmission } from "@/components/scores/MatchScoreSubmission";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -517,18 +518,12 @@ const Profile = () => {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => toast({ title: "Report", description: "Opening report form..." })}
+              asChild
             >
-              <Flag className="w-4 h-4 mr-2" />
-              🔔 Report a Problem
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => toast({ title: "Family Dashboard", description: "Opening parent view..." })}
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              📊 Family Dashboard (For Parents)
+              <a href={buildWhatsAppUrl("Hi Trybal team 👋 I found a problem I'd like to report:\n\n")} target="_blank" rel="noopener noreferrer">
+                <Flag className="w-4 h-4 mr-2" />
+                🔔 Report a Problem
+              </a>
             </Button>
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/10 text-sm text-muted-foreground">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
