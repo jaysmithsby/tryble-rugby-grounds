@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import trybalLogo from "@/assets/trybal-logo.png";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useNavigate } from "react-router-dom";
@@ -37,7 +38,7 @@ const LearnMore = () => {
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm font-medium">Home</span>
           </button>
-          <h2 className="text-2xl font-bold text-primary">Trybal</h2>
+          <img src={trybalLogo} alt="Trybal" className="h-10" />
           <ThemeToggle />
         </div>
       </header>

@@ -10,7 +10,8 @@ import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { TriviaCarousel } from "@/components/home/TriviaCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, MessageCircle, Award, Users } from "lucide-react";
+import { MessageCircle, Award, Users } from "lucide-react";
+import trybalLogo from "@/assets/trybal-logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -83,7 +84,7 @@ const Home = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-bold text-primary mb-2">Trybal</div>
+          <img src={trybalLogo} alt="Trybal" className="h-16 mb-2" />
           <div className="text-muted-foreground">Loading...</div>
         </div>
       </div>
@@ -96,8 +97,7 @@ const Home = () => {
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-primary" />
-            <span className="text-2xl font-bold text-primary">Trybal</span>
+            <img src={trybalLogo} alt="Trybal" className="h-10" />
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Trophy } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import trybalLogo from "@/assets/trybal-logo.png";
 
 interface AppHeaderProps {
   showBackButton?: boolean;
@@ -24,8 +24,7 @@ const AppHeader = ({
     <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Trophy className="w-6 h-6 text-primary" />
-          <span className="text-2xl font-bold text-primary">Trybal</span>
+          <img src={trybalLogo} alt="Trybal" className="h-10" />
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import trybalLogo from "@/assets/trybal-logo.png";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import SignUpFlow from "@/components/auth/SignUpFlow";
 import SignInForm from "@/components/auth/SignInForm";
@@ -71,7 +72,7 @@ const Auth = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <header className="border-b border-border/40">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <span className="text-2xl font-bold text-primary">Trybal</span>
+            <img src={trybalLogo} alt="Trybal" className="h-10" />
             <ThemeToggle />
           </div>
         </header>
