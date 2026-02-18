@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Apple, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import trybalLogo from "@/assets/trybal-logo.png";
 import heroImage from "@/assets/hero-stadium.jpg";
 
 const Hero = () => {
@@ -12,7 +13,7 @@ const Hero = () => {
       {/* Header */}
       <header className="relative z-10 border-b border-border/40 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-primary">Trybal</h2>
+          <img src={trybalLogo} alt="Trybal" className="h-10" />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button

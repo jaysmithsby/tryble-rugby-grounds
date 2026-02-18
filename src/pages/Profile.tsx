@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import trybalLogo from "@/assets/trybal-logo.png";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -182,7 +183,7 @@ const Profile = () => {
       {/* Header */}
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-primary">Trybal</h2>
+          <img src={trybalLogo} alt="Trybal" className="h-10" />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button variant="ghost" onClick={() => navigate("/home")}>
