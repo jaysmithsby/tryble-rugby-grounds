@@ -38,6 +38,7 @@ import {
 } from "@/lib/schoolCompleteness";
 import { cn } from "@/lib/utils";
 import { JerseyDesigner, JerseyConfig, generateJerseySvg, svgToBlob } from "./JerseyDesigner";
+import { SchoolRivalCombobox } from "./SchoolRivalCombobox";
 
 // Moved outside component to prevent recreation on every render
 interface FieldWrapperProps {
@@ -396,10 +397,10 @@ export function EditSchoolDialog({
             </FieldWrapper>
 
             <FieldWrapper field="main_rival" label="Main Rival (Derby)" isIncomplete={isFieldIncomplete("main_rival")}>
-              <Input
-                id="main_rival"
+              <SchoolRivalCombobox
                 value={formData.main_rival}
-                onChange={(e) => setFormData({ ...formData, main_rival: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, main_rival: value })}
+                excludeSchool={formData.name}
                 className={getFieldClasses("main_rival")}
               />
             </FieldWrapper>
