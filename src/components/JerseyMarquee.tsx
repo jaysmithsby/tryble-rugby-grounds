@@ -61,7 +61,7 @@ const JerseyMarquee = () => {
                 size="lg"
               />
             </div>
-            <span className="text-xs text-muted-foreground font-medium text-center leading-tight max-w-[5.5rem] truncate">
+            <span className="text-xs text-muted-foreground font-medium text-center leading-tight whitespace-nowrap">
               {getDisplayName(school)}
             </span>
           </div>
