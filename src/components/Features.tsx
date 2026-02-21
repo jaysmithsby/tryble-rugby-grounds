@@ -3,23 +3,23 @@ import { BarChart3, Users, Award, Newspaper } from "lucide-react";
 const features = [
   {
     icon: BarChart3,
-    title: "Smart Predictions",
-    description: "Predict match winners and score margins. Earn points based on accuracy with our intelligent scoring system.",
+    title: "Make Your Call",
+    description: "Pick the winner and the margin. The closer you are, the more points you earn. No odds. No betting. Just knowledge.",
   },
   {
     icon: Users,
-    title: "Multi-Level Leaderboards",
-    description: "Compete globally, by province, by school, or in custom pools with your friends and rivals.",
+    title: "Compete on Every Level",
+    description: "Leaderboards by school, province, and nationally. Create private pools with mates. See who really reads the game.",
   },
   {
     icon: Award,
-    title: "Badges & Streaks",
-    description: "Unlock achievements and build prediction streaks. Showcase your rugby knowledge without any cash prizes.",
+    title: "Earn Your Stripes",
+    description: "Unlock badges for perfect weekends, derby wins, and prediction streaks. Bragging rights you can actually show off.",
   },
   {
     icon: Newspaper,
-    title: "News & Trivia",
-    description: "Stay engaged with school rugby news, match previews, and weekly trivia challenges.",
+    title: "Stay in the Loop",
+    description: "School rugby news, match previews, and trivia. Everything a true supporter needs, in one place.",
   },
 ];
 
@@ -28,9 +28,9 @@ const Features = () => {
     <section className="py-24 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">Built for School Rugby Fans</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">Built for the Touchline</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to engage with South African school rugby
+            Everything a schoolboy rugby supporter needs. Nothing they don't.
           </p>
         </div>
 

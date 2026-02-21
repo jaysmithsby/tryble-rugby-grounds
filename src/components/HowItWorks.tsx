@@ -3,18 +3,18 @@ import { Target, TrendingUp, Trophy } from "lucide-react";
 const steps = [
   {
     icon: Target,
-    title: "Pick Your Fixtures",
-    description: "Browse upcoming school rugby matches across South Africa and select the games you want to predict.",
+    title: "Back Your School",
+    description: "Your school's fixtures are front and centre. See who's playing this Saturday and make your call before kickoff.",
   },
   {
     icon: TrendingUp,
-    title: "Predict & Submit",
-    description: "Choose the winner and score margin. The closer your prediction, the more points you earn.",
+    title: "Lock In Your Prediction",
+    description: "Pick the winner, set the margin. The closer you are, the more bragging rights you earn. Closes at kickoff.",
   },
   {
     icon: Trophy,
-    title: "Climb the Leaderboard",
-    description: "Compete globally, provincially, or by school. Earn badges and streaks for consistent predictions.",
+    title: "Climb the Ranks",
+    description: "Compete against your school, your province, and the whole country. Earn badges. Build streaks. Prove you read the game.",
   },
 ];
 
@@ -25,7 +25,7 @@ const HowItWorks = () => {
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">How It Works</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Three simple steps to join South Africa's biggest school rugby prediction community
+            Three steps. One goal. Bragging rights.
           </p>
         </div>
 

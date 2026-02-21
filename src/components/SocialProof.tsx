@@ -1,8 +1,8 @@
 const stats = [
-  { value: "10K+", label: "Predictions Made" },
+  { value: "10K+", label: "Predictions Locked In" },
   { value: "50+", label: "Schools Represented" },
   { value: "9", label: "Provinces Active" },
-  { value: "85%", label: "Weekly Active Users" },
+  { value: "85%", label: "Weekly Return Rate" },
 ];
 
 const SocialProof = () => {
@@ -11,10 +11,10 @@ const SocialProof = () => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Growing Nationwide
+            The Tribe Is Growing
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Thousands of school rugby fans are already making predictions and climbing the leaderboards
+            From KZN derbies to Cape Town classics — supporters across the country are making their calls
           </p>
         </div>
 
@@ -46,7 +46,7 @@ const SocialProof = () => {
               </div>
             </div>
             <p className="text-muted-foreground italic">
-              "Finally, a way to show my rugby knowledge without it being about betting. The leaderboard competition with other schools is epic!"
+              "Finally — a way to prove I know my rugby without it being about money. The school vs school leaderboard is everything."
             </p>
           </div>
 
@@ -57,11 +57,11 @@ const SocialProof = () => {
               </div>
               <div>
                 <div className="font-bold">Thandi P.</div>
-                <div className="text-sm text-muted-foreground">Alumni, St. Stithians</div>
+                <div className="text-sm text-muted-foreground">Old Girl, St. Stithians</div>
               </div>
             </div>
             <p className="text-muted-foreground italic">
-              "Love staying connected to my school's rugby team. Trybal makes it easy to follow fixtures and compete with fellow alumni."
+              "Love staying connected to my school's rugby. Trybal makes it feel like I'm back on the touchline every Saturday."
             </p>
           </div>
         </div>
