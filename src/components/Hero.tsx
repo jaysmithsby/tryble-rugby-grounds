@@ -53,17 +53,19 @@ const Hero = () => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
           </span>
-          Youth-Safe Rugby Predictions Platform
+          The Digital Home of Schoolboy Rugby
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent leading-tight">
-          Predict School Rugby.<br />
-          Climb the Ranks.<br />
-          Earn Bragging Rights.
+        <h1 className="text-5xl md:text-7xl font-black mb-6 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent leading-tight">
+          For the Badge.
         </h1>
 
-        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
-          Join a national community of school rugby fans. Predict outcomes, compete with friends, and represent your school with pride.
+        <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-3xl mx-auto leading-relaxed">
+          Back your school. Call the score. Earn bragging rights.
+        </p>
+
+        <p className="text-base text-muted-foreground/70 mb-12 max-w-2xl mx-auto">
+          South Africa's school rugby prediction platform. No betting. No odds. Just pride, rivalry, and legacy.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -72,7 +74,7 @@ const Hero = () => {
             onClick={() => navigate("/auth")}
             className="text-lg px-8 py-6 shadow-glow hover:shadow-glow hover:scale-105 transition-all"
           >
-            Get Started
+            Join the Tribe
           </Button>
           <Button size="lg" variant="secondary" className="text-lg px-8 py-6 hover:scale-105 transition-all opacity-60 cursor-not-allowed">
             <Apple className="mr-2 h-5 w-5" />
@@ -84,8 +86,8 @@ const Hero = () => {
           </Button>
         </div>
 
-        <p className="mt-8 text-sm text-muted-foreground">
-          No gambling. No odds. Just school spirit and friendly competition.
+        <p className="mt-8 text-sm text-muted-foreground/70">
+          No gambling. Just school spirit and friendly competition.
         </p>
       </div>
     </div>

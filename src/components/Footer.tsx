@@ -10,10 +10,10 @@ const Footer = () => {
         {/* CTA Section */}
         <div className="text-center mb-16 pb-16 border-b border-border">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Join the Trybal Community?
+            Ready to Back Your School?
           </h2>
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Download the app and start making predictions today
+            Join the tribe. Make your call. Earn your bragging rights.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button size="lg" className="shadow-glow">
@@ -30,9 +30,9 @@ const Footer = () => {
         {/* Newsletter */}
         <div className="max-w-md mx-auto mb-16">
           <div className="text-center mb-6">
-            <h3 className="text-xl font-bold mb-2">Stay Updated</h3>
+            <h3 className="text-xl font-bold mb-2">Stay in the Loop</h3>
             <p className="text-sm text-muted-foreground">
-              Get the latest news, features, and school rugby insights
+              Rugby news, new features, and school updates — straight to your inbox
             </p>
           </div>
           <div className="flex gap-2">
@@ -53,7 +53,7 @@ const Footer = () => {
           <div>
             <h3 className="font-bold text-lg mb-4 text-primary">Trybal</h3>
             <p className="text-sm text-muted-foreground">
-              South Africa's premier school rugby prediction platform
+              The digital home of South African schoolboy rugby.
             </p>
           </div>
 
@@ -87,7 +87,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Trybal. All rights reserved. Built for school rugby fans by school rugby fans.</p>
+          <p>&copy; 2025 Trybal. All rights reserved. Built for school rugby fans, by school rugby fans.</p>
         </div>
       </div>
     </footer>
