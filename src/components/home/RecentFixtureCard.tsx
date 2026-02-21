@@ -152,14 +152,14 @@ export const RecentFixtureCard = ({
         {submitted && (
           <div className="flex items-center justify-center gap-2 py-2 px-4 bg-primary/10 rounded-md">
             <CheckCircle2 className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">Pending Review</span>
+            <span className="text-sm font-medium text-primary">Score submitted. Pending verification.</span>
           </div>
         )}
 
         {!canSubmit && !submitted && (
           <div className="flex items-center justify-center gap-2 py-2 px-4 bg-muted rounded-md">
             <Lock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Submission window closed</span>
+            <span className="text-sm text-muted-foreground">Reporting window closed.</span>
           </div>
         )}
       </div>

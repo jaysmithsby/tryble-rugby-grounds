@@ -142,7 +142,7 @@ export const FixtureCard = ({
         {isPredicted && (
           <div className="pt-2 border-t border-border/40">
             <p className="text-xs text-primary font-medium text-center">
-              You picked: {predictedTeamName} to win by {predictedMargin}
+              Locked in. {predictedTeamName} by {predictedMargin}. Respect.
             </p>
           </div>
         )}
@@ -156,7 +156,7 @@ export const FixtureCard = ({
               : "bg-accent hover:bg-accent/90 text-accent-foreground"
           }`}
         >
-          {isPredicted ? "Prediction Made" : "Predict Now"}
+          {isPredicted ? "Prediction Made" : "Make Your Call"}
         </Button>
       </div>
     </Card>
