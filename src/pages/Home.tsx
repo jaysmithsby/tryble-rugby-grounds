@@ -8,7 +8,6 @@ import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/home/FixtureCard";
 import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
-import { TriviaCarousel } from "@/components/home/TriviaCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MessageCircle, Award, Users } from "lucide-react";
 import trybalLogo from "@/assets/trybal-logo.png";
@@ -80,6 +79,21 @@ const Home = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
+  // Determine hero headline context
+  const isDerbyWeek = userSchoolFixture?.is_derby === true;
+  const hasSchoolFixture = !!userSchoolFixture;
+
+  const getHeroHeadline = () => {
+    if (isDerbyWeek) return "It's Derby Week.";
+    if (hasSchoolFixture) return "This Saturday. It Matters.";
+    return "For the Badge.";
+  };
+
+  const getHeroSubline = () => {
+    if (hasSchoolFixture) return "Your school. Your rivals. Your prediction.";
+    return "Back your school. Call the score.";
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -109,25 +123,43 @@ const Home = () => {
             </button>
           </div>
         </div>
-        {/* User welcome banner */}
+        {/* School-first identity banner */}
         {(userDisplayName || userSchoolName) && (
           <div className="container mx-auto px-4 pb-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Welcome,</span>
-              <span className="font-semibold text-foreground">{userDisplayName || 'Fan'}</span>
-              {userSchoolName && (
-                <>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-primary font-medium">{userSchoolName}</span>
-                </>
-              )}
-            </div>
+            {userSchoolName ? (
+              <div className="space-y-0.5">
+                <p className="text-base font-bold text-primary">{userSchoolName}</p>
+                <p className="text-sm text-muted-foreground">
+                  Hey {userDisplayName || 'Fan'}.{hasSchoolFixture ? " Your boys play Saturday." : ""}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                <p className="text-base font-bold text-primary">For the Badge.</p>
+                <p className="text-sm text-muted-foreground">
+                  Hey {userDisplayName || 'Fan'}.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
+        {/* Hero Headline Block */}
+        <div className="space-y-1.5">
+          <h1 className="text-3xl md:text-4xl font-black text-foreground leading-tight">
+            {getHeroHeadline()}
+          </h1>
+          <p className="text-base text-muted-foreground">
+            {getHeroSubline()}
+          </p>
+          <p className="text-xs text-muted-foreground/70">
+            No betting. Just bragging rights.
+          </p>
+        </div>
+
         {/* Dynamic Carousel: Derbies, News, Ads */}
         <HomeCarousel unpickedFixturesCount={upcomingFixtures.filter(f => !predictions[f.id]).length} />
 
@@ -136,7 +168,7 @@ const Home = () => {
 
         {/* Your School's Fixture - Special Highlight */}
         {userSchoolFixture && userSchoolName && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <SchoolFixtureCard
               userSchool={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.name : userSchoolFixture.away_school.name}
               userSchoolShort={getShortName(userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.name : userSchoolFixture.away_school.name)}
@@ -152,12 +184,15 @@ const Home = () => {
               matchId={userSchoolFixture.id}
               priority
             />
+            <p className="text-xs text-muted-foreground text-center">
+              Prediction closes at kickoff.
+            </p>
           </div>
         )}
 
-        {/* Upcoming Fixtures */}
+        {/* This Week's Matches */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold px-1">Upcoming Fixtures</h2>
+          <h2 className="text-lg font-bold px-1">This Week's Matches</h2>
           {fixturesLoading ? (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">Loading fixtures...</p>
@@ -193,26 +228,26 @@ const Home = () => {
               <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Pools Yet</h3>
               <p className="text-muted-foreground mb-4 px-4">
-                Join or create a pool to see fixtures you can predict on!
+                You're not in a pool yet. Join one to start predicting.
               </p>
               <Button 
                 onClick={() => navigate("/leaderboard")} 
                 className="bg-primary hover:bg-primary/90"
               >
                 <Users className="h-4 w-4 mr-2" />
-                Go to Pools
+                Find a Pool
               </Button>
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No upcoming matches for your pools — check back soon!</p>
+              <p className="text-muted-foreground">No matches this week. Rest up — next Saturday's coming.</p>
             </div>
           )}
         </div>
 
-        {/* Recent Matches - Submit Score */}
+        {/* Full Time – Report the Score */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold px-1">Recent Matches – Submit Score</h2>
+          <h2 className="text-lg font-bold px-1">Full Time – Report the Score</h2>
           {fixturesLoading ? (
             <div className="text-center py-8 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">Loading recent matches...</p>
@@ -262,10 +297,9 @@ const Home = () => {
                 </div>
                 <div className="flex-1 space-y-3">
                   <div>
-                    <h3 className="font-semibold text-foreground">Become an Official Scorekeeper for {userSchoolName}</h3>
+                    <h3 className="font-semibold text-foreground">Be the Voice of {userSchoolName}</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Get a special badge and be the trusted source for {userSchoolName}'s first team scores. 
-                      Official scorekeepers are verified and accepted by the Trybal team.
+                      Report first team scores. Earn your official scorekeeper badge.
                     </p>
                   </div>
                   <Button

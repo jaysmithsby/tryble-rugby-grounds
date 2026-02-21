@@ -69,12 +69,12 @@ export const SchoolFixtureCard = ({
         matchId={matchId}
         onPredictionSubmit={handlePredictionSubmit}
       />
-      <Card className="bg-gradient-to-br from-primary/10 via-accent/5 to-background border-2 border-primary/30 shadow-glow">
+      <Card className="bg-gradient-to-br from-primary/15 via-accent/5 to-background border-2 border-primary/30 shadow-glow">
         <div className="p-5 space-y-4">
           {/* Your School Badge */}
           <div className="flex items-center justify-center gap-2 pb-2 border-b border-border/40">
             <Star className="w-4 h-4 text-primary fill-primary" />
-            <span className="text-sm font-bold text-primary">Your School</span>
+            <span className="text-sm font-bold text-primary">Your Next Match</span>
             <Star className="w-4 h-4 text-primary fill-primary" />
           </div>
 
@@ -128,7 +128,7 @@ export const SchoolFixtureCard = ({
         {isPredicted && (
           <div className="pt-2 border-t border-border/40">
             <p className="text-xs text-primary font-medium text-center">
-              You picked: {predictedTeamName} to win by {predictedMargin}
+              Locked in. {predictedTeamName} by {predictedMargin}. Respect.
             </p>
           </div>
         )}
@@ -142,7 +142,7 @@ export const SchoolFixtureCard = ({
               : "bg-primary hover:bg-primary/90 text-primary-foreground"
           }`}
         >
-          {isPredicted ? "Prediction Made" : "Predict Now"}
+          {isPredicted ? "Prediction Made" : "Back Your Boys"}
         </Button>
         </div>
       </Card>

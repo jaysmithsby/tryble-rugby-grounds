@@ -14,7 +14,7 @@ export const WeeklySummaryWidget = ({ userId }: WeeklySummaryWidgetProps) => {
     return (
       <Card className="bg-gradient-card border-border/40 shadow-card">
         <div className="p-4">
-          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Your Week</h3>
+          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Your Week So Far</h3>
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex flex-col items-center gap-1.5 p-3 bg-secondary rounded-lg border border-border">
@@ -35,9 +35,9 @@ export const WeeklySummaryWidget = ({ userId }: WeeklySummaryWidgetProps) => {
       <Card className="bg-gradient-card border-border/40 shadow-card">
         <div className="p-6 text-center">
           <Target className="w-8 h-8 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-muted-foreground font-medium">Your weekly stats will appear here</p>
+          <p className="text-muted-foreground font-medium">Your stats will appear here</p>
           <p className="text-sm text-muted-foreground mt-2">
-            Make predictions on upcoming fixtures to get started!
+            Make your first prediction to see your stats here.
           </p>
         </div>
       </Card>
@@ -47,7 +47,7 @@ export const WeeklySummaryWidget = ({ userId }: WeeklySummaryWidgetProps) => {
   return (
     <Card className="bg-gradient-card border-border/40 shadow-card">
       <div className="p-4">
-        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Your Week</h3>
+        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Your Week So Far</h3>
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col items-center gap-1.5 p-3 bg-primary/10 rounded-lg border border-primary/20">
             <TrendingUp className="w-4 h-4 text-primary" />

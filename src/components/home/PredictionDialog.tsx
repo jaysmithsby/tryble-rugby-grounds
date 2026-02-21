@@ -46,8 +46,8 @@ export const PredictionDialog = ({
     onPredictionSubmit?.(selectedTeam, margin);
     
     toast({
-      title: "Prediction Submitted!",
-      description: `${winner} by ${margin} points`,
+      title: "Locked in. Let's go.",
+      description: `${winner} by ${margin}. Respect.`,
       duration: 2000,
     });
 
@@ -89,7 +89,7 @@ export const PredictionDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Make Your Prediction</DialogTitle>
+          <DialogTitle className="text-center">Make Your Call</DialogTitle>
           {appliesTo.length > 1 && (
             <Badge variant="secondary" className="mx-auto mt-2">
               Applied to {appliesTo.length} pools
@@ -100,7 +100,7 @@ export const PredictionDialog = ({
         <div className="space-y-6 py-4">
           {/* Team Selection */}
           <div>
-            <Label className="text-sm font-medium mb-3 block">Select Winner</Label>
+            <Label className="text-sm font-medium mb-3 block">Who's taking this?</Label>
             <RadioGroup
               value={selectedTeam}
               onValueChange={(value) => setSelectedTeam(value as "home" | "away")}
@@ -184,7 +184,7 @@ export const PredictionDialog = ({
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold"
             size="lg"
           >
-            Submit Prediction
+            Lock It In
           </Button>
         </div>
       </DialogContent>

@@ -18,9 +18,9 @@ export const NudgeSlide = ({ unpickedCount, onClick }: NudgeSlideProps) => {
             <Target className="w-7 h-7 text-accent" />
           </div>
           <div>
-            <h3 className="font-bold text-lg">Make Your Predictions!</h3>
+            <h3 className="font-bold text-lg">Predictions Are Open</h3>
             <p className="text-sm text-muted-foreground">
-              {unpickedCount} {unpickedCount === 1 ? "match" : "matches"} awaiting your pick
+              {unpickedCount} {unpickedCount === 1 ? "match" : "matches"} awaiting your call
             </p>
           </div>
         </div>
@@ -31,7 +31,7 @@ export const NudgeSlide = ({ unpickedCount, onClick }: NudgeSlideProps) => {
           size="sm"
           className="gap-1 shrink-0"
         >
-          Pick Now
+          Call It
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>

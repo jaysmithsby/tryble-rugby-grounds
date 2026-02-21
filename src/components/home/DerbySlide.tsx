@@ -59,8 +59,9 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
           <div className="flex items-center gap-2">
             <Flame className="w-4 h-4 text-destructive" />
             <span className="text-xs font-bold text-accent uppercase tracking-wider">
-              This Week's Derby
+              Derby Week
             </span>
+            <span className="text-xs text-muted-foreground ml-1">Pride on the line.</span>
           </div>
           <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
             <Clock className="w-3.5 h-3.5 text-primary" />
