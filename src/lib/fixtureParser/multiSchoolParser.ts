@@ -56,6 +56,30 @@ function isFixtureLine(line: string): boolean {
 }
 
 /**
+ * Extract a team name from tokens by progressively trimming trailing words
+ * and fuzzy-matching against the schools database. This strips festival names
+ * that appear after the actual school name (e.g., "St Andrews Graeme Rugby Festival" → "St Andrews").
+ */
+function extractTeamName(
+  tokens: string[],
+  schools: School[],
+): { teamName: string; matched: boolean } {
+  if (tokens.length === 0) return { teamName: '', matched: false };
+
+  // Try progressively shorter prefixes
+  for (let len = tokens.length; len >= 1; len--) {
+    const candidate = tokens.slice(0, len).join(' ');
+    const match = fuzzyMatchSchool(candidate, schools);
+    if (match) {
+      return { teamName: candidate, matched: true };
+    }
+  }
+
+  // No match found — use full text, let user fix in review
+  return { teamName: tokens.join(' '), matched: false };
+}
+
+/**
  * Parse a single fixture line using score-anchoring.
  * 
  * Format: "09 Mar Clifton 43 0 KZN Development"
@@ -112,12 +136,13 @@ function parseFixtureLine(
   const awayScoreStr = tokens[scoreIndex + 1];
   const afterScoreTokens = tokens.slice(scoreIndex + 2);
 
-  const homeTeamName = homeTeamTokens.join(' ').trim();
+  // Extract home team using progressive trimming
+  const { teamName: homeTeamName } = extractTeamName(homeTeamTokens, schools);
   const isCancelled = homeScoreStr.toLowerCase() === 'x' || awayScoreStr.toLowerCase() === 'x';
   const homeScore = isCancelled ? '' : homeScoreStr;
   const awayScore = isCancelled ? '' : awayScoreStr;
 
-  // All text after scores is the away team name (festival parsing removed)
+  // Extract away team using progressive trimming (strip festival text)
   let awayTeamName = '';
   const festivalName = '';
 
@@ -128,7 +153,8 @@ function parseFixtureLine(
       ? afterScoreTokens.slice(0, -1)
       : afterScoreTokens;
 
-    awayTeamName = cleanedTokens.join(' ');
+    const { teamName } = extractTeamName(cleanedTokens, schools);
+    awayTeamName = teamName;
   }
 
   // Determine home/away relative to section school
