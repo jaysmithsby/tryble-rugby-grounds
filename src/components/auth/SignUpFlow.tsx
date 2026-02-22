@@ -314,6 +314,18 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         parentEmail: data.parentEmail,
         step: 4,
       });
+
+      // Auto-follow the primary school
+      if (data.schoolId && state.userId) {
+        try {
+          await supabase.from("user_school_follows").insert({
+            user_id: state.userId,
+            school_id: data.schoolId,
+          });
+        } catch (e) {
+          // Ignore duplicate or minor errors
+        }
+      }
     } catch (e: any) {
       toast({
         title: "Error saving profile",

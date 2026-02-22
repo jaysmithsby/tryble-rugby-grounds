@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Calendar, Trophy, Flame, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Trophy, Flame, Users, Heart, HeartOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
 
 export default function SchoolProfile() {
@@ -17,6 +18,10 @@ export default function SchoolProfile() {
   const [recentResults, setRecentResults] = useState<any[]>([]);
   const [topUsers, setTopUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [primarySchoolId, setPrimarySchoolId] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   // Helper to convert hex to RGB for styling
   const hexToRgb = (hex: string) => {
@@ -30,7 +35,64 @@ export default function SchoolProfile() {
 
   useEffect(() => {
     loadSchoolData();
+    loadUserFollowState();
   }, [schoolSlug]);
+
+  const loadUserFollowState = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !schoolSlug) return;
+    setCurrentUserId(user.id);
+
+    // Get user's primary school
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+    setPrimarySchoolId(profile?.school_id || null);
+
+    // Check if already following (need school id first)
+    const { data: schoolData } = await supabase
+      .from("schools")
+      .select("id")
+      .eq("slug", schoolSlug)
+      .maybeSingle();
+    if (!schoolData) return;
+
+    const { data: follow } = await supabase
+      .from("user_school_follows")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("school_id", schoolData.id)
+      .maybeSingle();
+    setIsFollowing(!!follow);
+  };
+
+  const handleToggleFollow = async () => {
+    if (!currentUserId || !school) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await supabase
+          .from("user_school_follows")
+          .delete()
+          .eq("user_id", currentUserId)
+          .eq("school_id", school.id);
+        setIsFollowing(false);
+        sonnerToast(`Unfollowed ${school.name}`);
+      } else {
+        await supabase
+          .from("user_school_follows")
+          .insert({ user_id: currentUserId, school_id: school.id });
+        setIsFollowing(true);
+        sonnerToast(`Now following ${school.name}`);
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const loadSchoolData = async () => {
     if (!schoolSlug) return;
@@ -248,6 +310,38 @@ export default function SchoolProfile() {
             >
               "{school.motto}"
             </p>
+          )}
+          
+          {/* Follow / Unfollow Button */}
+          {currentUserId && (
+            <div className="mt-4">
+              {primarySchoolId === school.id ? (
+                <Badge variant="secondary" className="px-4 py-1.5">
+                  <Heart className="w-3.5 h-3.5 mr-1.5 fill-current" />
+                  Primary School
+                </Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  variant={isFollowing ? "outline" : "default"}
+                  onClick={handleToggleFollow}
+                  disabled={followLoading}
+                  className="min-w-[120px]"
+                >
+                  {isFollowing ? (
+                    <>
+                      <HeartOff className="w-4 h-4 mr-1.5" />
+                      Unfollow
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="w-4 h-4 mr-1.5" />
+                      Follow
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

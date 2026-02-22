@@ -72,6 +72,7 @@ function mapFixture(f: any): FixtureWithSchools {
 interface UseHomeFixturesParams {
   userId: string | null;
   userSchoolName: string | null;
+  userSchoolId: string | null;
   effectiveDate: Date;
   weekendStart: Date;
   weekendEnd: Date;
@@ -91,6 +92,7 @@ interface UseHomeFixturesResult {
 export function useHomeFixtures({
   userId,
   userSchoolName,
+  userSchoolId,
   effectiveDate,
   weekendStart,
   weekendEnd,
@@ -102,58 +104,66 @@ export function useHomeFixtures({
   const weekendStartStr = weekendStart.toISOString().split("T")[0];
   const weekendEndStr = weekendEnd.toISOString().split("T")[0];
 
-  // Fetch user's pool school IDs
-  const { data: poolData } = useQuery({
-    queryKey: ["home-pool-schools", userId],
+  // Fetch user's followed school IDs from user_school_follows + pool schools
+  const { data: followedData } = useQuery({
+    queryKey: ["home-followed-schools", userId],
     queryFn: async () => {
-      if (!userId) return { poolSchoolIds: [], hasNoPools: true };
+      if (!userId) return { schoolIds: [], hasNoPools: true };
 
+      // Get schools from user_school_follows
+      const { data: follows } = await supabase
+        .from("user_school_follows")
+        .select("school_id")
+        .eq("user_id", userId);
+
+      const followIds = follows?.map((f) => f.school_id) || [];
+
+      // Also get schools from pools
       const { data: poolMemberships } = await supabase
         .from("pool_members")
         .select("pool_id")
         .eq("user_id", userId);
 
-      if (!poolMemberships || poolMemberships.length === 0) {
-        return { poolSchoolIds: [], hasNoPools: true };
+      let poolSchoolIds: string[] = [];
+      const hasNoPools = !poolMemberships || poolMemberships.length === 0;
+
+      if (!hasNoPools) {
+        const poolIds = poolMemberships!.map((pm) => pm.pool_id);
+        const { data: pools } = await supabase
+          .from("pools")
+          .select("schools")
+          .in("id", poolIds)
+          .eq("is_active", true);
+
+        if (pools) {
+          const poolSchoolNames = pools
+            .flatMap((p) => p.schools || [])
+            .filter((name, index, self) => self.indexOf(name) === index);
+
+          if (poolSchoolNames.length > 0) {
+            const { data: schoolsData } = await supabase
+              .from("schools")
+              .select("id")
+              .in("name", poolSchoolNames);
+            poolSchoolIds = schoolsData?.map((s) => s.id) || [];
+          }
+        }
       }
 
-      const poolIds = poolMemberships.map((pm) => pm.pool_id);
-      const { data: pools } = await supabase
-        .from("pools")
-        .select("schools")
-        .in("id", poolIds)
-        .eq("is_active", true);
-
-      if (!pools) return { poolSchoolIds: [], hasNoPools: false };
-
-      const poolSchoolNames = pools
-        .flatMap((p) => p.schools || [])
-        .filter((name, index, self) => self.indexOf(name) === index);
-
-      if (poolSchoolNames.length === 0) {
-        return { poolSchoolIds: [], hasNoPools: false };
-      }
-
-      const { data: schoolsData } = await supabase
-        .from("schools")
-        .select("id")
-        .in("name", poolSchoolNames);
-
-      return {
-        poolSchoolIds: schoolsData?.map((s) => s.id) || [],
-        hasNoPools: false,
-      };
+      // Merge and deduplicate
+      const allIds = [...new Set([...followIds, ...poolSchoolIds])];
+      return { schoolIds: allIds, hasNoPools };
     },
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
-  const poolSchoolIds = poolData?.poolSchoolIds || [];
-  const hasNoPools = poolData?.hasNoPools ?? true;
+  const allSchoolIds = followedData?.schoolIds || [];
+  const hasNoPools = followedData?.hasNoPools ?? true;
 
   // Fetch upcoming fixtures
   const { data: upcomingFixtures = [], isLoading: upcomingLoading } = useQuery({
-    queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, poolSchoolIds],
+    queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, allSchoolIds],
     queryFn: async () => {
       const now = effectiveDate.toISOString();
 
@@ -173,11 +183,11 @@ export function useHomeFixtures({
       }
 
       let filtered = data || [];
-      if (poolSchoolIds.length > 0) {
+      if (allSchoolIds.length > 0) {
         filtered = filtered.filter(
           (f: any) =>
-            poolSchoolIds.includes(f.home_school_id) ||
-            poolSchoolIds.includes(f.away_school_id)
+            allSchoolIds.includes(f.home_school_id) ||
+            allSchoolIds.includes(f.away_school_id)
         );
       }
 
@@ -218,26 +228,18 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  // Fetch user's school fixture for this weekend
+  // Fetch user's school fixture for this weekend using school_id directly
   const { data: userSchoolFixture = null } = useQuery({
-    queryKey: ["home-user-school-fixture", userSchoolName, weekendStartStr, weekendEndStr, seasonYear],
+    queryKey: ["home-user-school-fixture", userSchoolId, weekendStartStr, weekendEndStr, seasonYear],
     queryFn: async () => {
-      if (!userSchoolName) return null;
-
-      const { data: schoolData } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("name", userSchoolName)
-        .maybeSingle();
-
-      if (!schoolData) return null;
+      if (!userSchoolId) return null;
 
       const { data: fixture } = await supabase
         .from("fixtures")
         .select(FIXTURE_SELECT)
         .eq("is_visible", true)
         .eq("year", seasonYear)
-        .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+        .or(`home_school_id.eq.${userSchoolId},away_school_id.eq.${userSchoolId}`)
         .gte("match_date", weekendStart.toISOString())
         .lte("match_date", weekendEnd.toISOString())
         .order("match_date", { ascending: true })
@@ -248,7 +250,7 @@ export function useHomeFixtures({
 
       return mapFixture(fixture);
     },
-    enabled: !!userId && !!userSchoolName && profileLoaded,
+    enabled: !!userId && !!userSchoolId && profileLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
