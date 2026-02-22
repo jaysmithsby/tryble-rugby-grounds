@@ -150,20 +150,20 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
       <>
         <CollapsibleTrigger asChild>
           <TableRow className="cursor-pointer hover:bg-muted/50">
-            <TableCell className="text-sm text-muted-foreground align-middle">
+             <TableCell className="text-sm text-muted-foreground align-middle">
               {format(new Date(fixture.match_date), "EEE d MMM")}
+              {fixture.tournament && (
+                <span className="text-[10px] text-muted-foreground ml-1">
+                  ({fixture.tournament.name})
+                </span>
+              )}
             </TableCell>
             <TableCell>
               <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
                 <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
 
-                <div className="flex flex-col items-center justify-center">
+                <div className="flex items-center justify-center">
                   <span className="text-sm font-semibold text-muted-foreground">vs</span>
-                  {fixture.tournament && (
-                    <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[80px]">
-                      {fixture.tournament.name}
-                    </span>
-                  )}
                 </div>
 
                 <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
@@ -208,6 +208,9 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground">
               {format(new Date(fixture.match_date), "EEE d MMM")}
+              {fixture.tournament && (
+                <span className="text-[10px] ml-1">({fixture.tournament.name})</span>
+              )}
             </span>
             <ChevronDown
               className={cn(
@@ -219,13 +222,8 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
           <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
             <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
 
-            <div className="flex flex-col items-center justify-center">
+            <div className="flex items-center justify-center">
               <span className="text-sm font-semibold text-muted-foreground">vs</span>
-              {fixture.tournament && (
-                <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[80px]">
-                  {fixture.tournament.name}
-                </span>
-              )}
             </div>
 
             <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
