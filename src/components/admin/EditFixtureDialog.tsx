@@ -26,7 +26,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Loader2, ExternalLink } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EditFixtureDialogProps {
   open: boolean;
@@ -60,6 +61,48 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
   const [status, setStatus] = useState("upcoming");
   const [isVisible, setIsVisible] = useState(true);
   const [sourceUrl, setSourceUrl] = useState("");
+
+  // Mirror-duplicate warning state
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
+  // Check for mirror duplicates when date changes
+  useEffect(() => {
+    const checkDuplicate = async () => {
+      if (!fixture || !matchDate) {
+        setDuplicateWarning(null);
+        return;
+      }
+      setCheckingDuplicate(true);
+      try {
+        const dateStr = matchDate.toISOString().split("T")[0];
+        const homeId = fixture.home_school_id;
+        const awayId = fixture.away_school_id;
+        const { data, error } = await supabase
+          .from("fixtures")
+          .select("id")
+          .neq("id", fixture.id)
+          .or(
+            `and(home_school_id.eq.${homeId},away_school_id.eq.${awayId}),and(home_school_id.eq.${awayId},away_school_id.eq.${homeId})`
+          )
+          .gte("match_date", `${dateStr}T00:00:00`)
+          .lt("match_date", `${dateStr}T23:59:59`)
+          .limit(1);
+
+        if (error) throw error;
+        setDuplicateWarning(
+          data && data.length > 0
+            ? "A fixture between these two schools already exists for this date."
+            : null
+        );
+      } catch {
+        setDuplicateWarning(null);
+      } finally {
+        setCheckingDuplicate(false);
+      }
+    };
+    checkDuplicate();
+  }, [matchDate, fixture]);
 
   // Load data when dialog opens
   useEffect(() => {
@@ -352,6 +395,14 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
             />
           </div>
 
+          {/* Duplicate Warning */}
+          {duplicateWarning && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{duplicateWarning}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
@@ -362,7 +413,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || checkingDuplicate}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>

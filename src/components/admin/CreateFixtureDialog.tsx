@@ -26,7 +26,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, ExternalLink } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Command,
   CommandEmpty,
@@ -94,6 +95,45 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
   const [newSchoolName, setNewSchoolName] = useState("");
   const [newSchoolProvince, setNewSchoolProvince] = useState("");
   const [creatingSchool, setCreatingSchool] = useState(false);
+
+  // Mirror-duplicate warning state
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
+  // Check for mirror duplicates when schools + date are selected
+  useEffect(() => {
+    const checkDuplicate = async () => {
+      if (!homeSchoolId || !awaySchoolId || !matchDate) {
+        setDuplicateWarning(null);
+        return;
+      }
+      setCheckingDuplicate(true);
+      try {
+        const dateStr = matchDate.toISOString().split("T")[0];
+        const { data, error } = await supabase
+          .from("fixtures")
+          .select("id")
+          .or(
+            `and(home_school_id.eq.${homeSchoolId},away_school_id.eq.${awaySchoolId}),and(home_school_id.eq.${awaySchoolId},away_school_id.eq.${homeSchoolId})`
+          )
+          .gte("match_date", `${dateStr}T00:00:00`)
+          .lt("match_date", `${dateStr}T23:59:59`)
+          .limit(1);
+
+        if (error) throw error;
+        setDuplicateWarning(
+          data && data.length > 0
+            ? "A fixture between these two schools already exists for this date."
+            : null
+        );
+      } catch {
+        setDuplicateWarning(null);
+      } finally {
+        setCheckingDuplicate(false);
+      }
+    };
+    checkDuplicate();
+  }, [homeSchoolId, awaySchoolId, matchDate]);
 
   useEffect(() => {
     if (open) {
@@ -577,6 +617,14 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
               />
             </div>
 
+            {/* Duplicate Warning */}
+            {duplicateWarning && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{duplicateWarning}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button
@@ -587,7 +635,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading || checkingDuplicate}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Fixture
               </Button>
