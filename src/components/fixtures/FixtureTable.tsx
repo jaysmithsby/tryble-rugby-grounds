@@ -124,12 +124,7 @@ const SchoolBlock = ({
       variant={isHome ? "primary" : "accent"}
       containerClassName="border-border"
     />
-    <span
-      className={cn(
-        "text-xs text-center line-clamp-2 leading-tight max-w-[120px]",
-        isHome ? "font-bold" : "font-medium"
-      )}
-    >
+    <span className="text-xs text-center line-clamp-2 leading-tight max-w-[120px] font-medium">
       {school.name}
     </span>
   </button>
@@ -150,8 +145,11 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
       <>
         <CollapsibleTrigger asChild>
           <TableRow className="cursor-pointer hover:bg-muted/50">
-             <TableCell className="text-sm text-muted-foreground align-middle">
-              {format(new Date(fixture.match_date), "EEE d MMM")}
+             <TableCell className="text-sm align-middle">
+              <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
+              {fixture.venue_legacy && (
+                <span className="text-muted-foreground ml-2 text-xs">{fixture.venue_legacy}</span>
+              )}
               {fixture.tournament && (
                 <span className="text-[10px] text-muted-foreground ml-1">
                   ({fixture.tournament.name})
@@ -206,10 +204,13 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
       <CollapsibleTrigger asChild>
         <div className="border border-border/40 rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">
-              {format(new Date(fixture.match_date), "EEE d MMM")}
+            <span className="text-xs">
+              <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
+              {fixture.venue_legacy && (
+                <span className="text-muted-foreground ml-2">{fixture.venue_legacy}</span>
+              )}
               {fixture.tournament && (
-                <span className="text-[10px] ml-1">({fixture.tournament.name})</span>
+                <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
               )}
             </span>
             <ChevronDown
