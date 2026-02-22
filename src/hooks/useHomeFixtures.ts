@@ -103,6 +103,8 @@ export function useHomeFixtures({
   const effectiveDateStr = effectiveDate.toISOString().split("T")[0];
   const weekendStartStr = weekendStart.toISOString().split("T")[0];
   const weekendEndStr = weekendEnd.toISOString().split("T")[0];
+  const sevenDaysFromNow = new Date(effectiveDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysStr = sevenDaysFromNow.toISOString().split("T")[0];
 
   // Fetch user's followed school IDs from user_school_follows + pool schools
   const { data: followedData } = useQuery({
@@ -163,7 +165,7 @@ export function useHomeFixtures({
 
   // Fetch upcoming fixtures
   const { data: upcomingFixtures = [], isLoading: upcomingLoading } = useQuery({
-    queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, allSchoolIds],
+    queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, sevenDaysStr, allSchoolIds],
     queryFn: async () => {
       const now = effectiveDate.toISOString();
 
@@ -174,8 +176,9 @@ export function useHomeFixtures({
         .eq("status", "upcoming")
         .eq("year", seasonYear)
         .gte("match_date", now)
+        .lte("match_date", sevenDaysFromNow.toISOString())
         .order("match_date", { ascending: true })
-        .limit(20);
+        .limit(50);
 
       if (error) {
         console.error("Error fetching upcoming fixtures:", error);
@@ -275,7 +278,7 @@ export function useHomeFixtures({
 
   // Fetch fixtures for followed tournaments
   const { data: rawTournamentFixtures = [], isLoading: tournamentLoading } = useQuery({
-    queryKey: ["home-tournament-fixtures", seasonYear, effectiveDateStr, tournamentData?.tournamentIds],
+    queryKey: ["home-tournament-fixtures", seasonYear, effectiveDateStr, sevenDaysStr, tournamentData?.tournamentIds],
     queryFn: async () => {
       const tournamentIds = tournamentData?.tournamentIds || [];
       if (tournamentIds.length === 0) return [];
@@ -290,8 +293,9 @@ export function useHomeFixtures({
         .eq("year", seasonYear)
         .in("tournament_id", tournamentIds)
         .gte("match_date", now)
+        .lte("match_date", sevenDaysFromNow.toISOString())
         .order("match_date", { ascending: true })
-        .limit(20);
+        .limit(50);
 
       if (error) {
         console.error("Error fetching tournament fixtures:", error);
@@ -304,55 +308,21 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  // Merge, deduplicate, and limit upcoming fixtures
+  // Merge, deduplicate by ID, and sort chronologically
   const mergedUpcomingFixtures = useMemo(() => {
-    const existingIds = new Set(upcomingFixtures.map(f => f.id));
-    
-    // Add tournament fixtures that aren't already in the pool/school fixtures
-    const uniqueTournamentFixtures = rawTournamentFixtures.filter(
-      tf => !existingIds.has(tf.id)
-    );
-    
-    const allFixtures = [...upcomingFixtures, ...uniqueTournamentFixtures];
-    
-    // Sort chronologically
-    const sorted = allFixtures.sort(
-      (a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
-    );
+    const seenIds = new Set<string>();
+    const all: FixtureWithSchools[] = [];
 
-    // Deduplicate: one next game per school, with tournament exception
-    const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
-    const seenSchools = new Map<string, number>(); // schoolId -> earliest match timestamp
-    const result: FixtureWithSchools[] = [];
-
-    for (const fixture of sorted) {
-      const homeId = fixture.home_school.id;
-      const awayId = fixture.away_school.id;
-      const matchTime = new Date(fixture.match_date).getTime();
-
-      const homeSeen = seenSchools.has(homeId);
-      const awaySeen = seenSchools.has(awayId);
-
-      if (!homeSeen || !awaySeen) {
-        // At least one school hasn't been seen yet — include
-        result.push(fixture);
-        if (!homeSeen) seenSchools.set(homeId, matchTime);
-        if (!awaySeen) seenSchools.set(awayId, matchTime);
-      } else if (fixture.tournament_id) {
-        // Both schools seen, but this is a tournament fixture — check 6-day window
-        const homeEarliest = seenSchools.get(homeId)!;
-        const awayEarliest = seenSchools.get(awayId)!;
-        if (
-          matchTime - homeEarliest <= SIX_DAYS_MS ||
-          matchTime - awayEarliest <= SIX_DAYS_MS
-        ) {
-          result.push(fixture);
-        }
+    for (const f of [...upcomingFixtures, ...rawTournamentFixtures]) {
+      if (!seenIds.has(f.id)) {
+        seenIds.add(f.id);
+        all.push(f);
       }
-      // else: both schools already represented and not a qualifying tournament fixture — skip
     }
 
-    return result.slice(0, 5);
+    return all.sort(
+      (a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
+    );
   }, [upcomingFixtures, rawTournamentFixtures]);
 
   const fixturesLoading = upcomingLoading || recentLoading || tournamentLoading;
