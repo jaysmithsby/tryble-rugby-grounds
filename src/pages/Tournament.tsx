@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
+import GlobalHeader from "@/components/GlobalHeader";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, MapPin, Users, Trophy, Loader2, Flag } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Loader2, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
@@ -99,19 +100,7 @@ export default function Tournament() {
   return (
     <>
       <div className="min-h-screen bg-background pb-20">
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-          <div className="container mx-auto px-4 py-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </div>
-        </div>
+        <GlobalHeader />
 
         <div className="container mx-auto px-4 py-6 space-y-6">
           {tournament.sponsor_logo_url && (

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Trophy, TrendingUp, Target, Users, School, Globe, MapPin, Share2 } from "lucide-react";
+import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
 import { PoolCard } from "@/components/pools/PoolCard";
@@ -351,35 +352,34 @@ const Leaderboard = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Trophy className="text-accent" />
-              Leaderboards
-            </h1>
-          </div>
+      <GlobalHeader />
 
-          {/* Weekly/Season Toggle */}
-          <div className="flex gap-2 justify-center">
-            <Button
-              variant={period === "weekly" ? "default" : "outline"}
-              onClick={() => setPeriod("weekly")}
-              size="sm"
-            >
-              Weekly
-            </Button>
-            <Button
-              variant={period === "season" ? "default" : "outline"}
-              onClick={() => setPeriod("season")}
-              size="sm"
-            >
-              Season
-            </Button>
-          </div>
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Trophy className="text-accent" />
+            Leaderboards
+          </h1>
         </div>
-      </header>
+
+        {/* Weekly/Season Toggle */}
+        <div className="flex gap-2 justify-center">
+          <Button
+            variant={period === "weekly" ? "default" : "outline"}
+            onClick={() => setPeriod("weekly")}
+            size="sm"
+          >
+            Weekly
+          </Button>
+          <Button
+            variant={period === "season" ? "default" : "outline"}
+            onClick={() => setPeriod("season")}
+            size="sm"
+          >
+            Season
+          </Button>
+        </div>
+      </div>
 
       {/* Weekly Highlight Banner */}
       {(highlights.topClimber || highlights.bestAccuracy) ? (

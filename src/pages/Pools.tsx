@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Trophy, Users, Calendar, ChevronRight, Globe, School, MapPin, Plus, UserPlus } from "lucide-react";
+import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { PoolCard } from "@/components/pools/PoolCard";
 import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
@@ -284,19 +285,7 @@ export const Pools = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
-              <h1 className="text-xl font-bold">My Pools</h1>
-            </div>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Quick Actions */}

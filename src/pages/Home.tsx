@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
+import GlobalHeader from "@/components/GlobalHeader";
+import trybalLogo from "@/assets/trybal-logo.png";
 
 import { supabase } from "@/integrations/supabase/client";
 import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
@@ -10,9 +12,7 @@ import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { MessageCircle, Award, Users } from "lucide-react";
-import trybalLogo from "@/assets/trybal-logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -138,21 +138,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src={trybalLogo} alt="Trybal" className="h-10" />
-          </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
+      <GlobalHeader>
         {(userDisplayName || userSchoolName) && (
           <div className="container mx-auto px-4 pb-3">
             {userSchoolName ? (
@@ -172,7 +158,7 @@ const Home = () => {
             )}
           </div>
         )}
-      </header>
+      </GlobalHeader>
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <div className="space-y-1.5">

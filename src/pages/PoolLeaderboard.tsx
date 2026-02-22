@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Trophy, Users, Lock, Clock } from "lucide-react";
+import { Trophy, Users, Lock, Clock } from "lucide-react";
+import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { PoolInvite } from "@/components/pools/PoolInvite";
 import { PoolVoting } from "@/components/pools/PoolVoting";
@@ -268,78 +269,68 @@ export const PoolLeaderboard = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/pools")}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Pools
-          </Button>
+      <GlobalHeader />
 
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">{pool.name}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="font-mono">
-                    {pool.invite_code}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    {members.length} members
-                  </span>
-                </div>
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Trophy className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{pool.name}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="font-mono">
+                  {pool.invite_code}
+                </Badge>
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  {members.length} members
+                </span>
               </div>
             </div>
-
-            {isAdmin && (
-              <EditPoolDialog
-                pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id }}
-                isEditable={isEditable}
-                lockReason={lockReason}
-                onPoolUpdated={loadPoolData}
-              />
-            )}
           </div>
 
-          {!isEditable && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4">
-              <Lock className="w-4 h-4" />
-              <span>Pool locked for this week's matches</span>
-            </div>
+          {isAdmin && (
+            <EditPoolDialog
+              pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id }}
+              isEditable={isEditable}
+              lockReason={lockReason}
+              onPoolUpdated={loadPoolData}
+            />
           )}
-          {lockCountdown && isEditable && (
-            <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 rounded-lg px-3 py-2 mb-4">
-              <Clock className="w-4 h-4" />
-              <span>{lockCountdown}</span>
-            </div>
-          )}
-
-          <div className="flex gap-2 justify-center">
-            <Button
-              variant={period === "weekly" ? "default" : "outline"}
-              onClick={() => setPeriod("weekly")}
-              size="sm"
-            >
-              Weekly
-            </Button>
-            <Button
-              variant={period === "season" ? "default" : "outline"}
-              onClick={() => setPeriod("season")}
-              size="sm"
-            >
-              Season
-            </Button>
-          </div>
         </div>
-      </header>
+
+        {!isEditable && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4">
+            <Lock className="w-4 h-4" />
+            <span>Pool locked for this week's matches</span>
+          </div>
+        )}
+        {lockCountdown && isEditable && (
+          <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 rounded-lg px-3 py-2 mb-4">
+            <Clock className="w-4 h-4" />
+            <span>{lockCountdown}</span>
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-center">
+          <Button
+            variant={period === "weekly" ? "default" : "outline"}
+            onClick={() => setPeriod("weekly")}
+            size="sm"
+          >
+            Weekly
+          </Button>
+          <Button
+            variant={period === "season" ? "default" : "outline"}
+            onClick={() => setPeriod("season")}
+            size="sm"
+          >
+            Season
+          </Button>
+        </div>
+      </div>
 
       {highlights.hilux ? (
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">

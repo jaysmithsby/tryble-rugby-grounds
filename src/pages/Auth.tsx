@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import trybalLogo from "@/assets/trybal-logo.png";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import GlobalHeader from "@/components/GlobalHeader";
 import SignUpFlow from "@/components/auth/SignUpFlow";
 import SignInForm from "@/components/auth/SignInForm";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,12 +68,7 @@ const Auth = () => {
   if (verifying) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="border-b border-border/40">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <img src={trybalLogo} alt="Trybal" className="h-10" />
-            <ThemeToggle />
-          </div>
-        </header>
+        <GlobalHeader />
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md space-y-6">
             <div className="text-center space-y-4">
@@ -91,20 +84,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border/40">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <button onClick={() => navigate("/")} className="text-2xl font-bold text-primary">
-            Trybal
-          </button>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" onClick={() => navigate("/")}>
-              Back to Home
-            </Button>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader />
 
       {/* Auth Content */}
       <div className="flex-1 flex items-center justify-center p-4">

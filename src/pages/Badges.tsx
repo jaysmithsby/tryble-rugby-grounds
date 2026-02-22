@@ -1,13 +1,9 @@
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
 import { BadgeGrid } from "@/components/profile/BadgeGrid";
 import { allBadges } from "@/data/badgesData";
 import { BottomNav } from "@/components/BottomNav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const Badges = () => {
-  const navigate = useNavigate();
 
   const earnedCount = allBadges.filter(b => b.earned).length;
   const totalCount = allBadges.length;
@@ -39,17 +35,7 @@ const Badges = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate("/profile")} className="gap-2">
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </Button>
-          <h2 className="text-2xl font-bold text-primary">All Badges</h2>
-          <div className="w-20" /> {/* Spacer for centering */}
-        </div>
-      </header>
+      <GlobalHeader />
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Progress Header */}
