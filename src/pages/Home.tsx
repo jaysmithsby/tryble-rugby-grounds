@@ -242,7 +242,7 @@ const Home = () => {
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No upcoming matches yet.</p>
+              <p className="text-muted-foreground">No matches this week.</p>
             </div>
           )}
         </div>
