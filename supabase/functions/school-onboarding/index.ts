@@ -233,23 +233,29 @@ async function handleSubmitForm(body: {
 
   if (errors.length > 0) return json({ error: errors.join("; ") }, 400);
 
-  // Insert submission
-  const { error: insertError } = await sb.from("school_submissions").insert({
-    invitation_id: inv.id,
-    full_official_name: body.full_official_name.trim(),
+  // Generate slug from school name
+  const slug = body.full_official_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+  // Insert directly into schools table with pending_review status
+  const { error: insertError } = await sb.from("schools").insert({
+    name: body.full_official_name.trim(),
+    slug,
     nickname: body.nickname.trim(),
     province: body.province.trim(),
-    year_established: body.year_established,
-    school_motto: body.school_motto?.trim() || null,
+    established_year: body.year_established,
+    motto: body.school_motto?.trim() || null,
     main_rival: body.main_rival?.trim() || null,
-    number_of_springboks: body.number_of_springboks ?? 0,
-    school_trivia: body.school_trivia?.trim() || null,
-    crest_image_url: body.crest_image_url || null,
-    primary_colour: body.primary_colour?.trim() || null,
-    secondary_colour: body.secondary_colour?.trim() || null,
+    springboks_count: body.number_of_springboks ?? 0,
+    trivia_fact: body.school_trivia?.trim() || null,
+    emblem_url: body.crest_image_url || null,
+    primary_color: body.primary_colour?.trim() || null,
+    secondary_color: body.secondary_colour?.trim() || null,
     contact_name: body.contact_name.trim(),
     contact_email: body.contact_email.trim(),
     contact_phone: body.contact_phone.trim(),
+    invitation_id: inv.id,
+    status: "pending_review",
+    is_visible: false,
   });
 
   if (insertError) {

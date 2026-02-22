@@ -180,7 +180,7 @@ export function CreateSchoolDialog({
       motto: "",
       primary_color: "#1e3a5f",
       secondary_color: "#c9a227",
-      status: "verified",
+      status: "approved",
       is_visible: true,
     });
   };
@@ -275,18 +275,18 @@ export function CreateSchoolDialog({
 
       if (error) throw error;
 
-      // If this was from a school request, update the request status
+      // If this was from a school request (draft schools), update their status
       if (prefillData?.requestIds && prefillData.requestIds.length > 0) {
         const { error: updateError } = await supabase
-          .from('school_requests')
+          .from('schools')
           .update({ 
             status: 'approved',
-            reviewed_at: new Date().toISOString(),
+            is_visible: true,
           })
           .in('id', prefillData.requestIds);
 
         if (updateError) {
-          console.error('Error updating school requests:', updateError);
+          console.error('Error updating draft school requests:', updateError);
         }
       }
 

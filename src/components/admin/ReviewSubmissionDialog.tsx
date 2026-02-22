@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
@@ -14,28 +13,29 @@ interface Props {
   onSuccess: () => void;
 }
 
-type Submission = {
+type SchoolSubmission = {
   id: string;
-  full_official_name: string;
-  nickname: string;
-  province: string;
-  year_established: number;
-  school_motto: string | null;
+  name: string;
+  nickname: string | null;
+  province: string | null;
+  established_year: number | null;
+  motto: string | null;
   main_rival: string | null;
-  number_of_springboks: number;
-  school_trivia: string | null;
-  crest_image_url: string | null;
-  primary_colour: string | null;
-  secondary_colour: string | null;
-  contact_name: string;
-  contact_email: string;
-  contact_phone: string;
+  springboks_count: number | null;
+  trivia_fact: string | null;
+  emblem_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
 };
 
 export function ReviewSubmissionDialog({ invitationId, onClose, onSuccess }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [submission, setSubmission] = useState<Submission | null>(null);
+  const [submission, setSubmission] = useState<SchoolSubmission | null>(null);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -47,62 +47,49 @@ export function ReviewSubmissionDialog({ invitationId, onClose, onSuccess }: Pro
     setRejectReason("");
     (async () => {
       const { data, error } = await supabase
-        .from("school_submissions")
+        .from("schools")
         .select("*")
         .eq("invitation_id", invitationId)
+        .eq("status", "pending_review")
         .single();
 
       if (error || !data) {
         toast({ title: "Error", description: "Could not load submission", variant: "destructive" });
         setSubmission(null);
+        setSchoolId(null);
       } else {
-        setSubmission(data as Submission);
+        setSchoolId(data.id);
+        setSubmission({
+          id: data.id,
+          name: data.name,
+          nickname: data.nickname,
+          province: data.province,
+          established_year: data.established_year,
+          motto: data.motto,
+          main_rival: data.main_rival,
+          springboks_count: data.springboks_count,
+          trivia_fact: data.trivia_fact,
+          emblem_url: data.emblem_url,
+          primary_color: data.primary_color,
+          secondary_color: data.secondary_color,
+          contact_name: data.contact_name,
+          contact_email: data.contact_email,
+          contact_phone: data.contact_phone,
+        });
       }
       setLoading(false);
     })();
   }, [invitationId]);
 
   const handleApprove = async () => {
-    if (!submission || !invitationId) return;
+    if (!submission || !invitationId || !schoolId) return;
     setProcessing(true);
 
-    // Check for existing school
-    const slug = submission.full_official_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    const { data: existing } = await supabase.from("schools").select("id, name").eq("slug", slug).maybeSingle();
-
-    if (existing) {
-      const update = window.confirm(`A school named "${existing.name}" already exists. Update it with this submission data?`);
-      if (!update) { setProcessing(false); return; }
-
-      await supabase.from("schools").update({
-        name: submission.full_official_name,
-        nickname: submission.nickname,
-        province: submission.province,
-        established_year: submission.year_established,
-        motto: submission.school_motto,
-        main_rival: submission.main_rival,
-        springboks_count: submission.number_of_springboks,
-        trivia_fact: submission.school_trivia,
-        emblem_url: submission.crest_image_url,
-        primary_color: submission.primary_colour,
-        secondary_color: submission.secondary_colour,
-      }).eq("id", existing.id);
-    } else {
-      await supabase.from("schools").insert({
-        name: submission.full_official_name,
-        slug,
-        nickname: submission.nickname,
-        province: submission.province,
-        established_year: submission.year_established,
-        motto: submission.school_motto,
-        main_rival: submission.main_rival,
-        springboks_count: submission.number_of_springboks,
-        trivia_fact: submission.school_trivia,
-        emblem_url: submission.crest_image_url,
-        primary_color: submission.primary_colour,
-        secondary_color: submission.secondary_colour,
-      });
-    }
+    // Simply update the school status to approved and make visible
+    await supabase.from("schools").update({
+      status: "approved",
+      is_visible: true,
+    }).eq("id", schoolId);
 
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("school_invitations").update({
@@ -111,15 +98,22 @@ export function ReviewSubmissionDialog({ invitationId, onClose, onSuccess }: Pro
       reviewed_by: user?.id || null,
     }).eq("id", invitationId);
 
-    toast({ title: "Approved", description: `${submission.full_official_name} has been added to Trybal!` });
+    toast({ title: "Approved", description: `${submission.name} has been added to Trybal!` });
     setProcessing(false);
     onSuccess();
     onClose();
   };
 
   const handleReject = async () => {
-    if (!invitationId) return;
+    if (!invitationId || !schoolId) return;
     setProcessing(true);
+
+    // Update school status to rejected
+    await supabase.from("schools").update({
+      status: "rejected",
+      is_visible: false,
+    }).eq("id", schoolId);
+
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("school_invitations").update({
       status: "rejected",
@@ -127,7 +121,7 @@ export function ReviewSubmissionDialog({ invitationId, onClose, onSuccess }: Pro
       reviewed_by: user?.id || null,
     }).eq("id", invitationId);
 
-    toast({ title: "Rejected", description: "Invitation has been rejected." });
+    toast({ title: "Rejected", description: "Submission has been rejected." });
     setProcessing(false);
     onSuccess();
     onClose();
@@ -156,29 +150,29 @@ export function ReviewSubmissionDialog({ invitationId, onClose, onSuccess }: Pro
           <p className="text-center text-muted-foreground py-8">No submission data found.</p>
         ) : (
           <div className="space-y-6">
-            {submission.crest_image_url && (
+            {submission.emblem_url && (
               <div className="flex justify-center">
-                <img src={submission.crest_image_url} alt="School crest" className="h-24 w-24 object-contain rounded border" />
+                <img src={submission.emblem_url} alt="School crest" className="h-24 w-24 object-contain rounded border" />
               </div>
             )}
 
             <div className="space-y-3">
               <h3 className="font-semibold text-sm text-foreground">School Information</h3>
               <div className="grid grid-cols-2 gap-3">
-                {field("Official Name", submission.full_official_name)}
+                {field("Official Name", submission.name)}
                 {field("Nickname", submission.nickname)}
                 {field("Province", submission.province)}
-                {field("Year Established", submission.year_established)}
-                {field("Motto", submission.school_motto)}
+                {field("Year Established", submission.established_year)}
+                {field("Motto", submission.motto)}
                 {field("Main Rival", submission.main_rival)}
-                {field("Springboks", submission.number_of_springboks)}
-                {field("Primary Colour", submission.primary_colour)}
-                {field("Secondary Colour", submission.secondary_colour)}
+                {field("Springboks", submission.springboks_count)}
+                {field("Primary Color", submission.primary_color)}
+                {field("Secondary Color", submission.secondary_color)}
               </div>
-              {submission.school_trivia && (
+              {submission.trivia_fact && (
                 <div>
                   <p className="text-xs text-muted-foreground">Trivia</p>
-                  <p className="text-sm">{submission.school_trivia}</p>
+                  <p className="text-sm">{submission.trivia_fact}</p>
                 </div>
               )}
             </div>

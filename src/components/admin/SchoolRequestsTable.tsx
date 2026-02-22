@@ -9,32 +9,32 @@ import { Loader2, Search, Users, Eye } from "lucide-react";
 import { ReviewSchoolRequestDialog } from "./ReviewSchoolRequestDialog";
 import { CreateSchoolDialog, type PrefilledSchoolData } from "./CreateSchoolDialog";
 
-interface GroupedRequest {
-  school_name: string;
-  school_type: string;
-  province: string;
-  request_count: number;
-  requests: SchoolRequest[];
-  latest_logo_url: string | null;
-}
-
-interface SchoolRequest {
+interface DraftSchool {
   id: string;
-  school_name: string;
-  province: string;
-  school_type: string;
-  logo_url: string | null;
+  name: string;
+  province: string | null;
+  school_type: string | null;
+  request_logo_url: string | null;
   note_to_admin: string | null;
   submitted_by_user_id: string | null;
   created_at: string;
   status: string;
 }
 
+interface GroupedRequest {
+  school_name: string;
+  school_type: string;
+  province: string;
+  request_count: number;
+  requests: DraftSchool[];
+  latest_logo_url: string | null;
+}
+
 export function SchoolRequestsTable() {
   const [groupedRequests, setGroupedRequests] = useState<GroupedRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [statusFilter, setStatusFilter] = useState<string>("draft");
   const [selectedGroup, setSelectedGroup] = useState<GroupedRequest | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -48,27 +48,29 @@ export function SchoolRequestsTable() {
     setLoading(true);
     try {
       let query = supabase
-        .from('school_requests')
-        .select('*')
+        .from('schools')
+        .select('id, name, province, school_type, request_logo_url, note_to_admin, submitted_by_user_id, created_at, status')
         .order('created_at', { ascending: false });
 
-      if (statusFilter !== "all") {
-        query = query.eq('status', statusFilter as "pending" | "approved" | "declined");
+      if (statusFilter === "all") {
+        query = query.in('status', ['draft', 'rejected']);
+      } else {
+        query = query.eq('status', statusFilter);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      // Group requests by school_name + school_type
-      const grouped = (data || []).reduce<Record<string, GroupedRequest>>((acc, request) => {
-        const key = `${request.school_name.toLowerCase()}_${request.school_type}`;
+      // Group requests by name + school_type
+      const grouped = (data || []).reduce<Record<string, GroupedRequest>>((acc, school) => {
+        const key = `${school.name.toLowerCase()}_${school.school_type || 'unknown'}`;
         
         if (!acc[key]) {
           acc[key] = {
-            school_name: request.school_name,
-            school_type: request.school_type,
-            province: request.province,
+            school_name: school.name,
+            school_type: school.school_type || 'unknown',
+            province: school.province || 'Unknown',
             request_count: 0,
             requests: [],
             latest_logo_url: null,
@@ -76,19 +78,16 @@ export function SchoolRequestsTable() {
         }
         
         acc[key].request_count++;
-        acc[key].requests.push(request);
+        acc[key].requests.push(school);
         
-        // Use the latest logo if available
-        if (request.logo_url && !acc[key].latest_logo_url) {
-          acc[key].latest_logo_url = request.logo_url;
+        if (school.request_logo_url && !acc[key].latest_logo_url) {
+          acc[key].latest_logo_url = school.request_logo_url;
         }
 
         return acc;
       }, {});
 
-      // Sort by request count (descending)
       const sortedGroups = Object.values(grouped).sort((a, b) => b.request_count - a.request_count);
-      
       setGroupedRequests(sortedGroups);
     } catch (error) {
       console.error('Error fetching school requests:', error);
@@ -152,9 +151,8 @@ export function SchoolRequestsTable() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="declined">Declined</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -164,7 +162,7 @@ export function SchoolRequestsTable() {
           <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-xl font-semibold mb-2">No School Requests</h3>
           <p className="text-muted-foreground">
-            {statusFilter === "pending" 
+            {statusFilter === "draft" 
               ? "No pending school requests at this time."
               : "No school requests found matching your criteria."}
           </p>

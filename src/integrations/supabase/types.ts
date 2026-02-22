@@ -657,51 +657,6 @@ export type Database = {
         }
         Relationships: []
       }
-      school_requests: {
-        Row: {
-          admin_response: string | null
-          created_at: string | null
-          id: string
-          logo_url: string | null
-          note_to_admin: string | null
-          province: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          school_name: string
-          school_type: Database["public"]["Enums"]["school_type"]
-          status: Database["public"]["Enums"]["school_request_status"]
-          submitted_by_user_id: string | null
-        }
-        Insert: {
-          admin_response?: string | null
-          created_at?: string | null
-          id?: string
-          logo_url?: string | null
-          note_to_admin?: string | null
-          province: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          school_name: string
-          school_type: Database["public"]["Enums"]["school_type"]
-          status?: Database["public"]["Enums"]["school_request_status"]
-          submitted_by_user_id?: string | null
-        }
-        Update: {
-          admin_response?: string | null
-          created_at?: string | null
-          id?: string
-          logo_url?: string | null
-          note_to_admin?: string | null
-          province?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          school_name?: string
-          school_type?: Database["public"]["Enums"]["school_type"]
-          status?: Database["public"]["Enums"]["school_request_status"]
-          submitted_by_user_id?: string | null
-        }
-        Relationships: []
-      }
       school_scores: {
         Row: {
           average_points: number | null
@@ -738,82 +693,18 @@ export type Database = {
         }
         Relationships: []
       }
-      school_submissions: {
-        Row: {
-          contact_email: string
-          contact_name: string
-          contact_phone: string
-          created_at: string
-          crest_image_url: string | null
-          full_official_name: string
-          id: string
-          invitation_id: string
-          main_rival: string | null
-          nickname: string
-          number_of_springboks: number
-          primary_colour: string | null
-          province: string
-          school_motto: string | null
-          school_trivia: string | null
-          secondary_colour: string | null
-          year_established: number
-        }
-        Insert: {
-          contact_email: string
-          contact_name: string
-          contact_phone: string
-          created_at?: string
-          crest_image_url?: string | null
-          full_official_name: string
-          id?: string
-          invitation_id: string
-          main_rival?: string | null
-          nickname: string
-          number_of_springboks?: number
-          primary_colour?: string | null
-          province: string
-          school_motto?: string | null
-          school_trivia?: string | null
-          secondary_colour?: string | null
-          year_established: number
-        }
-        Update: {
-          contact_email?: string
-          contact_name?: string
-          contact_phone?: string
-          created_at?: string
-          crest_image_url?: string | null
-          full_official_name?: string
-          id?: string
-          invitation_id?: string
-          main_rival?: string | null
-          nickname?: string
-          number_of_springboks?: number
-          primary_colour?: string | null
-          province?: string
-          school_motto?: string | null
-          school_trivia?: string | null
-          secondary_colour?: string | null
-          year_established?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "school_submissions_invitation_id_fkey"
-            columns: ["invitation_id"]
-            isOneToOne: false
-            referencedRelation: "school_invitations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       schools: {
         Row: {
           archived_at: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
           emblem_url: string | null
           established_year: number | null
           icon_url: string | null
           id: string
+          invitation_id: string | null
           is_archived: boolean
           is_visible: boolean | null
           jersey_config: Json | null
@@ -822,23 +713,32 @@ export type Database = {
           motto: string | null
           name: string
           nickname: string | null
+          note_to_admin: string | null
           primary_color: string | null
           province: string | null
+          request_logo_url: string | null
+          school_type: string | null
           secondary_color: string | null
           slug: string
           springboks_count: number | null
           status: string
+          submission_metadata: Json | null
+          submitted_by_user_id: string | null
           trivia_fact: string | null
           updated_at: string
           website: string | null
         }
         Insert: {
           archived_at?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           emblem_url?: string | null
           established_year?: number | null
           icon_url?: string | null
           id?: string
+          invitation_id?: string | null
           is_archived?: boolean
           is_visible?: boolean | null
           jersey_config?: Json | null
@@ -847,23 +747,32 @@ export type Database = {
           motto?: string | null
           name: string
           nickname?: string | null
+          note_to_admin?: string | null
           primary_color?: string | null
           province?: string | null
+          request_logo_url?: string | null
+          school_type?: string | null
           secondary_color?: string | null
           slug: string
           springboks_count?: number | null
           status?: string
+          submission_metadata?: Json | null
+          submitted_by_user_id?: string | null
           trivia_fact?: string | null
           updated_at?: string
           website?: string | null
         }
         Update: {
           archived_at?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           emblem_url?: string | null
           established_year?: number | null
           icon_url?: string | null
           id?: string
+          invitation_id?: string | null
           is_archived?: boolean
           is_visible?: boolean | null
           jersey_config?: Json | null
@@ -872,17 +781,30 @@ export type Database = {
           motto?: string | null
           name?: string
           nickname?: string | null
+          note_to_admin?: string | null
           primary_color?: string | null
           province?: string | null
+          request_logo_url?: string | null
+          school_type?: string | null
           secondary_color?: string | null
           slug?: string
           springboks_count?: number | null
           status?: string
+          submission_metadata?: Json | null
+          submitted_by_user_id?: string | null
           trivia_fact?: string | null
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "schools_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "school_invitations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tournaments: {
         Row: {
@@ -1262,6 +1184,12 @@ export type Database = {
         | "streak_master"
       leaderboard_type: "global" | "school" | "province" | "pool"
       school_request_status: "pending" | "approved" | "declined"
+      school_status:
+        | "draft"
+        | "pending_review"
+        | "approved"
+        | "rejected"
+        | "archived"
       school_type: "boys" | "girls" | "co-ed"
     }
     CompositeTypes: {
@@ -1403,6 +1331,13 @@ export const Constants = {
       ],
       leaderboard_type: ["global", "school", "province", "pool"],
       school_request_status: ["pending", "approved", "declined"],
+      school_status: [
+        "draft",
+        "pending_review",
+        "approved",
+        "rejected",
+        "archived",
+      ],
       school_type: ["boys", "girls", "co-ed"],
     },
   },

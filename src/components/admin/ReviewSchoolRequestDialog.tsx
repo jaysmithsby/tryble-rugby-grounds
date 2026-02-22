@@ -9,12 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, XCircle, User, Calendar, MessageSquare, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 
-interface SchoolRequest {
+interface DraftSchool {
   id: string;
-  school_name: string;
-  province: string;
-  school_type: string;
-  logo_url: string | null;
+  name: string;
+  province: string | null;
+  school_type: string | null;
+  request_logo_url: string | null;
   note_to_admin: string | null;
   submitted_by_user_id: string | null;
   created_at: string;
@@ -26,7 +26,7 @@ interface GroupedRequest {
   school_type: string;
   province: string;
   request_count: number;
-  requests: SchoolRequest[];
+  requests: DraftSchool[];
   latest_logo_url: string | null;
 }
 
@@ -87,7 +87,6 @@ export function ReviewSchoolRequestDialog({
   const handleApprove = () => {
     if (!groupedRequest) return;
 
-    // Pass data to parent to open CreateSchoolDialog with prefill
     onApproveAndCreate({
       name: groupedRequest.school_name,
       province: groupedRequest.province,
@@ -106,11 +105,12 @@ export function ReviewSchoolRequestDialog({
 
     try {
       const requestIds = groupedRequest.requests.map(r => r.id);
+      // Update schools status to rejected
       const { error } = await supabase
-        .from('school_requests')
+        .from('schools')
         .update({ 
-          status: 'declined',
-          reviewed_at: new Date().toISOString(),
+          status: 'rejected',
+          is_visible: false,
         })
         .in('id', requestIds);
 
