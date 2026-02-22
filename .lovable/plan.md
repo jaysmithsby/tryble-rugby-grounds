@@ -1,27 +1,39 @@
 
+## Store School ID Instead of "home"/"away" in Predictions
 
-## Scope Home Feed to Next 7 Days
+### Problem
 
-### What Changes
+Currently the `predictions` table stores `predicted_team` as a text field with values `"home"` or `"away"`. This is fragile -- it doesn't directly reference which school was picked. The request is to store the actual `school_id` instead.
 
-The "Upcoming Matches" feed currently fetches all future fixtures and applies complex deduplication logic. This update narrows it to only show fixtures within the **next 7 days** from the effective date, for schools the user follows or has in pools. Tournament fixtures from followed tournaments are also scoped to the same 7-day window.
+### Database Migration
 
-### Changes
+Alter the `predictions` table:
+- Add column `predicted_school_id` (UUID, nullable initially for backfill, references `schools(id)`)
+- Backfill existing records by joining with `fixtures`:
+  ```sql
+  UPDATE predictions p
+  SET predicted_school_id = CASE 
+    WHEN p.predicted_team = 'home' THEN f.home_school_id
+    WHEN p.predicted_team = 'away' THEN f.away_school_id
+  END
+  FROM fixtures f WHERE f.id = p.fixture_id;
+  ```
+- After backfill, set `predicted_school_id` to NOT NULL
+- Keep `predicted_team` column for now (the scoring function and display logic still reference it) -- no removal
 
-**`src/hooks/useHomeFixtures.ts`**:
+### Code Changes
 
-1. **Upcoming fixtures query** (line ~168-198): Add an upper bound filter `.lte("match_date", sevenDaysFromNow)` alongside the existing `.gte("match_date", now)`. This limits results to the next 7 days.
+| File | Change |
+|------|--------|
+| `src/pages/Fixtures.tsx` | Update `handlePredictionSubmit` to resolve `school_id` from `team` + fixture data and include `predicted_school_id` in insert/update |
+| `src/hooks/useHomeFixtures.ts` | Same -- resolve school ID when saving predictions |
+| `src/components/home/PredictionDialog.tsx` | Update `onPredictionSubmit` callback signature to also pass `schoolId` |
+| `src/components/home/FixtureCard.tsx` | Pass home/away school IDs to PredictionDialog so it can return the selected school ID |
+| `src/hooks/useFixturesData.ts` | Include `predicted_school_id` in prediction select query and map |
 
-2. **Tournament fixtures query** (line ~279-305): Apply the same 7-day upper bound filter.
+### How It Works
 
-3. **Remove complex deduplication** (line ~308-356): Replace the "one next game per school + 6-day tournament exception" logic with a simple merge, deduplicate by ID, and sort chronologically. No need for per-school deduplication or the `.slice(0, 5)` cap since the 7-day window naturally limits volume.
-
-4. **Add `sevenDaysFromNow` date string** for query keys to ensure proper cache invalidation.
-
-**`src/pages/Home.tsx`**:
-
-5. **Update empty-state copy** (line ~244-246): Change "No upcoming matches yet." to "No matches this week."
-
-### No Database Changes Required
-
-This is purely a query filter and display logic change.
+1. PredictionDialog still lets the user pick "home" or "away" visually
+2. When submitting, the calling code resolves the selected team to the actual `school_id` (e.g., if `team === "home"`, use `fixture.home_school_id`)
+3. Both `predicted_team` ("home"/"away") and `predicted_school_id` (UUID) are saved
+4. Display logic continues to use `predicted_team` for determining which side was picked
