@@ -19,7 +19,7 @@ import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { MatchHistory } from "./MatchHistory";
 import { cn } from "@/lib/utils";
 
-interface FixtureSchool {
+export interface FixtureSchool {
   id: string;
   name: string;
   slug: string;
@@ -27,7 +27,7 @@ interface FixtureSchool {
   province: string | null;
 }
 
-interface Fixture {
+export interface Fixture {
   id: string;
   match_date: string;
   venue_legacy: string;
@@ -40,7 +40,7 @@ interface Fixture {
 
 interface FixtureTableProps {
   fixtures: Fixture[];
-  searchQuery: string;
+  searchQuery?: string;
 }
 
 function sortSchoolsAlpha(fixture: Fixture): [FixtureSchool, FixtureSchool, boolean] {
@@ -52,7 +52,7 @@ function sortSchoolsAlpha(fixture: Fixture): [FixtureSchool, FixtureSchool, bool
   return [fixture.away_school, fixture.home_school, false];
 }
 
-export const FixtureTable = ({ fixtures, searchQuery }: FixtureTableProps) => {
+export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) => {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return fixtures;
     const q = searchQuery.toLowerCase();

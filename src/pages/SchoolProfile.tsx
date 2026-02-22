@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, MapPin, Calendar, Trophy, Flame, Users, Heart, HeartOff } from "lucide-react";
+import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
@@ -113,35 +114,34 @@ export default function SchoolProfile() {
 
       const schoolId = schoolData.id;
 
-      // Load all schools for joining with fixtures
-      const { data: allSchools } = await supabase
-        .from("schools")
-        .select("id, name, slug, icon_url, emblem_url, jersey_url, main_rival");
-      
-      const schoolsMap = new Map(allSchools?.map(s => [s.id, s]) || []);
+      // Fixtures are now fetched with joined school data directly
 
       // Load upcoming fixtures (status: upcoming, holding, or future dates)
       const { data: upcomingData, error: upcomingError } = await supabase
         .from("fixtures")
-        .select("*")
+        .select(`
+          id, match_date, venue_legacy, home_school_id, away_school_id, status, is_derby,
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+          tournament:tournaments(id, name)
+        `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .in("status", ["upcoming", "holding"])
         .gte("match_date", new Date().toISOString())
         .order("match_date", { ascending: true })
         .limit(5);
 
-      // Join school data to upcoming fixtures
-      const upcomingWithSchools = (upcomingData || []).map(fixture => ({
-        ...fixture,
-        home_school: schoolsMap.get(fixture.home_school_id),
-        away_school: schoolsMap.get(fixture.away_school_id)
-      }));
-      setUpcomingFixtures(upcomingWithSchools);
+      setUpcomingFixtures((upcomingData || []) as any[]);
 
       // Load recent results (completed matches or past dates with scores)
       const { data: resultsData, error: resultsError } = await supabase
         .from("fixtures")
-        .select("*")
+        .select(`
+          id, match_date, venue_legacy, home_school_id, away_school_id, status, is_derby, home_score, away_score,
+          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
+          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+          tournament:tournaments(id, name)
+        `)
         .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
         .eq("status", "completed")
         .not("home_score", "is", null)
@@ -149,13 +149,7 @@ export default function SchoolProfile() {
         .order("match_date", { ascending: false })
         .limit(5);
 
-      // Join school data to recent results
-      const resultsWithSchools = (resultsData || []).map(fixture => ({
-        ...fixture,
-        home_school: schoolsMap.get(fixture.home_school_id),
-        away_school: schoolsMap.get(fixture.away_school_id)
-      }));
-      setRecentResults(resultsWithSchools);
+      setRecentResults((resultsData || []) as any[]);
 
       // Load top 5 users from this school
       const { data: topUsersData } = await supabase
@@ -380,80 +374,7 @@ export default function SchoolProfile() {
             {upcomingFixtures.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">No upcoming fixtures</p>
             ) : (
-              <div className="space-y-3">
-                {upcomingFixtures.map((fixture) => (
-                  <div key={fixture.id} className="p-4 border border-border/40 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(fixture.match_date).toLocaleDateString()}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {fixture.status}
-                        </Badge>
-                        {isDerby(fixture) && (
-                          <Badge variant="destructive" className="text-xs">
-                            <Flame className="w-3 h-3 mr-1" />
-                            Derby
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 flex-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (fixture.home_school?.slug) navigate(`/school/${fixture.home_school.slug}`);
-                          }}
-                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                          disabled={!fixture.home_school?.slug}
-                        >
-                          {(fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url) ? (
-                            <img 
-                              src={fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url} 
-                              alt={fixture.home_school.name}
-                              className="w-full h-full object-contain p-1"
-                            />
-                          ) : (
-                            <span className="text-xs font-bold">
-                              {fixture.home_school?.name.substring(0, 3)}
-                            </span>
-                          )}
-                        </button>
-                        <span className="text-sm font-medium">{fixture.home_school?.name}</span>
-                      </div>
-                      <span className="text-sm font-bold text-muted-foreground">VS</span>
-                      <div className="flex items-center gap-2 flex-1 justify-end">
-                        <span className="text-sm font-medium">{fixture.away_school?.name}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (fixture.away_school?.slug) navigate(`/school/${fixture.away_school.slug}`);
-                          }}
-                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                          disabled={!fixture.away_school?.slug}
-                        >
-                          {(fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url) ? (
-                            <img 
-                              src={fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url} 
-                              alt={fixture.away_school.name}
-                              className="w-full h-full object-contain p-1"
-                            />
-                          ) : (
-                            <span className="text-xs font-bold">
-                              {fixture.away_school?.name.substring(0, 3)}
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-2">
-                      {fixture.venue_legacy || "TBD"}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <FixtureTable fixtures={upcomingFixtures} />
             )}
           </CardContent>
         </Card>
@@ -468,71 +389,7 @@ export default function SchoolProfile() {
             {recentResults.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">No recent results</p>
             ) : (
-              <div className="space-y-3">
-                {recentResults.map((fixture) => (
-                  <div key={fixture.id} className="p-4 border border-border/40 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(fixture.match_date).toLocaleDateString()}
-                      </span>
-                      <Badge variant="outline" className="text-xs">Final</Badge>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 flex-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (fixture.home_school?.slug) navigate(`/school/${fixture.home_school.slug}`);
-                          }}
-                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                          disabled={!fixture.home_school?.slug}
-                        >
-                          {(fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url) ? (
-                            <img 
-                              src={fixture.home_school?.emblem_url || fixture.home_school?.jersey_url || fixture.home_school?.icon_url} 
-                              alt={fixture.home_school.name}
-                              className="w-full h-full object-contain p-1"
-                            />
-                          ) : (
-                            <span className="text-xs font-bold">
-                              {fixture.home_school?.name.substring(0, 3)}
-                            </span>
-                          )}
-                        </button>
-                        <span className="text-sm font-medium">{fixture.home_school?.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold">{fixture.home_score ?? 0}</span>
-                        <span className="text-sm text-muted-foreground">-</span>
-                        <span className="text-lg font-bold">{fixture.away_score ?? 0}</span>
-                      </div>
-                      <div className="flex items-center gap-2 flex-1 justify-end">
-                        <span className="text-sm font-medium">{fixture.away_school?.name}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (fixture.away_school?.slug) navigate(`/school/${fixture.away_school.slug}`);
-                          }}
-                          className="w-8 h-8 rounded-full bg-background/60 flex items-center justify-center border border-border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                          disabled={!fixture.away_school?.slug}
-                        >
-                          {(fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url) ? (
-                            <img 
-                              src={fixture.away_school?.emblem_url || fixture.away_school?.jersey_url || fixture.away_school?.icon_url} 
-                              alt={fixture.away_school.name}
-                              className="w-full h-full object-contain p-1"
-                            />
-                          ) : (
-                            <span className="text-xs font-bold">
-                              {fixture.away_school?.name.substring(0, 3)}
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <FixtureTable fixtures={recentResults} />
             )}
           </CardContent>
         </Card>
