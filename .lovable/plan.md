@@ -1,76 +1,34 @@
 
-
-## Refactor "All Schools" View into Searchable Table with Match History
+## Make FixtureTable a Global Component and Reuse on School Profile
 
 ### Overview
-Replace the card-based fixture layout in the "All Schools" view with a searchable, collapsible table. Users can browse fixtures, click school names/logos to navigate to school profiles, and expand rows to see head-to-head match history. No prediction CTAs in this view.
+The `FixtureTable` component (with its collapsible match history) will be made into a reusable global component. The School Profile page will then use this same component for both "Upcoming Fixtures" and "Recent Results" sections, replacing the current custom inline markup.
 
-### New Files
+### Changes
 
-**1. `src/components/fixtures/MatchHistory.tsx`**
-- Accepts `homeSchoolId` and `awaySchoolId` props
-- Uses a React Query to fetch the last 5 completed fixtures between those two schools (matching both directions: A vs B and B vs A)
-- Query: fixtures where status is not "upcoming", ordered by match_date descending, limit 5
-- Selects: match_date, home_score, away_score, home_school(name), away_school(name)
-- Displays each result as a row: date, school names, scoreline (e.g. "24 - 10"), with the winner's name bolded
-- Shows a "No previous matches" message if empty
-- Loading skeleton while fetching
+**1. Update `FixtureTable` props to support optional search**
 
-**2. `src/components/fixtures/FixtureTable.tsx`**
-- Accepts `fixtures` (the flat array from useFixturesData), `searchQuery` string
-- Client-side filters fixtures by `searchQuery` (matches against home or away school name)
-- Renders a shadcn `<Table>` with columns: Date, Teams, Venue
-- Each row is wrapped in a `<Collapsible>` -- clicking the row (outside school links) toggles the collapsible content
-- **Teams column**: Shows jersey icons + school names as clickable links navigating to `/school/${slug}`
-- **Expanded content**: Renders `<MatchHistory>` with the fixture's home/away school IDs, styled with `bg-muted/30`
-- No prediction buttons or CTAs anywhere
-- Mobile responsive: on small screens, the table uses a stacked card-like layout via CSS (hiding table headers, stacking cells)
+- Make `searchQuery` optional (default to `""`) so the component can be used without a search input (e.g., on the School Profile page).
 
-### Modified Files
+**2. Replace School Profile fixture sections with `FixtureTable`**
 
-**3. `src/pages/Fixtures.tsx`**
-- Add `searchQuery` state (`useState("")`)
-- Add a search `<Input>` in the header area (visible in "all-schools" mode) with real-time filtering
-- Conditional rendering in the content area:
-  - `viewMode === "my-schools"`: keep existing `FixtureDateGroup` + `FixtureListCard` layout with predictions
-  - `viewMode === "all-schools"`: render the new `<FixtureTable>` component, passing flat fixtures array and searchQuery
-- The existing school/province dropdown filters in `FixturesFilters` remain functional alongside the new search input
+- **Upcoming Fixtures card** (lines 373-459): Replace the custom fixture rendering with `<FixtureTable fixtures={upcomingFixtures} />`. Remove the inline home/away school buttons, VS label, venue text, status badges, and derby badges -- the `FixtureTable` component already handles date, venue, tournament, jerseys, school navigation, and collapsible match history.
 
-**4. `src/hooks/useFixturesData.ts`**
-- No changes needed. The hook already returns `home_school_id`, `away_school_id`, and the flat `fixtures` array alongside `groupedFixtures`. The `FixtureWithSchools` interface already has these fields.
+- **Recent Results card** (lines 461-538): Replace with `<FixtureTable fixtures={recentResults} />`. The recent results already have `home_score`/`away_score` but the current `FixtureTable` treats all rows identically (upcoming style with "vs"). This is acceptable since match history is accessible via the collapsible expand, and keeping one unified component is the goal.
+
+**3. Ensure data shape compatibility**
+
+The School Profile currently fetches fixture data with `select("*")` and manually joins schools via a `schoolsMap`. The `FixtureTable` expects each fixture to have `home_school` and `away_school` objects with `{ id, name, slug, jersey_url, province }`. The current join in `SchoolProfile` already attaches full school objects, so these fields are present. We just need to ensure `tournament` is also fetched -- add `tournament_id` to the fixture query and join tournament data, or simply leave it as `null` (tournaments will just not show if not fetched). For completeness, we'll update the fixture query to also fetch the linked tournament name.
 
 ### Technical Details
 
-**MatchHistory query:**
-```text
-SELECT id, match_date, home_score, away_score,
-  home_school:schools!fixtures_home_school_id_fkey(name),
-  away_school:schools!fixtures_away_school_id_fkey(name)
-FROM fixtures
-WHERE status != 'upcoming'
-  AND is_visible = true
-  AND (
-    (home_school_id = :schoolA AND away_school_id = :schoolB)
-    OR (home_school_id = :schoolB AND away_school_id = :schoolA)
-  )
-ORDER BY match_date DESC
-LIMIT 5
-```
+**`src/components/fixtures/FixtureTable.tsx`**
+- Change interface: `searchQuery` becomes optional with default `""`
+- Export the `Fixture` and `FixtureSchool` interfaces so they can be imported elsewhere
 
-**FixtureTable row structure:**
-```text
-<Collapsible>
-  <TableRow as CollapsibleTrigger>
-    | Date (formatted) | [jersey] SchoolA link  vs  [jersey] SchoolB link | Venue |
-  </TableRow>
-  <CollapsibleContent>
-    <TableRow with bg-muted/30 spanning full width>
-      <MatchHistory homeSchoolId=... awaySchoolId=... />
-    </TableRow>
-  </CollapsibleContent>
-</Collapsible>
-```
-
-**Mobile approach:** On screens < 640px, hide `<TableHeader>` and style each `<TableRow>` as a stacked card using Tailwind responsive utilities. The date and venue appear as small labels above/below the teams row.
-
-**Search filtering:** Pure client-side filter on the already-fetched fixtures array -- no additional DB queries. Filters where either `home_school.name` or `away_school.name` includes the search string (case-insensitive).
+**`src/pages/SchoolProfile.tsx`**
+- Import `FixtureTable` from `@/components/fixtures/FixtureTable`
+- Replace the Upcoming Fixtures card content (lines 383-456) with: `<FixtureTable fixtures={upcomingFixtures} />`
+- Replace the Recent Results card content (lines 471-535) with: `<FixtureTable fixtures={recentResults} />`
+- Update the fixture queries to also select tournament data (join `tournaments` table via `tournament_id`) so tournament names appear in brackets after the date
+- Remove unused imports that were only needed for the old inline fixture rendering (e.g., `Flame` if no longer used elsewhere, inline school button markup)
