@@ -50,7 +50,7 @@ const Fixtures = () => {
 
   // Handle prediction submission
   const handlePredictionSubmit = useCallback(
-    async (fixtureId: string, team: "home" | "away", margin: number, schoolId: string) => {
+    async (fixtureId: string, schoolId: string, margin: number) => {
       if (!userId) {
         toast({
           title: "Sign in required",
@@ -59,6 +59,10 @@ const Fixtures = () => {
         });
         return;
       }
+
+      // Derive predicted_team from schoolId for DB compatibility
+      const fixture = groupedFixtures.flatMap(g => g.fixtures).find(f => f.id === fixtureId);
+      const predictedTeam = fixture && schoolId === fixture.home_school_id ? "home" : "away";
 
       try {
         // Check if prediction exists
@@ -70,22 +74,20 @@ const Fixtures = () => {
           .single();
 
         if (existing) {
-          // Update
           await supabase
             .from("predictions")
             .update({
-              predicted_team: team,
+              predicted_team: predictedTeam,
               predicted_margin: margin,
               predicted_school_id: schoolId,
               updated_at: new Date().toISOString(),
             })
             .eq("id", existing.id);
         } else {
-          // Insert
           await supabase.from("predictions").insert({
             fixture_id: fixtureId,
             user_id: userId,
-            predicted_team: team,
+            predicted_team: predictedTeam,
             predicted_margin: margin,
             predicted_school_id: schoolId,
           });

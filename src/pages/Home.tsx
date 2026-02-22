@@ -25,7 +25,7 @@ const Home = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
-  const [localPredictions, setLocalPredictions] = useState<Record<string, { team: "home" | "away", margin: number, schoolId: string }>>({});
+  const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string, margin: number }>>({});
   
   // Auth and profile data
   const {
@@ -61,13 +61,17 @@ const Home = () => {
   const predictions = { ...dbPredictions, ...localPredictions };
 
   // Handle prediction submission - saves to DB and updates local state
-  const handlePredictionMade = useCallback(async (matchId: string, team: "home" | "away", margin: number, schoolId: string) => {
+  const handlePredictionMade = useCallback(async (matchId: string, schoolId: string, margin: number) => {
     if (!user?.id) return;
+
+    // Find the fixture to derive home/away for DB column
+    const fixture = [...upcomingFixtures, userSchoolFixture].find(f => f?.id === matchId);
+    const predictedTeam = fixture && schoolId === fixture.home_school.id ? "home" : "away";
 
     // Update local state immediately for instant feedback
     setLocalPredictions(prev => ({
       ...prev,
-      [matchId]: { team, margin, schoolId }
+      [matchId]: { schoolId, margin }
     }));
 
     // Save to database
@@ -77,7 +81,7 @@ const Home = () => {
         {
           fixture_id: matchId,
           user_id: user.id,
-          predicted_team: team,
+          predicted_team: predictedTeam,
           predicted_margin: margin,
           predicted_school_id: schoolId,
         },
@@ -86,17 +90,15 @@ const Home = () => {
 
     if (error) {
       console.error("Error saving prediction:", error);
-      // Remove from local state on failure
       setLocalPredictions(prev => {
         const next = { ...prev };
         delete next[matchId];
         return next;
       });
     } else {
-      // Invalidate predictions cache so it refetches
       queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
     }
-  }, [user?.id, queryClient]);
+  }, [user?.id, queryClient, upcomingFixtures, userSchoolFixture]);
 
   // Helper to format match time
   const formatMatchTime = (matchDate: string, status: string) => {
@@ -258,9 +260,9 @@ const Home = () => {
                   matchId={fixture.id}
                   priority={index < 2}
                   isPredicted={!!predictions[fixture.id]}
-                  predictedTeam={predictions[fixture.id]?.team}
+                  predictedSchoolId={predictions[fixture.id]?.schoolId}
                   predictedMargin={predictions[fixture.id]?.margin}
-                  onPredictionMade={(team, margin, schoolId) => handlePredictionMade(fixture.id, team, margin, schoolId)}
+                  onPredictionMade={(schoolId, margin) => handlePredictionMade(fixture.id, schoolId, margin)}
                 />
               ))}
             </div>

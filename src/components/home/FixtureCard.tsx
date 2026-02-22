@@ -25,9 +25,9 @@ interface FixtureCardProps {
   matchId?: string;
   appliesTo?: string[];
   isPredicted?: boolean;
-  predictedTeam?: "home" | "away";
+  predictedSchoolId?: string;
   predictedMargin?: number;
-  onPredictionMade?: (team: "home" | "away", margin: number, schoolId: string) => void;
+  onPredictionMade?: (schoolId: string, margin: number) => void;
   priority?: boolean;
 }
 
@@ -49,7 +49,7 @@ export const FixtureCard = ({
   matchId,
   appliesTo = [],
   isPredicted = false,
-  predictedTeam,
+  predictedSchoolId,
   predictedMargin,
   onPredictionMade,
   priority = false
@@ -57,12 +57,14 @@ export const FixtureCard = ({
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handlePredictionSubmit = (team: "home" | "away", margin: number, schoolId: string) => {
-    onPredictionMade?.(team, margin, schoolId);
+  const handlePredictionSubmit = (schoolId: string, margin: number) => {
+    onPredictionMade?.(schoolId, margin);
   };
 
-  const predictedTeamName = predictedTeam === "home" ? homeTeamShort : awayTeamShort;
-  const predictedTeamFullName = predictedTeam === "home" ? homeTeam : awayTeam;
+  // Resolve predicted school name from ID
+  const predictedSchoolName = predictedSchoolId === homeSchoolId ? homeTeam 
+    : predictedSchoolId === awaySchoolId ? awayTeam 
+    : undefined;
 
   return (
     <>
@@ -135,7 +137,7 @@ export const FixtureCard = ({
               <>
                 <Lock className="w-5 h-5 text-primary" />
                 <span className="text-xs font-semibold text-primary text-center">
-                  {predictedTeamName} by {predictedMargin}
+                  {predictedSchoolName} by {predictedMargin}
                 </span>
               </>
             ) : onPredictionMade ? (

@@ -22,7 +22,7 @@ interface PredictionDialogProps {
   awaySchoolId?: string;
   matchId?: string;
   appliesTo?: string[];
-  onPredictionSubmit?: (team: "home" | "away", margin: number, schoolId: string) => void;
+  onPredictionSubmit?: (schoolId: string, margin: number) => void;
 }
 
 export const PredictionDialog = ({
@@ -48,7 +48,7 @@ export const PredictionDialog = ({
     const winner = selectedTeam === "home" ? homeTeam : awayTeam;
     
     const schoolId = selectedTeam === "home" ? homeSchoolId : awaySchoolId;
-    onPredictionSubmit?.(selectedTeam, margin, schoolId || "");
+    onPredictionSubmit?.(schoolId || "", margin);
     
     toast({
       title: "Locked in. Let's go.",
