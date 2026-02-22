@@ -1,102 +1,79 @@
 
 
-## Consolidate School Tables into Single `schools` Table
+## Add Polymorphic `venue_id` + `venue_type` to Fixtures
 
-This is a significant refactoring that touches the edge function, admin UI, user-facing request modal, and query hooks. The old `school_submissions` and `school_requests` tables have already been dropped, so all references must be updated.
+Replace the free-text `venue` column with a `venue_type` enum and a polymorphic `venue_id` UUID. The app resolves `venue_id` against either the `schools` or `tournaments` table based on `venue_type`.
 
 ### Database Migration
 
-Add columns to `schools` that the request workflow previously stored in `school_requests`:
-
-- `school_type` (text, nullable) -- boys/girls/co-ed
-- `note_to_admin` (text, nullable)
-- `submitted_by_user_id` (uuid, nullable)
-- `request_logo_url` (text, nullable) -- logo uploaded during request
-
-Also update the default status from `'verified'` to `'approved'` to match the new enum vocabulary:
+1. Add `venue_type` column (text, nullable, default `'home'`) with allowed values: `home`, `away`, `neutral`, `tournament`
+2. Add `venue_id` column (UUID, nullable) -- no FK constraint since it's polymorphic
+3. Backfill existing data: set `venue_type = 'home'` and `venue_id = home_school_id` for all rows (best guess)
+4. Rename `venue` to `venue_legacy` to preserve data during migration (can be dropped later)
 
 ```text
-Status values: draft, pending_review, approved, rejected, archived
+New columns on fixtures:
+  venue_type  text     DEFAULT 'home'  (home | away | neutral | tournament)
+  venue_id    uuid     nullable
+  venue_legacy text    (renamed from venue, kept for reference)
 ```
 
-Update existing `'verified'` rows to `'approved'`.
+### 1. Bulk Parser: `src/lib/fixtureParser/multiSchoolParser.ts`
 
-### 1. Edge Function: `supabase/functions/school-onboarding/index.ts`
+Update `BulkFixtureRow` interface:
+- Add `venueType: "home" | "away" | "tournament"` and `venueId: string`
 
-**`handleSubmitForm`** -- Change from inserting into `school_submissions` to inserting into `schools`:
-- Generate slug from `full_official_name`
-- Insert with `status: 'pending_review'`, `is_visible: false`
-- Map fields using standardized names:
-  - `school_motto` to `motto`
-  - `number_of_springboks` to `springboks_count`
-  - `school_trivia` to `trivia_fact`
-  - `crest_image_url` to `emblem_url`
-  - `primary_colour` / `secondary_colour` to `primary_color` / `secondary_color`
-- Store `contact_name`, `contact_email`, `contact_phone`, `invitation_id`
+Update `parseFixtureLine`:
+- If `homeAway === "home"`, set `venueType = "home"`, `venueId = homeTeamId`
+- If `homeAway === "away"`, set `venueType = "away"`, `venueId = awayTeamId`
+- If a tournament is detected, set `venueType = "tournament"`, `venueId = tournamentId`
 
-**`handleUploadCrest`** -- No change needed (only touches `school_invitations` and storage).
+### 2. Admin UI: `CreateFixtureDialog.tsx`
 
-### 2. User-Facing Request Modal: `SchoolRequestModal.tsx`
+Replace the venue text input with a venue type selector:
 
-Change from inserting into `school_requests` to inserting into `schools`:
-- Generate slug from school name
-- Set `status: 'draft'`, `is_visible: false`
-- Map `school_type`, `province`, `note_to_admin`, `submitted_by_user_id`
-- Store logo as `request_logo_url`
+- Add state: `venueType` (default `"home"`) and computed `venueId`
+- Add a `ToggleGroup` with three options: **Home**, **Away**, **Tournament**
+- When **Home** selected: `venueId` auto-set to `homeSchoolId`, display home school name (read-only)
+- When **Away** selected: `venueId` auto-set to `awaySchoolId`, display away school name (read-only)
+- When **Tournament** selected: show tournament combobox (already exists), `venueId` set to selected `tournamentId`
+- On submit: include `venue_type` and `venue_id` in the fixture data; set `venue` to resolved name for backward compat or to `"TBD"` if not yet resolved
 
-### 3. Admin UI Updates
+Remove the old venue text `<Input>` field.
 
-**`SchoolOnboardingTab.tsx`** -- No change needed (reads from `school_invitations`, which still exists).
+### 3. Admin UI: `EditFixtureDialog.tsx`
 
-**`ReviewSubmissionDialog.tsx`** -- Change to read from `schools` table:
-- Fetch by `invitation_id` instead of from `school_submissions`
-- Display using standardized column names (motto, springboks_count, trivia_fact, etc.)
-- **Approve action**: Update status to `'approved'`, set `is_visible: true`
-- **Reject action**: Update status to `'rejected'`
-- Remove the old logic that created a new school row on approve (it already exists)
+Same changes as Create:
+- Initialize `venueType` from `fixture.venue_type` (fall back to `"home"`)
+- Add ToggleGroup for venue type selection
+- Replace venue text input with auto-resolved display
+- On submit: include `venue_type` and `venue_id`
 
-**`SchoolRequestsTable.tsx`** -- Change to read from `schools` table:
-- Query `schools` where `status = 'draft'` (user-submitted requests)
-- Adapt grouping logic to work with schools columns
-- Map old column names to new ones
+### 4. Display: `FixtureListCard.tsx`
 
-**`ReviewSchoolRequestDialog.tsx`** -- Update to work with `schools` table:
-- Change decline action from updating `school_requests` to updating `schools.status = 'rejected'`
-- Change approve flow: instead of creating a new school, just update status to `'approved'` and `is_visible: true`
+Update venue display logic:
+- Accept `venue_type` and `venue_id` in the fixture interface (alongside `home_school` and `away_school`)
+- If `venue_type === "home"`: show home school name
+- If `venue_type === "away"`: show away school name
+- If `venue_type === "tournament"` and tournament exists: show tournament name
+- Fallback: show `venue_legacy` or "TBD"
 
-**`CreateSchoolDialog.tsx`** -- Remove the block (lines 279-291) that updates `school_requests` on success.
-
-**`AdminLayout.tsx`** -- No structural change, but the "Requests" tab now reads draft schools.
-
-### 4. Query Hooks
-
-**`useSchoolsQuery.ts`** -- Change `status: 'verified'` filter to `status: 'approved'`:
-- Line 41: `.eq("status", "approved")`
-- Line 74: `.eq("status", "approved")`
-
-This ensures drafts, pending_review, and rejected schools are excluded from public-facing views.
-
-**`fuzzyMatchSchool`** in `src/lib/fixtureParser/` -- Already works against the schools list provided by `useSchoolsQuery`, which will now only return approved schools. No change needed.
-
-### 5. Cleanup
-
-- Remove all `'school_submissions'` and `'school_requests'` string references across the codebase (7 files affected)
-- The TypeScript types file (`types.ts`) will auto-regenerate after migration
-
-### Files Changed Summary
+### 5. Other Files Affected
 
 | File | Change |
 |------|--------|
-| **Migration SQL** | Add columns, update status values |
-| `supabase/functions/school-onboarding/index.ts` | Insert into `schools` instead of `school_submissions` |
-| `src/components/auth/SchoolRequestModal.tsx` | Insert into `schools` instead of `school_requests` |
-| `src/components/admin/ReviewSubmissionDialog.tsx` | Read from `schools`, simplify approve/reject |
-| `src/components/admin/SchoolRequestsTable.tsx` | Query `schools` where status = 'draft' |
-| `src/components/admin/ReviewSchoolRequestDialog.tsx` | Update `schools` status instead of `school_requests` |
-| `src/components/admin/CreateSchoolDialog.tsx` | Remove `school_requests` update block |
-| `src/hooks/useSchoolsQuery.ts` | Change 'verified' to 'approved' |
+| `src/hooks/useFixturesData.ts` | Add `venue_type, venue_id` to select; keep `venue` as `venue_legacy` if renamed |
+| `src/hooks/usePrefetch.ts` | Add `venue_type, venue_id` to select |
+| `src/components/admin/FixturesTable.tsx` | Update venue column display to resolve from `venue_type`/`venue_id` |
+| `src/components/scores/SchoolScoreSubmission.tsx` | Update venue display |
+| `src/components/home/FixtureCard.tsx` | Update venue display if it uses venue text |
+| `src/components/home/SchoolFixtureCard.tsx` | Update venue display |
+| `supabase/functions/seed-fixtures/index.ts` | Update to use `venue_type`/`venue_id` if it sets venue |
 
-### Risk Mitigation
+### Technical Notes
 
-- The `SchoolRequestModal` needs RLS consideration: currently schools INSERT requires admin role. A new RLS policy will be needed to allow authenticated users to insert schools with `status = 'draft'`.
-- The edge function uses service role key so it bypasses RLS -- no policy change needed there.
+- The `venue` column rename to `venue_legacy` ensures no data loss. It can be dropped in a future migration once all data is verified.
+- Since `venue_id` has no FK constraint, the app must handle cases where the referenced school/tournament is deleted (show "Unknown" or fallback).
+- The `venue_type` column uses text (not a Postgres enum) to keep migrations simple and avoid enum-alter headaches.
+- The ToggleGroup component already exists in `src/components/ui/toggle-group.tsx`.
+
