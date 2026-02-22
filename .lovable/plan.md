@@ -1,79 +1,82 @@
 
 
-## Rename `home_school_id` / `away_school_id` to `school_a_id` / `school_b_id`
+## Drop `venue_legacy` and resolve venue from `venue_type` + `venue_id` / `tournament_id`
 
 ### Overview
-Rename the database columns and all code references so that the two schools in a fixture are simply "School A" and "School B" -- removing any implication that column order determines venue or home advantage. The venue continues to be driven solely by `venue_type` and `venue_id`.
+Remove the `venue_legacy` column from fixtures. Keep `tournament_id`. The venue location displayed to users will be resolved dynamically:
+- If `venue_type = 'tournament'`, the location name comes from the tournament joined via `tournament_id`
+- If `venue_type = 'school'`, the location name comes from the school referenced by `venue_id`
 
-This also means renaming `home_score` / `away_score` to `score_a` / `score_b` for consistency, and updating the `predicted_team` values from `"home"` / `"away"` to `"school_a"` / `"school_b"`.
+This eliminates the redundant free-text `venue_legacy` column while keeping the `tournament_id` foreign key for direct tournament queries.
 
 ---
 
 ### Step 1: Database Migration
 
-A single migration to:
+1. Backfill: For any fixture where `tournament_id IS NOT NULL` but `venue_type` is not `'tournament'`, update `venue_type = 'tournament'`.
+2. Drop the `venue_legacy` column.
 
-1. Rename columns on `fixtures`:
-   - `home_school_id` -> `school_a_id`
-   - `away_school_id` -> `school_b_id`
-   - `home_score` -> `score_a`
-   - `away_score` -> `score_b`
+```text
+UPDATE fixtures
+SET venue_type = 'tournament'
+WHERE tournament_id IS NOT NULL AND venue_type != 'tournament';
 
-2. Rename foreign key constraints:
-   - Drop `fixtures_home_school_id_fkey` and `fixtures_away_school_id_fkey`
-   - Create `fixtures_school_a_id_fkey` and `fixtures_school_b_id_fkey`
-
-3. Recreate the mirror-pair index using the new column names.
-
-4. Update `predictions` data: change `predicted_team` values from `'home'` -> `'school_a'` and `'away'` -> `'school_b'`.
+ALTER TABLE fixtures DROP COLUMN venue_legacy;
+```
 
 ---
 
-### Step 2: Update All Source Files (~20 files)
+### Step 2: Create a shared venue resolution utility
 
-Every reference to `home_school_id`, `away_school_id`, `home_school`, `away_school`, `home_score`, `away_score` in the context of fixtures needs to be renamed to `school_a_id`, `school_b_id`, `school_a`, `school_b`, `score_a`, `score_b`.
+Create `src/lib/venueUtils.ts` with a helper function:
 
-**Files to update:**
+```text
+resolveVenueName(fixture):
+  if venue_type === 'tournament' and tournament exists:
+    return tournament.name
+  if venue_type === 'school' and venue_id matches school_a or school_b:
+    return that school's name
+  return 'TBD'
+```
+
+This avoids duplicating venue resolution logic across many components.
+
+---
+
+### Step 3: Update all files referencing `venue_legacy`
+
+**17 files** need updates to remove `venue_legacy` from interfaces, queries, and display logic, replacing it with the resolved venue name:
 
 | File | Changes |
 |------|---------|
-| `src/components/fixtures/FixtureTable.tsx` | Rename `Fixture` interface fields, `sortSchoolsAlpha` references, search filter |
-| `src/components/fixtures/FixtureListCard.tsx` | Rename interface fields, `getVenue` logic, `FixtureCard` props |
-| `src/components/fixtures/MatchHistory.tsx` | Rename `HistoricalFixture` fields, query columns, score resolution logic |
-| `src/hooks/useFixturesData.ts` | Rename interface, query select columns, foreign key aliases, filter logic |
-| `src/hooks/useHomeFixtures.ts` | Rename `FixtureWithSchools` interface, query, transform function, filters |
-| `src/hooks/usePrefetch.ts` | Rename query select columns and foreign key aliases |
-| `src/pages/Fixtures.tsx` | Rename `predicted_team` derivation (`"home"`/`"away"` -> `"school_a"`/`"school_b"`) |
-| `src/pages/Home.tsx` | Same `predicted_team` derivation rename |
-| `src/pages/SchoolProfile.tsx` | Rename query columns, foreign key aliases, filter logic |
-| `src/pages/Tournament.tsx` | Rename query columns and foreign key aliases |
-| `src/pages/PoolLeaderboard.tsx` | Rename filter references |
-| `src/components/admin/FixturesTable.tsx` | Rename column headers, sort mapping, search filter, display references |
-| `src/components/admin/CreateFixtureDialog.tsx` | Rename fixture data fields, duplicate check query |
-| `src/components/admin/EditFixtureDialog.tsx` | Rename all `home_school_id`/`away_school_id` references, venue logic |
-| `src/components/admin/ImportFixturesButton.tsx` | Rename CSV column mapping and fixture object fields |
-| `src/components/admin/BulkYearCorrectionDialog.tsx` | Rename `homeName`/`awayName` display fields |
-| `src/components/scores/MatchScoreSubmission.tsx` | Rename interface, query, `isUserHomeTeam` -> `isUserSchoolA`, display |
-| `src/components/scores/SchoolScoreSubmission.tsx` | Same as above |
-| `src/components/home/HomeCarousel.tsx` | Rename derby query foreign key aliases |
-| `src/components/home/DerbySlide.tsx` | Rename `home_school`/`away_school` prop references |
-| `src/components/home/SchoolFixtureCard.tsx` | Rename fixture prop references |
-| `src/components/auth/signup-steps/StepNextMatch.tsx` | Rename query and display references |
+| `src/hooks/useFixturesData.ts` | Remove `venue_legacy` from query select and interface |
+| `src/hooks/useHomeFixtures.ts` | Remove `venue_legacy` from query; resolve venue from joined tournament/school data |
+| `src/hooks/usePrefetch.ts` | Remove `venue_legacy` from query select |
+| `src/components/fixtures/FixtureTable.tsx` | Remove `venue_legacy` from `Fixture` interface; display resolved venue name using tournament join or school_a/school_b match against venue_id |
+| `src/components/fixtures/FixtureListCard.tsx` | Remove `venue_legacy` fallback from `getVenue()`; it already resolves from venue_type/venue_id |
+| `src/components/home/HomeCarousel.tsx` | Remove `venue_legacy` from interface and query |
+| `src/components/home/DerbySlide.tsx` | Remove `venue_legacy` from interface |
+| `src/components/scores/MatchScoreSubmission.tsx` | Remove `venue_legacy` from interface and query; resolve venue from school data |
+| `src/components/scores/SchoolScoreSubmission.tsx` | Remove `venue_legacy` from interface and query; resolve venue from school data |
+| `src/components/auth/signup-steps/StepNextMatch.tsx` | Remove `venue_legacy` from interface and query; resolve venue from joined tournament or school |
+| `src/pages/Fixtures.tsx` | Remove `venue_legacy` from fixture pass-through |
+| `src/pages/SchoolProfile.tsx` | Remove `venue_legacy` from queries |
+| `src/pages/Tournament.tsx` | Remove `venue_legacy` from display; resolve venue from tournament data (already available on the page) |
+| `src/components/admin/FixturesTable.tsx` | Remove `venue_legacy` from search/display; resolve venue using the existing `schools` and `tournaments` maps |
+| `src/components/admin/CreateFixtureDialog.tsx` | Remove `venue_legacy` / `venueLegacy` computation from insert data |
+| `src/components/admin/EditFixtureDialog.tsx` | Remove `venue_legacy` / `venueLegacy` computation from update data |
+| `src/components/admin/ImportFixturesButton.tsx` | Remove `venue_legacy` from fixture object |
 
 ---
 
-### Step 3: Update Admin Table Headers
+### Step 4: Fix HistoricalFixturesUpload (bonus cleanup)
 
-In `FixturesTable.tsx`, rename the column headers:
-- "Home" -> "School A"
-- "Away" -> "School B"
-
-The sort field type values `'home'` / `'away'` become `'school_a'` / `'school_b'` and map to `school_a_id` / `school_b_id`.
+`src/components/admin/HistoricalFixturesUpload.tsx` still uses old column names (`home_school_id`, `away_school_id`, `venue`). Update to use `school_a_id`, `school_b_id`, `score_a`, `score_b`, and remove the `venue` field (was mapping to `venue_legacy`). Set `venue_type` and `venue_id` based on `tournament_id` presence.
 
 ---
 
 ### Key Principle
-- The venue is always determined by `venue_id` + `venue_type` -- never by which column a school is in
-- `school_a` and `school_b` are interchangeable positions with no semantic meaning beyond "the two teams playing"
-- Scores `score_a` and `score_b` correspond to the school in the respective column
+- `tournament_id` stays as a first-class FK for querying tournament fixtures
+- `venue_type` determines where the location name comes from: `'tournament'` reads from the tournament join, `'school'` reads from `venue_id` matched against school data
+- No more free-text venue field -- venue is always resolved from structured data
 
