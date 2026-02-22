@@ -971,7 +971,44 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
           {bulkResult.province && (
             <Badge variant="outline">{bulkResult.province}</Badge>
           )}
-          <Badge variant="outline">{bulkResult.year}</Badge>
+          <Select
+            value={bulkResult.year}
+            onValueChange={(val) => {
+              setBulkResult(prev => {
+                if (!prev) return prev;
+                const yearNum = parseInt(val);
+                const updated = { ...prev, year: val };
+                // Update all fixtures' year and matchDate year
+                updated.schoolSections = prev.schoolSections.map(section => ({
+                  ...section,
+                  fixtures: section.fixtures.map(f => {
+                    const oldDate = f.matchDate ? new Date(f.matchDate) : null;
+                    let newMatchDate = f.matchDate;
+                    if (oldDate) {
+                      oldDate.setFullYear(yearNum);
+                      newMatchDate = oldDate.toISOString();
+                    }
+                    return {
+                      ...f,
+                      year: val,
+                      matchDate: newMatchDate,
+                      result: yearNum >= UPCOMING_YEAR_THRESHOLD ? "upcoming" as const : f.result,
+                    };
+                  }),
+                }));
+                return updated;
+              });
+            }}
+          >
+            <SelectTrigger className="h-6 w-[80px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Badge variant="secondary" className="gap-1">
             <CheckCircle2 className="h-3 w-3" />
             {matchedSchools} matched
@@ -1045,39 +1082,65 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                               fixture.isCancelled && "bg-amber-50 dark:bg-amber-950/20",
                             )}
                           >
-                            <td className="px-3 py-2 text-xs">
-                              {fixture.matchDate ? format(new Date(fixture.matchDate), "dd MMM") : "—"}
+                            <td className="px-3 py-2">
+                              <Input
+                                value={fixture.matchDate ? format(new Date(fixture.matchDate), "dd MMM") : ""}
+                                onChange={(e) => {
+                                  // Try to parse date like "09 Mar"
+                                  const val = e.target.value.trim();
+                                  const match = val.match(/^(\d{1,2})\s+([A-Za-z]{3})$/);
+                                  if (match) {
+                                    const months: Record<string, number> = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+                                    const m = months[match[2].toLowerCase()];
+                                    if (m !== undefined) {
+                                      const yr = parseInt(bulkResult?.year || "2025");
+                                      const d = new Date(yr, m, parseInt(match[1]), 14, 0, 0);
+                                      updateBulkFixture(sectionIndex, fixtureIndex, "matchDate", d.toISOString());
+                                    }
+                                  }
+                                }}
+                                className="h-7 text-xs w-[70px] px-1"
+                                placeholder="DD MMM"
+                              />
                             </td>
                             <td className="px-3 py-2">
-                              <div className="flex items-center gap-1">
-                                <span className={cn("text-xs", !fixture.homeTeamId && "text-amber-600")}>
-                                  {fixture.homeTeamName}
-                                </span>
-                                {!fixture.homeTeamId && (
-                                  <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
-                                )}
-                              </div>
+                              <Input
+                                value={fixture.homeTeamName}
+                                onChange={(e) => updateBulkFixture(sectionIndex, fixtureIndex, "homeTeamName", e.target.value)}
+                                className={cn("h-7 text-xs w-full px-1", !fixture.homeTeamId && "border-amber-400")}
+                              />
                             </td>
                             <td className="px-3 py-2 text-center">
                               {fixture.isCancelled ? (
                                 <span className="text-xs text-amber-600 font-medium">CXL</span>
                               ) : (
-                                <span className="text-xs font-mono">
-                                  {fixture.homeAway === "home" ? fixture.scoreFor : fixture.scoreAgainst}
-                                  {" - "}
-                                  {fixture.homeAway === "home" ? fixture.scoreAgainst : fixture.scoreFor}
-                                </span>
+                                <div className="flex items-center justify-center gap-1">
+                                  <Input
+                                    value={fixture.homeAway === "home" ? fixture.scoreFor : fixture.scoreAgainst}
+                                    onChange={(e) => {
+                                      const field = fixture.homeAway === "home" ? "scoreFor" : "scoreAgainst";
+                                      updateBulkFixture(sectionIndex, fixtureIndex, field, e.target.value);
+                                    }}
+                                    className="h-7 text-xs w-[40px] px-1 text-center font-mono"
+                                  />
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                  <Input
+                                    value={fixture.homeAway === "home" ? fixture.scoreAgainst : fixture.scoreFor}
+                                    onChange={(e) => {
+                                      const field = fixture.homeAway === "home" ? "scoreAgainst" : "scoreFor";
+                                      updateBulkFixture(sectionIndex, fixtureIndex, field, e.target.value);
+                                    }}
+                                    className="h-7 text-xs w-[40px] px-1 text-center font-mono"
+                                  />
+                                </div>
                               )}
                             </td>
                             <td className="px-3 py-2">
-                              <div className="flex items-center gap-1">
-                                <span className={cn("text-xs", !fixture.awayTeamId && "text-amber-600")}>
-                                  {fixture.awayTeamName}
-                                </span>
-                                {!fixture.awayTeamId && (
-                                  <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
-                                )}
-                              </div>
+                              <Input
+                                value={fixture.awayTeamName}
+                                onChange={(e) => updateBulkFixture(sectionIndex, fixtureIndex, "awayTeamName", e.target.value)}
+                                className={cn("h-7 text-xs w-full px-1", !fixture.awayTeamId && "border-amber-400")}
+                              />
                             </td>
                             <td className="px-3 py-2 text-center">
                               <Select
@@ -1097,9 +1160,15 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                               </Select>
                             </td>
                             <td className="px-3 py-2">
-                              <span className="text-xs text-muted-foreground">
-                                {fixture.tournamentId ? getTournamentName(fixture.tournamentId) : fixture.festivalName || "—"}
-                              </span>
+                              <Input
+                                value={fixture.tournamentId ? getTournamentName(fixture.tournamentId) : fixture.festivalName || ""}
+                                onChange={(e) => {
+                                  updateBulkFixture(sectionIndex, fixtureIndex, "festivalName", e.target.value);
+                                  updateBulkFixture(sectionIndex, fixtureIndex, "tournamentId", "");
+                                }}
+                                className="h-7 text-xs w-full px-1"
+                                placeholder="—"
+                              />
                             </td>
                             <td className="px-3 py-2">
                               <Button
