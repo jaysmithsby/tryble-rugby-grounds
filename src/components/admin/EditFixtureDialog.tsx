@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
   
   // Form state
   const [matchDate, setMatchDate] = useState<Date | undefined>();
-  const [venue, setVenue] = useState("");
+  const [venueType, setVenueType] = useState<"home" | "away" | "tournament">("home");
   const [tournamentId, setTournamentId] = useState("");
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
@@ -112,7 +112,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
       
       // Initialize form with fixture data
       setMatchDate(fixture.match_date ? new Date(fixture.match_date) : undefined);
-      setVenue(fixture.venue || "");
+      setVenueType(fixture.venue_type || "home");
       setTournamentId(fixture.tournament_id || "none");
       setHomeScore(fixture.home_score !== null ? String(fixture.home_score) : "");
       setAwayScore(fixture.away_score !== null ? String(fixture.away_score) : "");
@@ -169,10 +169,31 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
     setLoading(true);
 
     try {
+      const resolvedTournamentId = tournamentId && tournamentId !== "none" ? tournamentId : null;
+      let computedVenueId: string | null = null;
+      if (venueType === "home") {
+        computedVenueId = fixture.home_school_id;
+      } else if (venueType === "away") {
+        computedVenueId = fixture.away_school_id;
+      } else if (venueType === "tournament" && resolvedTournamentId) {
+        computedVenueId = resolvedTournamentId;
+      }
+
+      let venueLegacy = "TBD";
+      if (venueType === "home") {
+        venueLegacy = getSchoolName(fixture.home_school_id);
+      } else if (venueType === "away") {
+        venueLegacy = getSchoolName(fixture.away_school_id);
+      } else if (venueType === "tournament" && resolvedTournamentId) {
+        venueLegacy = tournaments.find(t => t.id === resolvedTournamentId)?.name || "TBD";
+      }
+
       const updateData = {
         match_date: matchDate.toISOString(),
-        venue: venue || "TBD",
-        tournament_id: tournamentId && tournamentId !== "none" ? tournamentId : null,
+        venue_legacy: venueLegacy,
+        venue_type: venueType,
+        venue_id: computedVenueId,
+        tournament_id: resolvedTournamentId,
         home_score: homeScore ? parseInt(homeScore) : null,
         away_score: awayScore ? parseInt(awayScore) : null,
         status,
@@ -276,33 +297,62 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
             </Popover>
           </div>
 
-          {/* Venue */}
+          {/* Venue Type */}
           <div className="space-y-2">
-            <Label htmlFor="venue">Venue</Label>
-            <Input
-              id="venue"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              placeholder="e.g., Grey College Stadium"
-            />
-          </div>
-
-          {/* Tournament */}
-          <div className="space-y-2">
-            <Label>Tournament (Optional)</Label>
-            <Select value={tournamentId} onValueChange={setTournamentId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tournament (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {tournaments.map((tournament) => (
-                  <SelectItem key={tournament.id} value={tournament.id}>
-                    {tournament.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Venue</Label>
+            <div className="flex gap-1 rounded-lg border p-1">
+              {(["home", "away", "tournament"] as const).map((type) => (
+                <Button
+                  key={type}
+                  type="button"
+                  variant={venueType === type ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 capitalize"
+                  onClick={() => setVenueType(type)}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
+            {venueType === "home" && (
+              <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.home_school_id)}</p>
+            )}
+            {venueType === "away" && (
+              <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.away_school_id)}</p>
+            )}
+            {venueType === "tournament" && (
+              <Select value={tournamentId} onValueChange={setTournamentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select tournament..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {tournaments.map((tournament) => (
+                    <SelectItem key={tournament.id} value={tournament.id}>
+                      {tournament.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {(venueType !== "tournament") && (
+              <div className="space-y-2">
+                <Label>Tournament (Optional)</Label>
+                <Select value={tournamentId} onValueChange={setTournamentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select tournament (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {tournaments.map((tournament) => (
+                      <SelectItem key={tournament.id} value={tournament.id}>
+                        {tournament.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Status */}

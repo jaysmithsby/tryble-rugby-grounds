@@ -16,7 +16,7 @@ import { CACHE_TIMES } from "@/lib/queryConfig";
 export interface FixtureWithSchools {
   id: string;
   match_date: string;
-  venue: string;
+  venue: string; // mapped from venue_legacy
   status: string;
   home_score: number | null;
   away_score: number | null;
@@ -40,7 +40,7 @@ export interface FixtureWithSchools {
 const FIXTURE_SELECT = `
   id,
   match_date,
-  venue,
+  venue_legacy,
   status,
   home_score,
   away_score,
@@ -57,7 +57,7 @@ function mapFixture(f: any): FixtureWithSchools {
   return {
     id: f.id,
     match_date: f.match_date,
-    venue: f.venue,
+    venue: f.venue_legacy || 'TBD',
     status: f.status,
     home_score: f.home_score,
     away_score: f.away_score,

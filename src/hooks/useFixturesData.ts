@@ -14,7 +14,9 @@ interface FixtureSchool {
 interface FixtureWithSchools {
   id: string;
   match_date: string;
-  venue: string;
+  venue_legacy: string;
+  venue_type: string | null;
+  venue_id: string | null;
   status: string;
   home_school_id: string;
   away_school_id: string;
@@ -154,7 +156,9 @@ export const useFixturesData = ({
         .select(`
           id,
           match_date,
-          venue,
+          venue_legacy,
+          venue_type,
+          venue_id,
           status,
           home_school_id,
           away_school_id,

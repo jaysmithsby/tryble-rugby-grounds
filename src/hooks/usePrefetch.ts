@@ -112,7 +112,9 @@ export function usePrefetch() {
           .select(`
             id,
             match_date,
-            venue,
+            venue_legacy,
+            venue_type,
+            venue_id,
             status,
             home_school_id,
             away_school_id,

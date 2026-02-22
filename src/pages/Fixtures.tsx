@@ -191,7 +191,9 @@ const Fixtures = () => {
                 fixture={{
                   id: fixture.id,
                   match_date: fixture.match_date,
-                  venue: fixture.venue,
+                  venue_legacy: fixture.venue_legacy,
+                  venue_type: fixture.venue_type,
+                  venue_id: fixture.venue_id,
                   status: fixture.status,
                   home_school: fixture.home_school,
                   away_school: fixture.away_school,

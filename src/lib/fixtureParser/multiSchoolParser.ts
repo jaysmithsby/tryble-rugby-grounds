@@ -17,6 +17,8 @@ export interface BulkFixtureRow extends FixtureRow {
   festivalName: string;
   isCancelled: boolean;
   sectionSchoolName: string;
+  venueType: "home" | "away" | "tournament";
+  venueId: string;
 }
 
 export interface SchoolSection {
@@ -201,6 +203,10 @@ function parseFixtureLine(
   const opponentName = sectionIsHome ? awayTeamName : homeTeamName;
   const opponentMatch = sectionIsHome ? awayMatch : homeMatch;
 
+  // Compute venue type and ID
+  const venueType: "home" | "away" | "tournament" = homeAway;
+  const venueId = homeAway === "home" ? (homeMatch?.id || '') : (awayMatch?.id || '');
+
   return {
     id: generateId(),
     year,
@@ -220,6 +226,8 @@ function parseFixtureLine(
     festivalName,
     isCancelled,
     sectionSchoolName,
+    venueType,
+    venueId,
   };
 }
 
