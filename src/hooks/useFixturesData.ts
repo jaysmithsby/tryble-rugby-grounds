@@ -159,12 +159,11 @@ export const useFixturesData = ({
 
   // Create predictions map
   const predictionsMap = useMemo(() => {
-    const map: Record<string, { team: "home" | "away"; margin: number; schoolId: string }> = {};
+    const map: Record<string, { schoolId: string; margin: number }> = {};
     for (const pred of predictions) {
       map[pred.fixture_id] = {
-        team: pred.predicted_team as "home" | "away",
-        margin: pred.predicted_margin,
         schoolId: pred.predicted_school_id,
+        margin: pred.predicted_margin,
       };
     }
     return map;

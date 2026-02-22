@@ -87,7 +87,7 @@ interface UseHomeFixturesResult {
   hasNoPools: boolean;
   fixturesLoading: boolean;
   tournamentFixtures: FixtureWithSchools[];
-  predictionsMap: Record<string, { team: "home" | "away"; margin: number; schoolId: string }>;
+  predictionsMap: Record<string, { schoolId: string; margin: number }>;
 }
 
 export function useHomeFixtures({
@@ -359,12 +359,11 @@ export function useHomeFixtures({
 
   // Build predictions map from DB data
   const predictionsMap = useMemo(() => {
-    const map: Record<string, { team: "home" | "away"; margin: number; schoolId: string }> = {};
+    const map: Record<string, { schoolId: string; margin: number }> = {};
     for (const pred of dbPredictions) {
       map[pred.fixture_id] = {
-        team: pred.predicted_team as "home" | "away",
-        margin: pred.predicted_margin,
         schoolId: pred.predicted_school_id,
+        margin: pred.predicted_margin,
       };
     }
     return map;
