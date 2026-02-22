@@ -68,17 +68,12 @@ export const useFixturesData = ({
       // 1. Get user's school from profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("school_name")
+        .select("school_id")
         .eq("id", userId)
         .single();
 
-      if (profile?.school_name) {
-        const { data: userSchool } = await supabase
-          .from("schools")
-          .select("id")
-          .eq("name", profile.school_name)
-          .single();
-        if (userSchool) schoolIds.push(userSchool.id);
+      if (profile?.school_id) {
+        schoolIds.push(profile.school_id);
       }
 
       // 2. Get schools from user's pools

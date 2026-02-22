@@ -16,7 +16,7 @@ interface SchoolSearchDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedSchool: string;
-  onSelectSchool: (school: string) => void;
+  onSelectSchool: (school: { id: string; name: string }) => void;
 }
 
 const SchoolSearchDrawer = ({
@@ -68,14 +68,15 @@ const SchoolSearchDrawer = ({
     }
   }, [open]);
 
-  const handleSelectSchool = (schoolName: string) => {
-    onSelectSchool(schoolName);
+  const handleSelectSchool = (school: { id: string; name: string }) => {
+    onSelectSchool(school);
     onOpenChange(false);
   };
 
   const handleUseCustomName = () => {
     if (searchQuery.trim()) {
-      onSelectSchool(searchQuery.trim());
+      // Custom name has no school ID
+      onSelectSchool({ id: "", name: searchQuery.trim() });
       onOpenChange(false);
     }
   };
@@ -116,9 +117,9 @@ const SchoolSearchDrawer = ({
           ) : schools.length > 0 ? (
             <div className="space-y-1">
               {schools.map((school) => (
-                <button
+                 <button
                   key={school.id}
-                  onClick={() => handleSelectSchool(school.name)}
+                  onClick={() => handleSelectSchool(school)}
                   className={cn(
                     "w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors",
                     selectedSchool === school.name

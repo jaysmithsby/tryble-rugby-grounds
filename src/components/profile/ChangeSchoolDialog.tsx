@@ -84,7 +84,8 @@ export const ChangeSchoolDialog = ({
       const { error } = await supabase
         .from("profiles")
         .update({
-          school_name: selectedSchool.name,
+          school_id: selectedSchool.id,
+          school_name_legacy: selectedSchool.name,
           school_changed_at: new Date().toISOString(),
         })
         .eq("id", user.id);

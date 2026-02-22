@@ -101,9 +101,9 @@ export default function SchoolProfile() {
         .select(`
           season_points,
           user_id,
-          profiles!inner(display_name, first_name, school_name)
+          profiles!inner(display_name, first_name, school_id)
         `)
-        .eq("profiles.school_name", schoolData.name)
+        .eq("profiles.school_id", schoolData.id)
         .order("season_points", { ascending: false })
         .limit(5);
 

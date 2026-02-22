@@ -20,6 +20,7 @@ interface OnboardingState {
   userType?: string;
   yearOfBirth?: number;
   schoolName: string;
+  schoolId?: string;
   parentEmail?: string;
   userId?: string;
 }
@@ -258,6 +259,7 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
     userType: string;
     yearOfBirth: number;
     schoolName: string;
+    schoolId?: string;
     parentEmail?: string;
   }) => {
     if (!state.userId) return;
@@ -275,7 +277,8 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
           first_name: data.firstName,
           user_type: data.userType,
           year_of_birth: data.yearOfBirth,
-          school_name: data.schoolName,
+          school_id: data.schoolId || null,
+          school_name_legacy: data.schoolName,
           contact_method: "email",
           contact_value: state.email,
           // Set account type and consent fields for minors
@@ -307,6 +310,7 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         userType: data.userType,
         yearOfBirth: data.yearOfBirth,
         schoolName: data.schoolName,
+        schoolId: data.schoolId,
         parentEmail: data.parentEmail,
         step: 4,
       });

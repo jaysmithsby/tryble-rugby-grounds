@@ -42,12 +42,12 @@ export function useHomeAuth(): UseHomeAuthResult {
       // Fetch user's profile info
       supabase
         .from("profiles")
-        .select("school_name, display_name, first_name")
+        .select("school_name_legacy, school_id, display_name, first_name, schools(name)")
         .eq("id", user.id)
         .maybeSingle()
         .then(({ data }) => {
           if (!isMounted) return;
-          const schoolName = data?.school_name || null;
+          const schoolName = (data?.schools as any)?.name || data?.school_name_legacy || null;
           const displayName = data?.display_name || data?.first_name || null;
           setUserSchoolName(schoolName);
           setUserDisplayName(displayName);
@@ -67,12 +67,12 @@ export function useHomeAuth(): UseHomeAuthResult {
         // Fetch user's profile info
         supabase
           .from("profiles")
-          .select("school_name, display_name, first_name")
+          .select("school_name_legacy, school_id, display_name, first_name, schools(name)")
           .eq("id", session.user.id)
           .maybeSingle()
           .then(({ data }) => {
             if (!isMounted) return;
-            const schoolName = data?.school_name || null;
+            const schoolName = (data?.schools as any)?.name || data?.school_name_legacy || null;
             const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
             setUserDisplayName(displayName);

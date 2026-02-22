@@ -73,12 +73,12 @@ export const Pools = () => {
       // Load user profile for school/province context
       const { data: profile } = await supabase
         .from("profiles")
-        .select("school_name, province")
+        .select("school_name_legacy, school_id, province, schools(name)")
         .eq("id", user.id)
         .single();
 
       if (profile) {
-        setUserSchool(profile.school_name);
+        setUserSchool((profile.schools as any)?.name || profile.school_name_legacy);
         setUserProvince(profile.province);
       }
 

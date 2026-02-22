@@ -124,7 +124,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, school_name, contact_method, user_type, province, school_changed_at, display_name")
+        .select("first_name, school_name_legacy, school_id, contact_method, user_type, province, school_changed_at, display_name, schools(name)")
         .eq("id", user.id)
         .single();
 
@@ -132,7 +132,7 @@ const Profile = () => {
 
       setProfile({
         firstName: data.first_name,
-        schoolName: data.school_name,
+        schoolName: (data.schools as any)?.name || data.school_name_legacy || "",
         contactMethod: data.contact_method,
         userType: data.user_type,
         province: data.province,
