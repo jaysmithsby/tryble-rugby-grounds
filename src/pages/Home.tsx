@@ -22,7 +22,7 @@ import { buildWhatsAppUrl } from "@/lib/constants";
 const Home = () => {
   const navigate = useNavigate();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
-  const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number, schoolId: string }>>({});
+  const [localPredictions, setLocalPredictions] = useState<Record<string, { team: "home" | "away", margin: number, schoolId: string }>>({});
   
   // Auth and profile data
   const {
@@ -42,6 +42,7 @@ const Home = () => {
     userSchoolFixture,
     hasNoPools,
     fixturesLoading,
+    predictionsMap: dbPredictions,
   } = useHomeFixtures({
     userId: user?.id || null,
     userSchoolName,
@@ -53,9 +54,12 @@ const Home = () => {
     profileLoaded,
   });
 
+  // Merge DB predictions with local state (local takes priority for immediate feedback)
+  const predictions = { ...dbPredictions, ...localPredictions };
+
   // Handle prediction submission
   const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number, schoolId: string) => {
-    setPredictions(prev => ({
+    setLocalPredictions(prev => ({
       ...prev,
       [matchId]: { team, margin, schoolId }
     }));

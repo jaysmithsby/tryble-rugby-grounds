@@ -87,6 +87,7 @@ interface UseHomeFixturesResult {
   hasNoPools: boolean;
   fixturesLoading: boolean;
   tournamentFixtures: FixtureWithSchools[];
+  predictionsMap: Record<string, { team: "home" | "away"; margin: number; schoolId: string }>;
 }
 
 export function useHomeFixtures({
@@ -325,6 +326,50 @@ export function useHomeFixtures({
     );
   }, [upcomingFixtures, rawTournamentFixtures]);
 
+  // Collect all fixture IDs (upcoming + user school fixture) for predictions query
+  const allFixtureIds = useMemo(() => {
+    const ids = mergedUpcomingFixtures.map(f => f.id);
+    if (userSchoolFixture && !ids.includes(userSchoolFixture.id)) {
+      ids.push(userSchoolFixture.id);
+    }
+    return ids;
+  }, [mergedUpcomingFixtures, userSchoolFixture]);
+
+  // Fetch user's existing predictions for displayed fixtures
+  const { data: dbPredictions = [] } = useQuery({
+    queryKey: ["home-predictions", userId, allFixtureIds],
+    queryFn: async () => {
+      if (!userId || allFixtureIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("predictions")
+        .select("fixture_id, predicted_team, predicted_margin, predicted_school_id")
+        .eq("user_id", userId)
+        .in("fixture_id", allFixtureIds);
+
+      if (error) {
+        console.error("Error fetching home predictions:", error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!userId && allFixtureIds.length > 0,
+    staleTime: CACHE_TIMES.DYNAMIC,
+  });
+
+  // Build predictions map from DB data
+  const predictionsMap = useMemo(() => {
+    const map: Record<string, { team: "home" | "away"; margin: number; schoolId: string }> = {};
+    for (const pred of dbPredictions) {
+      map[pred.fixture_id] = {
+        team: pred.predicted_team as "home" | "away",
+        margin: pred.predicted_margin,
+        schoolId: pred.predicted_school_id,
+      };
+    }
+    return map;
+  }, [dbPredictions]);
+
   const fixturesLoading = upcomingLoading || recentLoading || tournamentLoading;
 
   return {
@@ -334,5 +379,6 @@ export function useHomeFixtures({
     hasNoPools,
     fixturesLoading,
     tournamentFixtures: rawTournamentFixtures,
+    predictionsMap,
   };
 }
