@@ -32,16 +32,16 @@ interface UserPrediction {
 }
 
 interface UseFixturesDataOptions {
-  year: number;
-  month: number;
+  startDate: string;
+  endDate: string;
   viewMode: "my-schools" | "all-schools";
   selectedSchoolId?: string;
   selectedProvince?: string;
 }
 
 export const useFixturesData = ({
-  year,
-  month,
+  startDate,
+  endDate,
   viewMode,
   selectedSchoolId,
   selectedProvince,
@@ -72,11 +72,8 @@ export const useFixturesData = ({
   });
 
   const { data: fixtures = [], isLoading: isLoadingFixtures } = useQuery({
-    queryKey: ["fixtures", year, month, viewMode, selectedSchoolId, selectedProvince, userSchoolIds],
+    queryKey: ["fixtures", startDate, endDate, viewMode, selectedSchoolId, selectedProvince, userSchoolIds],
     queryFn: async () => {
-      const startOfMonth = new Date(year, month, 1).toISOString();
-      const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
-
       let query = supabase
         .from("fixtures")
         .select(`
@@ -92,8 +89,8 @@ export const useFixturesData = ({
           tournament:tournaments(id, name)
         `)
         .eq("is_visible", true)
-        .gte("match_date", startOfMonth)
-        .lte("match_date", endOfMonth)
+        .gte("match_date", startDate)
+        .lte("match_date", endDate)
         .order("match_date", { ascending: true });
 
       if (viewMode === "my-schools" && userSchoolIds.length > 0) {
