@@ -355,7 +355,7 @@ export default function SchoolProfile() {
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground mt-2">
-                      {fixture.venue}
+                      {fixture.venue_legacy || "TBD"}
                     </div>
                   </div>
                 ))}
@@ -523,7 +523,7 @@ export default function SchoolProfile() {
                           minute: '2-digit'
                         })}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">{derbyMatch.venue}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{derbyMatch.venue_legacy || "TBD"}</p>
                     </div>
                   </div>
                 </div>

@@ -20,7 +20,9 @@ interface FixtureListCardProps {
   fixture: {
     id: string;
     match_date: string;
-    venue: string;
+    venue_legacy: string;
+    venue_type: string | null;
+    venue_id: string | null;
     status: string;
     home_school: FixtureSchool;
     away_school: FixtureSchool;
@@ -124,7 +126,12 @@ export const FixtureListCard = ({
           {/* Venue */}
           <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-3">
             <MapPin className="h-3 w-3" />
-            <span className="truncate">{fixture.venue}</span>
+            <span className="truncate">
+              {fixture.venue_type === "home" ? fixture.home_school.name :
+               fixture.venue_type === "away" ? fixture.away_school.name :
+               fixture.venue_type === "tournament" && fixture.tournament ? fixture.tournament.name :
+               fixture.venue_legacy || "TBD"}
+            </span>
           </div>
 
           {/* Prediction Button */}

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 interface FixtureWithSchools {
   id: string;
   match_date: string;
-  venue: string;
+  venue_legacy: string;
   status: string;
   home_score: number | null;
   away_score: number | null;
@@ -148,7 +148,7 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
         .select(`
           id,
           match_date,
-          venue,
+          venue_legacy,
           status,
           home_score,
           away_score,
@@ -192,7 +192,7 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
         setFixture({
           id: fixtureData.id,
           match_date: fixtureData.match_date,
-          venue: fixtureData.venue,
+          venue_legacy: fixtureData.venue_legacy,
           status: fixtureData.status,
           home_score: fixtureData.home_score,
           away_score: fixtureData.away_score,
@@ -518,7 +518,7 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
               </div>
               
               <div className="mt-3 text-center text-xs text-muted-foreground">
-                {formatMatchDate(fixture.match_date)} • {fixture.venue}
+                {formatMatchDate(fixture.match_date)} • {fixture.venue_legacy || "TBD"}
               </div>
             </div>
 
@@ -571,7 +571,7 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
               </div>
               
               <div className="mt-3 text-center text-xs text-muted-foreground">
-                {formatMatchDate(fixture.match_date)} • {fixture.venue}
+                {formatMatchDate(fixture.match_date)} • {fixture.venue_legacy || "TBD"}
               </div>
             </div>
 

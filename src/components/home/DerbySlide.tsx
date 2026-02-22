@@ -11,7 +11,7 @@ interface DerbySlideProps {
     home_school: { name: string; slug: string; icon_url: string | null };
     away_school: { name: string; slug: string; icon_url: string | null };
     match_date: string;
-    venue: string;
+    venue_legacy: string;
   };
 }
 
@@ -123,7 +123,7 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
               weekday: "long",
               hour: "2-digit",
               minute: "2-digit",
-            })} @ {derby.venue}
+            })} @ {derby.venue_legacy || "TBD"}
           </p>
         </div>
       </div>

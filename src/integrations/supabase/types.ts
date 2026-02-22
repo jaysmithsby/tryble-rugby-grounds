@@ -138,7 +138,9 @@ export type Database = {
           status: string
           tournament_id: string | null
           updated_at: string
-          venue: string
+          venue_id: string | null
+          venue_legacy: string
+          venue_type: string | null
           year: number
         }
         Insert: {
@@ -159,7 +161,9 @@ export type Database = {
           status?: string
           tournament_id?: string | null
           updated_at?: string
-          venue: string
+          venue_id?: string | null
+          venue_legacy: string
+          venue_type?: string | null
           year: number
         }
         Update: {
@@ -180,7 +184,9 @@ export type Database = {
           status?: string
           tournament_id?: string | null
           updated_at?: string
-          venue?: string
+          venue_id?: string | null
+          venue_legacy?: string
+          venue_type?: string | null
           year?: number
         }
         Relationships: [

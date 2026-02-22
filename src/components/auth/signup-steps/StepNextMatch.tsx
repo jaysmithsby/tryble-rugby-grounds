@@ -7,7 +7,7 @@ import { format, formatDistanceToNow, isFuture } from "date-fns";
 interface Fixture {
   id: string;
   match_date: string;
-  venue: string;
+  venue_legacy: string;
   home_school: { name: string; emblem_url: string | null };
   away_school: { name: string; emblem_url: string | null };
 }
@@ -44,7 +44,7 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           .select(`
             id,
             match_date,
-            venue,
+            venue_legacy,
             home_school:schools!fixtures_home_school_id_fkey(name, emblem_url),
             away_school:schools!fixtures_away_school_id_fkey(name, emblem_url)
           `)
@@ -167,7 +167,7 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4" />
-            <span>{fixture.venue}</span>
+            <span>{fixture.venue_legacy || "TBD"}</span>
           </div>
         </div>
 
