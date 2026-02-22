@@ -101,24 +101,19 @@ export const FixtureTable = ({ fixtures, searchQuery }: FixtureTableProps) => {
   );
 };
 
-/** Shared school column: jersey on top, name below */
+/** Shared school column: jersey on top, name below, centered */
 const SchoolBlock = ({
   school,
   isHome,
-  align,
   onNavigate,
 }: {
   school: FixtureSchool;
   isHome: boolean;
-  align: "left" | "right";
   onNavigate: (e: React.MouseEvent, slug: string) => void;
 }) => (
   <button
     type="button"
-    className={cn(
-      "flex flex-col items-center gap-1 w-full hover:opacity-80 transition-opacity",
-      align === "left" ? "items-end" : "items-start"
-    )}
+    className="flex flex-col items-center gap-1.5 w-full hover:opacity-80 transition-opacity"
     onClick={(e) => onNavigate(e, school.slug)}
   >
     <SchoolJerseyImage
@@ -131,7 +126,7 @@ const SchoolBlock = ({
     />
     <span
       className={cn(
-        "text-xs text-center line-clamp-2 leading-tight max-w-[100px]",
+        "text-xs text-center line-clamp-2 leading-tight max-w-[120px]",
         isHome ? "font-bold" : "font-medium"
       )}
     >
@@ -159,8 +154,8 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
               {format(new Date(fixture.match_date), "EEE d MMM")}
             </TableCell>
             <TableCell>
-              <div className="grid grid-cols-[1fr_48px_1fr] items-center">
-                <SchoolBlock school={left} isHome={leftIsHome} align="left" onNavigate={handleSchoolClick} />
+              <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
+                <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
 
                 <div className="flex flex-col items-center justify-center">
                   <span className="text-sm font-semibold text-muted-foreground">vs</span>
@@ -171,7 +166,7 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
                   )}
                 </div>
 
-                <SchoolBlock school={right} isHome={!leftIsHome} align="right" onNavigate={handleSchoolClick} />
+                <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
               </div>
             </TableCell>
             <TableCell className="align-middle">
@@ -221,8 +216,8 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
               )}
             />
           </div>
-          <div className="grid grid-cols-[1fr_48px_1fr] items-center">
-            <SchoolBlock school={left} isHome={leftIsHome} align="left" onNavigate={handleSchoolClick} />
+          <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
+            <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
 
             <div className="flex flex-col items-center justify-center">
               <span className="text-sm font-semibold text-muted-foreground">vs</span>
@@ -233,7 +228,7 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
               )}
             </div>
 
-            <SchoolBlock school={right} isHome={!leftIsHome} align="right" onNavigate={handleSchoolClick} />
+            <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
           </div>
         </div>
       </CollapsibleTrigger>

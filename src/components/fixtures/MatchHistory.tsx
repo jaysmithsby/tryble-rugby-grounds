@@ -78,11 +78,11 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
             <span className="text-xs text-muted-foreground w-24 shrink-0">
               {format(new Date(match.match_date), "d MMM yyyy")}
             </span>
-            {/* Grid matching fixture row: 1fr | 48px center | 1fr */}
-            <div className="flex-1 grid grid-cols-[1fr_48px_1fr] items-center">
+            {/* Grid matching fixture row: 1fr | 60px center | 1fr */}
+            <div className="flex-1 grid grid-cols-[1fr_60px_1fr] items-center gap-2">
               <span
                 className={cn(
-                  "font-mono text-sm text-right pr-2",
+                  "font-mono text-sm text-center",
                   homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"
                 )}
               >
@@ -91,7 +91,7 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
               <span className="text-xs text-muted-foreground text-center">-</span>
               <span
                 className={cn(
-                  "font-mono text-sm text-left pl-2",
+                  "font-mono text-sm text-center",
                   !homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"
                 )}
               >
