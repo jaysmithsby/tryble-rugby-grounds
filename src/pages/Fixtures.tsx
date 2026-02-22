@@ -50,7 +50,7 @@ const Fixtures = () => {
 
   // Handle prediction submission
   const handlePredictionSubmit = useCallback(
-    async (fixtureId: string, team: "home" | "away", margin: number) => {
+    async (fixtureId: string, team: "home" | "away", margin: number, schoolId: string) => {
       if (!userId) {
         toast({
           title: "Sign in required",
@@ -76,6 +76,7 @@ const Fixtures = () => {
             .update({
               predicted_team: team,
               predicted_margin: margin,
+              predicted_school_id: schoolId,
               updated_at: new Date().toISOString(),
             })
             .eq("id", existing.id);
@@ -86,6 +87,7 @@ const Fixtures = () => {
             user_id: userId,
             predicted_team: team,
             predicted_margin: margin,
+            predicted_school_id: schoolId,
           });
         }
       } catch (error) {

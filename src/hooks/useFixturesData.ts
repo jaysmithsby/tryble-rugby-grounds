@@ -29,6 +29,7 @@ interface UserPrediction {
   fixture_id: string;
   predicted_team: string;
   predicted_margin: number;
+  predicted_school_id: string;
 }
 
 interface UseFixturesDataOptions {
@@ -145,7 +146,7 @@ export const useFixturesData = ({
 
       const { data, error } = await supabase
         .from("predictions")
-        .select("fixture_id, predicted_team, predicted_margin")
+        .select("fixture_id, predicted_team, predicted_margin, predicted_school_id")
         .eq("user_id", userId)
         .in("fixture_id", fixtureIds);
 
@@ -158,11 +159,12 @@ export const useFixturesData = ({
 
   // Create predictions map
   const predictionsMap = useMemo(() => {
-    const map: Record<string, { team: "home" | "away"; margin: number }> = {};
+    const map: Record<string, { team: "home" | "away"; margin: number; schoolId: string }> = {};
     for (const pred of predictions) {
       map[pred.fixture_id] = {
         team: pred.predicted_team as "home" | "away",
         margin: pred.predicted_margin,
+        schoolId: pred.predicted_school_id,
       };
     }
     return map;

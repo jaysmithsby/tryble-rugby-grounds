@@ -482,6 +482,7 @@ export type Database = {
           id: string
           points_earned: number | null
           predicted_margin: number
+          predicted_school_id: string
           predicted_team: string
           updated_at: string
           user_id: string
@@ -492,6 +493,7 @@ export type Database = {
           id?: string
           points_earned?: number | null
           predicted_margin: number
+          predicted_school_id: string
           predicted_team: string
           updated_at?: string
           user_id: string
@@ -502,6 +504,7 @@ export type Database = {
           id?: string
           points_earned?: number | null
           predicted_margin?: number
+          predicted_school_id?: string
           predicted_team?: string
           updated_at?: string
           user_id?: string
@@ -512,6 +515,13 @@ export type Database = {
             columns: ["fixture_id"]
             isOneToOne: false
             referencedRelation: "fixtures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "predictions_predicted_school_id_fkey"
+            columns: ["predicted_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]

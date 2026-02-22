@@ -14,6 +14,8 @@ interface FixtureCardProps {
   awayTeamShort: string;
   homeTeamIcon?: string | null;
   awayTeamIcon?: string | null;
+  homeSchoolId?: string;
+  awaySchoolId?: string;
   homeSchoolSlug?: string;
   awaySchoolSlug?: string;
   time: string;
@@ -25,7 +27,7 @@ interface FixtureCardProps {
   isPredicted?: boolean;
   predictedTeam?: "home" | "away";
   predictedMargin?: number;
-  onPredictionMade?: (team: "home" | "away", margin: number) => void;
+  onPredictionMade?: (team: "home" | "away", margin: number, schoolId: string) => void;
   priority?: boolean;
 }
 
@@ -36,6 +38,8 @@ export const FixtureCard = ({
   awayTeamShort,
   homeTeamIcon,
   awayTeamIcon,
+  homeSchoolId,
+  awaySchoolId,
   homeSchoolSlug,
   awaySchoolSlug,
   time,
@@ -53,8 +57,8 @@ export const FixtureCard = ({
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handlePredictionSubmit = (team: "home" | "away", margin: number) => {
-    onPredictionMade?.(team, margin);
+  const handlePredictionSubmit = (team: "home" | "away", margin: number, schoolId: string) => {
+    onPredictionMade?.(team, margin, schoolId);
   };
 
   const predictedTeamName = predictedTeam === "home" ? homeTeamShort : awayTeamShort;
@@ -71,6 +75,8 @@ export const FixtureCard = ({
         awayTeamShort={awayTeamShort}
         homeTeamIcon={homeTeamIcon}
         awayTeamIcon={awayTeamIcon}
+        homeSchoolId={homeSchoolId}
+        awaySchoolId={awaySchoolId}
         matchId={matchId}
         appliesTo={appliesTo}
         onPredictionSubmit={handlePredictionSubmit}
