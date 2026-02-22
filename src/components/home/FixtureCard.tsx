@@ -164,18 +164,6 @@ export const FixtureCard = ({
           </div>
         </div>
 
-        {/* CTA button - only show if not predicted and has prediction handler */}
-        {onPredictionMade && !isPredicted && (
-          <Button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setDialogOpen(true);
-            }}
-            className="w-full font-bold shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground"
-          >
-            Make Your Call
-          </Button>
-        )}
       </div>
     </Card>
     </>
