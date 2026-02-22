@@ -5,8 +5,10 @@ import { format } from "date-fns";
 import { History } from "lucide-react";
 
 interface MatchHistoryProps {
-  homeSchoolId: string;
-  awaySchoolId: string;
+  /** The school displayed on the left in the fixture row */
+  leftSchoolId: string;
+  /** The school displayed on the right in the fixture row */
+  rightSchoolId: string;
 }
 
 interface HistoricalFixture {
@@ -14,34 +16,27 @@ interface HistoricalFixture {
   match_date: string;
   home_score: number | null;
   away_score: number | null;
-  home_school: { name: string };
-  away_school: { name: string };
+  home_school_id: string;
+  away_school_id: string;
 }
 
-export const MatchHistory = ({ homeSchoolId, awaySchoolId }: MatchHistoryProps) => {
+export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps) => {
   const { data: matches = [], isLoading } = useQuery({
-    queryKey: ["match-history", homeSchoolId, awaySchoolId],
+    queryKey: ["match-history", leftSchoolId, rightSchoolId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fixtures")
-        .select(`
-          id,
-          match_date,
-          home_score,
-          away_score,
-          home_school:schools!fixtures_home_school_id_fkey(name),
-          away_school:schools!fixtures_away_school_id_fkey(name)
-        `)
+        .select(`id, match_date, home_score, away_score, home_school_id, away_school_id`)
         .eq("is_visible", true)
         .neq("status", "upcoming")
         .or(
-          `and(home_school_id.eq.${homeSchoolId},away_school_id.eq.${awaySchoolId}),and(home_school_id.eq.${awaySchoolId},away_school_id.eq.${homeSchoolId})`
+          `and(home_school_id.eq.${leftSchoolId},away_school_id.eq.${rightSchoolId}),and(home_school_id.eq.${rightSchoolId},away_school_id.eq.${leftSchoolId})`
         )
         .order("match_date", { ascending: false })
         .limit(5);
 
       if (error) throw error;
-      return (data || []) as unknown as HistoricalFixture[];
+      return (data || []) as HistoricalFixture[];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -71,18 +66,11 @@ export const MatchHistory = ({ homeSchoolId, awaySchoolId }: MatchHistoryProps) 
         Head-to-Head History
       </p>
       {matches.map((match) => {
-        const homeWins =
-          match.home_score !== null &&
-          match.away_score !== null &&
-          match.home_score > match.away_score;
-        const awayWins =
-          match.home_score !== null &&
-          match.away_score !== null &&
-          match.away_score > match.home_score;
-        const isDraw =
-          match.home_score !== null &&
-          match.away_score !== null &&
-          match.home_score === match.away_score;
+        // Map scores to left/right school order (matching the fixture row)
+        const leftIsHome = match.home_school_id === leftSchoolId;
+        const leftScore = leftIsHome ? match.home_score : match.away_score;
+        const rightScore = leftIsHome ? match.away_score : match.home_score;
+        const homeIsLeft = leftIsHome;
 
         return (
           <div
@@ -92,15 +80,13 @@ export const MatchHistory = ({ homeSchoolId, awaySchoolId }: MatchHistoryProps) 
             <span className="text-xs text-muted-foreground w-20 shrink-0">
               {format(new Date(match.match_date), "d MMM yyyy")}
             </span>
-            <div className="flex items-center gap-2 flex-1 justify-center text-center">
-              <span className={homeWins ? "font-bold text-foreground" : "text-muted-foreground"}>
-                {match.home_school?.name}
+            <div className="flex items-center gap-3 flex-1 justify-center">
+              <span className={`font-mono ${homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                {leftScore ?? "–"}
               </span>
-              <span className={`font-mono font-bold ${isDraw ? "text-muted-foreground" : "text-foreground"}`}>
-                {match.home_score ?? "–"} - {match.away_score ?? "–"}
-              </span>
-              <span className={awayWins ? "font-bold text-foreground" : "text-muted-foreground"}>
-                {match.away_school?.name}
+              <span className="text-xs text-muted-foreground">-</span>
+              <span className={`font-mono ${!homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                {rightScore ?? "–"}
               </span>
             </div>
           </div>
