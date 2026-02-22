@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { CalendarDays, Search } from "lucide-react";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 import { BottomNav } from "@/components/BottomNav";
-import { FixturesMonthNav } from "@/components/fixtures/FixturesMonthNav";
+import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { FixturesFilters } from "@/components/fixtures/FixturesFilters";
 import { FixtureDateGroup } from "@/components/fixtures/FixtureDateGroup";
 import { FixtureListCard } from "@/components/fixtures/FixtureListCard";
@@ -16,13 +17,21 @@ import { Input } from "@/components/ui/input";
 const Fixtures = () => {
   const { toast } = useToast();
   const now = new Date();
-  
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+
+  const [dateRange, setDateRange] = useState({
+    from: startOfMonth(now),
+    to: endOfMonth(now),
+  });
   const [viewMode, setViewMode] = useState<"my-schools" | "all-schools">("my-schools");
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | undefined>();
   const [selectedProvince, setSelectedProvince] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const startDate = useMemo(() => dateRange.from.toISOString(), [dateRange.from]);
+  const endDate = useMemo(
+    () => new Date(dateRange.to.getFullYear(), dateRange.to.getMonth(), dateRange.to.getDate(), 23, 59, 59).toISOString(),
+    [dateRange.to]
+  );
 
   const {
     fixtures,
@@ -32,8 +41,8 @@ const Fixtures = () => {
     userSchoolIds,
     userId,
   } = useFixturesData({
-    year: selectedYear,
-    month: selectedMonth,
+    startDate,
+    endDate,
     viewMode,
     selectedSchoolId,
     selectedProvince,
@@ -91,13 +100,12 @@ const Fixtures = () => {
         toast({ title: "Prediction Failed", description: "Could not save your prediction. Please try again.", variant: "destructive" });
       }
     },
-    [userId, toast]
+    [userId, toast, groupedFixtures]
   );
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+  const dateLabel = useMemo(() => {
+    return format(dateRange.from, "MMMM yyyy");
+  }, [dateRange.from]);
 
   const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;
   const showEmptyNoFixtures = !isLoading && groupedFixtures.length === 0 && !showEmptyMySchools;
@@ -105,11 +113,39 @@ const Fixtures = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">Fixtures</h1>
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-bold">Fixtures</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {viewMode === "all-schools" && (
+                <div className="relative hidden sm:block">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search school..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 h-8 text-sm w-40"
+                  />
+                </div>
+              )}
+              <FixturesDateSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
+            </div>
           </div>
+
+          {viewMode === "all-schools" && (
+            <div className="relative mt-2 sm:hidden">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by school name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          )}
         </div>
       </header>
 
@@ -123,17 +159,6 @@ const Fixtures = () => {
         schools={allSchools}
         isLoadingSchools={isLoadingSchools}
       />
-
-      {viewMode === "all-schools" && (
-        <div className="container mx-auto px-4 pt-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by school name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
-          </div>
-        </div>
-      )}
-
-      <FixturesMonthNav selectedYear={selectedYear} selectedMonth={selectedMonth} onYearChange={setSelectedYear} onMonthChange={setSelectedMonth} />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {isLoading && (
@@ -162,7 +187,7 @@ const Fixtures = () => {
             <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Fixtures</h3>
             <p className="text-muted-foreground max-w-sm mx-auto">
-              No fixtures scheduled for {monthNames[selectedMonth]} {selectedYear}. Try browsing other months.
+              No fixtures scheduled for this date range. Try selecting a different period.
             </p>
           </div>
         )}

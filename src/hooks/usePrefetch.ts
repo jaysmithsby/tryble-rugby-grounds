@@ -65,13 +65,11 @@ export function usePrefetch() {
 
   const prefetchFixtures = useCallback(() => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const startOfMonth = new Date(year, month, 1).toISOString();
-    const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
     queryClient.prefetchQuery({
-      queryKey: ["fixtures", year, month, "all-schools", undefined, undefined, []],
+      queryKey: ["fixtures", startDate, endDate, "all-schools", undefined, undefined, []],
       queryFn: async () => {
         const { data, error } = await supabase
           .from("fixtures")
@@ -83,8 +81,8 @@ export function usePrefetch() {
             tournament:tournaments(id, name)
           `)
           .eq("is_visible", true)
-          .gte("match_date", startOfMonth)
-          .lte("match_date", endOfMonth)
+          .gte("match_date", startDate)
+          .lte("match_date", endDate)
           .order("match_date", { ascending: true });
         if (error) throw error;
         return data || [];
