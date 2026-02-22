@@ -90,8 +90,8 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
                 sport: row.sport || 'Rugby',
                 match_date: matchDate,
                 venue_legacy: row.venue || 'TBD',
-                venue_type: 'school', // defaulting to school, should be inferred properly if possible
-                venue_id: schoolAId, // default to school A home
+                venue_type: tournamentId ? 'tournament' : 'school',
+                venue_id: tournamentId || schoolAId,
                 status: row.status || 'upcoming',
                 score_a: row.home_score ? parseInt(row.home_score) : null,
                 score_b: row.away_score ? parseInt(row.away_score) : null,
