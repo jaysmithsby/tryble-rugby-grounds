@@ -3,16 +3,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import { lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Eagerly loaded (landing + auth)
+// Eagerly loaded — core nav pages (no flash on tab switches)
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
+import Home from "@/pages/Home";
+import Fixtures from "@/pages/Fixtures";
+import Pools from "@/pages/Pools";
+import Profile from "@/pages/Profile";
+import Leaderboard from "@/pages/Leaderboard";
 
-// Lazy loaded app pages
-const Home = lazy(() => import("@/pages/Home"));
-const Fixtures = lazy(() => import("@/pages/Fixtures"));
-const Profile = lazy(() => import("@/pages/Profile"));
-const Pools = lazy(() => import("@/pages/Pools"));
-const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+// Lazy loaded — secondary pages
 const PoolLeaderboard = lazy(() => import("@/pages/PoolLeaderboard").then(m => ({ default: m.PoolLeaderboard })));
 const SchoolProfile = lazy(() => import("@/pages/SchoolProfile"));
 const Tournament = lazy(() => import("@/pages/Tournament"));
@@ -24,8 +24,7 @@ const HowScoringWorks = lazy(() => import("@/pages/HowScoringWorks"));
 const LearnMore = lazy(() => import("@/pages/LearnMore"));
 const SchoolSetup = lazy(() => import("@/pages/SchoolSetup"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
-
-// Info pages
+const Badges = lazy(() => import("@/pages/Badges"));
 const ForSchools = lazy(() => import("@/pages/ForSchools"));
 const ForParents = lazy(() => import("@/pages/ForParents"));
 const ForPlayers = lazy(() => import("@/pages/ForPlayers"));
@@ -44,15 +43,13 @@ const PageFallback = () => (
 );
 
 const pageVariants = {
-  initial: { opacity: 0, x: 30 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -30 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
 };
 
 const pageTransition = {
-  type: "tween" as const,
-  ease: "easeInOut" as const,
-  duration: 0.2,
+  duration: 0.15,
 };
 
 export const AnimatedRoutes = () => {
@@ -67,7 +64,7 @@ export const AnimatedRoutes = () => {
         animate="animate"
         exit="exit"
         transition={pageTransition}
-        className="min-h-screen"
+        style={{ willChange: "opacity" }}
       >
         <Suspense fallback={<PageFallback />}>
           <Routes location={location}>
