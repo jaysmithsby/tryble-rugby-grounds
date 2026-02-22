@@ -117,10 +117,9 @@ function parseFixtureLine(
   const homeScore = isCancelled ? '' : homeScoreStr;
   const awayScore = isCancelled ? '' : awayScoreStr;
 
-  // Split afterScoreTokens into away team name and festival
-  // Strategy: try progressively shorter suffixes as festival names
+  // All text after scores is the away team name (festival parsing removed)
   let awayTeamName = '';
-  let festivalName = '';
+  const festivalName = '';
 
   if (afterScoreTokens.length > 0) {
     // Check for "Cancelled" at the end
@@ -129,77 +128,7 @@ function parseFixtureLine(
       ? afterScoreTokens.slice(0, -1)
       : afterScoreTokens;
 
-    // Try matching progressively longer suffixes as festival names
-    let festivalMatch = false;
-    for (let splitPoint = Math.max(1, cleanedTokens.length - 4); splitPoint < cleanedTokens.length; splitPoint++) {
-      const candidateFestival = cleanedTokens.slice(splitPoint).join(' ');
-      const matched = fuzzyMatchTournament(candidateFestival, year, tournaments);
-      if (matched) {
-        awayTeamName = cleanedTokens.slice(0, splitPoint).join(' ');
-        festivalName = candidateFestival;
-        festivalMatch = true;
-        break;
-      }
-    }
-
-    if (!festivalMatch) {
-      // No festival found — check if trailing tokens look like a festival pattern
-      // Common patterns: "R/F", "Fest", "Festival", "Trials", "Day"
-      const festivalKeywords = ['r/f', 'fest', 'festival', 'trials', 'day'];
-      let keywordIndex = -1;
-      
-      for (let i = cleanedTokens.length - 1; i >= 1; i--) {
-        if (festivalKeywords.some(kw => cleanedTokens[i].toLowerCase().includes(kw))) {
-          // Walk back to find the start of the festival name
-          // Look for a natural break — typically the away team is a known school
-          for (let j = 1; j <= i; j++) {
-            const candidateTeam = cleanedTokens.slice(0, j).join(' ');
-            const candidateFest = cleanedTokens.slice(j).join(' ');
-            const schoolMatch = fuzzyMatchSchool(candidateTeam, schools);
-            if (schoolMatch) {
-              awayTeamName = candidateTeam;
-              festivalName = candidateFest;
-              keywordIndex = j;
-              break;
-            }
-          }
-          if (keywordIndex === -1) {
-            // No school match found, try splitting at a reasonable point
-            // Use at least 1 token for away team, rest for festival
-            // But only if there are enough tokens
-            if (i >= 2) {
-              // Find the split by checking if first N tokens match a school
-              awayTeamName = cleanedTokens.slice(0, i - 1).join(' ');
-              festivalName = cleanedTokens.slice(i - 1).join(' ');
-            } else {
-              awayTeamName = cleanedTokens.join(' ');
-            }
-          }
-          break;
-        }
-      }
-      
-      if (keywordIndex === -1 && !festivalName) {
-        // Check if there's extra text after a known school name
-        // Try progressively longer prefixes as away team
-        let foundSchool = false;
-        for (let j = cleanedTokens.length; j >= 1; j--) {
-          const candidateTeam = cleanedTokens.slice(0, j).join(' ');
-          const match = fuzzyMatchSchool(candidateTeam, schools);
-          if (match) {
-            awayTeamName = candidateTeam;
-            if (j < cleanedTokens.length) {
-              festivalName = cleanedTokens.slice(j).join(' ');
-            }
-            foundSchool = true;
-            break;
-          }
-        }
-        if (!foundSchool) {
-          awayTeamName = cleanedTokens.join(' ');
-        }
-      }
-    }
+    awayTeamName = cleanedTokens.join(' ');
   }
 
   // Determine home/away relative to section school
@@ -240,8 +169,7 @@ function parseFixtureLine(
   const homeMatch = fuzzyMatchSchool(homeTeamName, schools);
   const awayMatch = fuzzyMatchSchool(awayTeamName, schools);
 
-  // Fuzzy match tournament
-  const tournamentMatch = festivalName ? fuzzyMatchTournament(festivalName, year, tournaments) : null;
+  // Festival/tournament matching removed — can be added later manually
 
   // The "opponent" from the section school's perspective
   const opponentName = sectionIsHome ? awayTeamName : homeTeamName;
@@ -256,7 +184,7 @@ function parseFixtureLine(
     result,
     scoreFor,
     scoreAgainst,
-    tournamentId: tournamentMatch?.id || '',
+    tournamentId: '',
     matchDate: matchDate.toISOString(),
     // Extended fields
     homeTeamName: homeMatch?.name || homeTeamName,

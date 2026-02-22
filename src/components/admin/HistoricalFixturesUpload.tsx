@@ -571,7 +571,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
             year,
             sport: "Rugby",
             is_visible: true,
-            tournament_id: fixture.tournamentId && fixture.tournamentId !== "none" ? fixture.tournamentId : null,
+            tournament_id: null,
           });
         }
       }
@@ -1181,7 +1181,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                           <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground w-[80px]">Score</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Away</th>
                           <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground w-[90px]">Result</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Festival</th>
                           <th className="px-3 py-2 w-[40px]"></th>
                         </tr>
                       </thead>
@@ -1262,17 +1261,6 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </td>
-                            <td className="px-3 py-2">
-                              <Input
-                                value={fixture.tournamentId ? getTournamentName(fixture.tournamentId) : fixture.festivalName || ""}
-                                onChange={(e) => {
-                                  updateBulkFixture(sectionIndex, fixtureIndex, "festivalName", e.target.value);
-                                  updateBulkFixture(sectionIndex, fixtureIndex, "tournamentId", "");
-                                }}
-                                className="h-7 text-xs w-full px-1"
-                                placeholder="—"
-                              />
                             </td>
                             <td className="px-3 py-2">
                               <Button
