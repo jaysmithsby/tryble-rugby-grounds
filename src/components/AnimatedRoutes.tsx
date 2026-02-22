@@ -1,9 +1,9 @@
-import { Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
-import { lazy, Suspense } from "react";
+import { Routes, Route, useLocation, matchPath } from "react-router-dom";
+import { motion } from "framer-motion";
+import { lazy, Suspense, useRef, useEffect, useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Eagerly loaded — core nav pages (no flash on tab switches)
+// Eagerly loaded — core nav pages
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import Home from "@/pages/Home";
@@ -42,60 +42,98 @@ const PageFallback = () => (
   </div>
 );
 
-const pageVariants = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
-};
+/**
+ * Pages that should be kept alive (cached) once visited.
+ * These stay mounted but hidden, so scroll position and component state are preserved.
+ */
+const KEEP_ALIVE_ROUTES: { path: string; element: React.ReactNode }[] = [
+  { path: "/", element: <Index /> },
+  { path: "/home", element: <Home /> },
+  { path: "/fixtures", element: <Fixtures /> },
+  { path: "/pools", element: <Pools /> },
+  { path: "/profile", element: <Profile /> },
+  { path: "/leaderboard", element: <Leaderboard /> },
+];
 
-const pageTransition = {
-  duration: 0.15,
-};
+const KEEP_ALIVE_PATHS = KEEP_ALIVE_ROUTES.map(r => r.path);
+
+function KeepAlivePage({ path, element, isActive }: { path: string; element: React.ReactNode; isActive: boolean }) {
+  return (
+    <div
+      style={{
+        display: isActive ? "block" : "none",
+        // Keep layout in DOM but hidden to preserve state & scroll
+      }}
+    >
+      {element}
+    </div>
+  );
+}
 
 export const AnimatedRoutes = () => {
   const location = useLocation();
+  const [visitedPaths, setVisitedPaths] = useState<Set<string>>(new Set());
+
+  const currentPath = location.pathname;
+  const isKeepAlivePage = KEEP_ALIVE_PATHS.includes(currentPath);
+
+  // Track which keep-alive pages have been visited
+  useEffect(() => {
+    if (isKeepAlivePage && !visitedPaths.has(currentPath)) {
+      setVisitedPaths(prev => new Set(prev).add(currentPath));
+    }
+  }, [currentPath, isKeepAlivePage, visitedPaths]);
+
+  // Render visited keep-alive pages (always mounted, shown/hidden via display)
+  const keepAlivePages = useMemo(() => {
+    return KEEP_ALIVE_ROUTES.filter(r => visitedPaths.has(r.path) || r.path === currentPath);
+  }, [visitedPaths, currentPath]);
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={pageTransition}
-        style={{ willChange: "opacity" }}
-      >
-        <Suspense fallback={<PageFallback />}>
-          <Routes location={location}>
-            <Route path="/" element={<Index />} />
-            <Route path="/for-schools" element={<ForSchools />} />
-            <Route path="/for-parents" element={<ForParents />} />
-            <Route path="/for-players" element={<ForPlayers />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/privacy-note" element={<PrivacyNote />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/fixtures" element={<Fixtures />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/pools" element={<Pools />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
-            <Route path="/school/:schoolSlug" element={<SchoolProfile />} />
-            <Route path="/tournament/:tournamentId" element={<Tournament />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/join-pool/:inviteCode" element={<JoinPool />} />
-            <Route path="/consent/:token" element={<ParentConsent />} />
-            <Route path="/how-scoring-works" element={<HowScoringWorks />} />
-            <Route path="/learn-more" element={<LearnMore />} />
-            <Route path="/school-setup/:token" element={<SchoolSetup />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+    <>
+      {/* Keep-alive pages: stay mounted, toggle visibility */}
+      {keepAlivePages.map(route => (
+        <KeepAlivePage
+          key={route.path}
+          path={route.path}
+          element={route.element}
+          isActive={currentPath === route.path}
+        />
+      ))}
+
+      {/* Non-keep-alive pages: normal animated mount/unmount */}
+      {!isKeepAlivePage && (
+        <motion.div
+          key={currentPath}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+        >
+          <Suspense fallback={<PageFallback />}>
+            <Routes location={location}>
+              <Route path="/for-schools" element={<ForSchools />} />
+              <Route path="/for-parents" element={<ForParents />} />
+              <Route path="/for-players" element={<ForPlayers />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/privacy-note" element={<PrivacyNote />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
+              <Route path="/school/:schoolSlug" element={<SchoolProfile />} />
+              <Route path="/tournament/:tournamentId" element={<Tournament />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/join-pool/:inviteCode" element={<JoinPool />} />
+              <Route path="/consent/:token" element={<ParentConsent />} />
+              <Route path="/how-scoring-works" element={<HowScoringWorks />} />
+              <Route path="/learn-more" element={<LearnMore />} />
+              <Route path="/school-setup/:token" element={<SchoolSetup />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </motion.div>
+      )}
+    </>
   );
 };
