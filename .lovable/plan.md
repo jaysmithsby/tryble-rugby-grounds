@@ -1,79 +1,73 @@
 
 
-## Add Polymorphic `venue_id` + `venue_type` to Fixtures
+## Simplify `venue_type` to `school` | `tournament`
 
-Replace the free-text `venue` column with a `venue_type` enum and a polymorphic `venue_id` UUID. The app resolves `venue_id` against either the `schools` or `tournaments` table based on `venue_type`.
+### Rationale
+
+With deduplicated fixtures, each row already has `home_school_id` and `away_school_id`. The "home/away" concept is captured by those columns. The venue only needs to indicate **what kind of place** the match is at:
+
+- **school** -- played at a school's ground (`venue_id` references `schools.id`)
+- **tournament** -- played at a tournament/festival venue (`venue_id` references `tournaments.id`)
 
 ### Database Migration
 
-1. Add `venue_type` column (text, nullable, default `'home'`) with allowed values: `home`, `away`, `neutral`, `tournament`
-2. Add `venue_id` column (UUID, nullable) -- no FK constraint since it's polymorphic
-3. Backfill existing data: set `venue_type = 'home'` and `venue_id = home_school_id` for all rows (best guess)
-4. Rename `venue` to `venue_legacy` to preserve data during migration (can be dropped later)
+```sql
+-- Update venue_type values: home/away -> school
+UPDATE public.fixtures
+SET venue_type = 'school'
+WHERE venue_type IN ('home', 'away');
 
-```text
-New columns on fixtures:
-  venue_type  text     DEFAULT 'home'  (home | away | neutral | tournament)
-  venue_id    uuid     nullable
-  venue_legacy text    (renamed from venue, kept for reference)
+-- Update default
+ALTER TABLE public.fixtures
+ALTER COLUMN venue_type SET DEFAULT 'school';
 ```
 
-### 1. Bulk Parser: `src/lib/fixtureParser/multiSchoolParser.ts`
+No new columns needed -- `venue_type` and `venue_id` already exist from the previous migration.
 
-Update `BulkFixtureRow` interface:
-- Add `venueType: "home" | "away" | "tournament"` and `venueId: string`
+### Code Changes
 
-Update `parseFixtureLine`:
-- If `homeAway === "home"`, set `venueType = "home"`, `venueId = homeTeamId`
-- If `homeAway === "away"`, set `venueType = "away"`, `venueId = awayTeamId`
-- If a tournament is detected, set `venueType = "tournament"`, `venueId = tournamentId`
+**1. `CreateFixtureDialog.tsx` and `EditFixtureDialog.tsx`**
 
-### 2. Admin UI: `CreateFixtureDialog.tsx`
+- Change ToggleGroup options from **Home / Away / Tournament** to **Home Ground / Away Ground / Tournament**
+- "Home Ground" sets `venue_type = 'school'`, `venue_id = homeSchoolId`
+- "Away Ground" sets `venue_type = 'school'`, `venue_id = awaySchoolId`
+- "Tournament" sets `venue_type = 'tournament'`, `venue_id = tournamentId`
+- The UI still offers three choices for user convenience, but the stored `venue_type` is only `school` or `tournament`
 
-Replace the venue text input with a venue type selector:
+**2. `FixtureListCard.tsx` and other display components**
 
-- Add state: `venueType` (default `"home"`) and computed `venueId`
-- Add a `ToggleGroup` with three options: **Home**, **Away**, **Tournament**
-- When **Home** selected: `venueId` auto-set to `homeSchoolId`, display home school name (read-only)
-- When **Away** selected: `venueId` auto-set to `awaySchoolId`, display away school name (read-only)
-- When **Tournament** selected: show tournament combobox (already exists), `venueId` set to selected `tournamentId`
-- On submit: include `venue_type` and `venue_id` in the fixture data; set `venue` to resolved name for backward compat or to `"TBD"` if not yet resolved
+- Update venue resolution logic:
+  - If `venue_type === 'school'`: compare `venue_id` against `home_school.id` and `away_school.id` to show the correct school name
+  - If `venue_type === 'tournament'`: show tournament name
+  - Fallback: show `venue_legacy` or "TBD"
 
-Remove the old venue text `<Input>` field.
+**3. `multiSchoolParser.ts`**
 
-### 3. Admin UI: `EditFixtureDialog.tsx`
+- Change `venueType` type from `"home" | "away" | "tournament"` to `"school" | "tournament"`
+- Both home and away fixtures set `venueType = "school"` with the appropriate school ID
 
-Same changes as Create:
-- Initialize `venueType` from `fixture.venue_type` (fall back to `"home"`)
-- Add ToggleGroup for venue type selection
-- Replace venue text input with auto-resolved display
-- On submit: include `venue_type` and `venue_id`
+**4. All other files referencing `venue_type`**
 
-### 4. Display: `FixtureListCard.tsx`
+Update any comparisons from `=== 'home'` / `=== 'away'` to `=== 'school'`, and resolve which school by comparing `venue_id` to `home_school_id` / `away_school_id`.
 
-Update venue display logic:
-- Accept `venue_type` and `venue_id` in the fixture interface (alongside `home_school` and `away_school`)
-- If `venue_type === "home"`: show home school name
-- If `venue_type === "away"`: show away school name
-- If `venue_type === "tournament"` and tournament exists: show tournament name
-- Fallback: show `venue_legacy` or "TBD"
-
-### 5. Other Files Affected
+### Files Affected
 
 | File | Change |
 |------|--------|
-| `src/hooks/useFixturesData.ts` | Add `venue_type, venue_id` to select; keep `venue` as `venue_legacy` if renamed |
-| `src/hooks/usePrefetch.ts` | Add `venue_type, venue_id` to select |
-| `src/components/admin/FixturesTable.tsx` | Update venue column display to resolve from `venue_type`/`venue_id` |
-| `src/components/scores/SchoolScoreSubmission.tsx` | Update venue display |
-| `src/components/home/FixtureCard.tsx` | Update venue display if it uses venue text |
-| `src/components/home/SchoolFixtureCard.tsx` | Update venue display |
-| `supabase/functions/seed-fixtures/index.ts` | Update to use `venue_type`/`venue_id` if it sets venue |
+| `src/components/admin/CreateFixtureDialog.tsx` | ToggleGroup labels + stored value |
+| `src/components/admin/EditFixtureDialog.tsx` | Same as Create |
+| `src/components/fixtures/FixtureListCard.tsx` | Venue display logic |
+| `src/components/admin/FixturesTable.tsx` | Venue column display |
+| `src/components/scores/MatchScoreSubmission.tsx` | Venue display |
+| `src/components/scores/SchoolScoreSubmission.tsx` | Venue display |
+| `src/components/home/FixtureCard.tsx` | Venue display |
+| `src/components/home/SchoolFixtureCard.tsx` | Venue display |
+| `src/lib/fixtureParser/multiSchoolParser.ts` | venueType type + logic |
+| `src/hooks/useFixturesData.ts` | No change (already selects venue_type/venue_id) |
+| `src/hooks/usePrefetch.ts` | No change |
 
 ### Technical Notes
 
-- The `venue` column rename to `venue_legacy` ensures no data loss. It can be dropped in a future migration once all data is verified.
-- Since `venue_id` has no FK constraint, the app must handle cases where the referenced school/tournament is deleted (show "Unknown" or fallback).
-- The `venue_type` column uses text (not a Postgres enum) to keep migrations simple and avoid enum-alter headaches.
-- The ToggleGroup component already exists in `src/components/ui/toggle-group.tsx`.
-
+- The admin UI still presents three options (Home Ground, Away Ground, Tournament) for UX clarity, but only two values are stored in the database (`school`, `tournament`).
+- To determine which school's ground a match is at, compare `venue_id` to `home_school_id` and `away_school_id` -- no extra column needed.
+- A `neutral` type could be added later if needed for matches at venues unrelated to either school or a tournament.
