@@ -1,4 +1,4 @@
-import { FixtureCard } from "@/components/home/FixtureCard";
+import { FixtureCard } from "@/components/fixtures/FixtureCard";
 
 interface FixtureSchool {
   id: string;

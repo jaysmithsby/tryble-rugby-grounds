@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, MapPin, Users, Trophy, Loader2, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { FixtureCard } from "@/components/home/FixtureCard";
+import { FixtureCard } from "@/components/fixtures/FixtureCard";
 
 interface Tournament {
   id: string;

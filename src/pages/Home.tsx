@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
 import { HomeCarousel } from "@/components/home/HomeCarousel";
 import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
-import { FixtureCard } from "@/components/home/FixtureCard";
+import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
