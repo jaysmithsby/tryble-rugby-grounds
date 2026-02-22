@@ -51,7 +51,7 @@ export function useConsentStatus(): ConsentStatus & {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("year_of_birth, consent_status, parent_email, school_name")
+        .select("year_of_birth, consent_status, parent_email, school_name_legacy, school_id, schools(name)")
         .eq("id", user.id)
         .single();
 
@@ -64,7 +64,7 @@ export function useConsentStatus(): ConsentStatus & {
         yearOfBirth: data.year_of_birth,
         consentStatus: data.consent_status as "pending" | "verified" | "expired" | null,
         parentEmail: data.parent_email,
-        userSchoolName: data.school_name,
+        userSchoolName: (data.schools as any)?.name || data.school_name_legacy,
       };
     },
     staleTime: CACHE_TIMES.USER_PROFILE, // Profile data doesn't change often

@@ -50,12 +50,14 @@ interface StepProfileProps {
   userType?: string;
   yearOfBirth?: number;
   schoolName: string;
+  schoolId?: string;
   parentEmail?: string;
   onNext: (data: { 
     firstName: string; 
     userType: string; 
     yearOfBirth: number; 
     schoolName: string;
+    schoolId?: string;
     parentEmail?: string;
   }) => void;
   loading?: boolean;
@@ -66,6 +68,7 @@ const StepProfile = ({
   userType: initialUserType,
   yearOfBirth: initialYearOfBirth,
   schoolName: initialSchoolName,
+  schoolId: initialSchoolId,
   parentEmail: initialParentEmail,
   onNext,
   loading,
@@ -74,6 +77,7 @@ const StepProfile = ({
   const [userType, setUserType] = useState(initialUserType || "");
   const [yearOfBirth, setYearOfBirth] = useState<number | undefined>(initialYearOfBirth);
   const [schoolName, setSchoolName] = useState(initialSchoolName);
+  const [schoolId, setSchoolId] = useState(initialSchoolId || "");
   const [parentEmail, setParentEmail] = useState(initialParentEmail || "");
   const [schoolSearch, setSchoolSearch] = useState("");
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
@@ -136,6 +140,7 @@ const StepProfile = ({
         userType,
         yearOfBirth: yearOfBirth!,
         schoolName: schoolName.trim(),
+        schoolId: schoolId || undefined,
         parentEmail: showParentEmail ? parentEmail.trim() : undefined,
       });
     }
@@ -239,7 +244,10 @@ const StepProfile = ({
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
                 selectedSchool={schoolName}
-                onSelectSchool={setSchoolName}
+                onSelectSchool={(school) => {
+                  setSchoolName(school.name);
+                  setSchoolId(school.id);
+                }}
               />
             </>
           ) : (
@@ -299,6 +307,7 @@ const StepProfile = ({
                             value={school.name}
                             onSelect={() => {
                               setSchoolName(school.name);
+                              setSchoolId(school.id);
                               setSchoolOpen(false);
                             }}
                           >

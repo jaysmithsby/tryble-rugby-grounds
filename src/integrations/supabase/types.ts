@@ -532,7 +532,8 @@ export type Database = {
           parent_email: string | null
           province: string | null
           school_changed_at: string | null
-          school_name: string
+          school_id: string | null
+          school_name_legacy: string | null
           updated_at: string
           user_type: string
           username: string | null
@@ -553,7 +554,8 @@ export type Database = {
           parent_email?: string | null
           province?: string | null
           school_changed_at?: string | null
-          school_name: string
+          school_id?: string | null
+          school_name_legacy?: string | null
           updated_at?: string
           user_type: string
           username?: string | null
@@ -574,13 +576,22 @@ export type Database = {
           parent_email?: string | null
           province?: string | null
           school_changed_at?: string | null
-          school_name?: string
+          school_id?: string | null
+          school_name_legacy?: string | null
           updated_at?: string
           user_type?: string
           username?: string | null
           year_of_birth?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
@@ -1080,24 +1091,6 @@ export type Database = {
           province: string | null
           school_name: string | null
           username: string | null
-        }
-        Insert: {
-          country?: string | null
-          created_at?: string | null
-          display_name?: string | null
-          id?: string | null
-          province?: string | null
-          school_name?: string | null
-          username?: string | null
-        }
-        Update: {
-          country?: string | null
-          created_at?: string | null
-          display_name?: string | null
-          id?: string | null
-          province?: string | null
-          school_name?: string | null
-          username?: string | null
         }
         Relationships: []
       }

@@ -23,7 +23,7 @@ interface UserData {
     username: string | null;
     display_name: string | null;
     first_name: string;
-    school_name: string;
+    school_name: string; // resolved from join or legacy
     age_band: string | null;
     account_type: string;
     consent_status: string;
@@ -96,7 +96,7 @@ export function UsersTable() {
 
       // Apply filters to count query
       if (schoolFilter !== 'all') {
-        countQuery = countQuery.eq('school_name', schoolFilter);
+        countQuery = countQuery.eq('school_name_legacy', schoolFilter);
       }
       if (ageBandFilter !== 'all') {
         countQuery = countQuery.eq('age_band', ageBandFilter);
@@ -106,7 +106,7 @@ export function UsersTable() {
       }
       if (debouncedSearch) {
         countQuery = countQuery.or(
-          `display_name.ilike.%${debouncedSearch}%,username.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,school_name.ilike.%${debouncedSearch}%,contact_value.ilike.%${debouncedSearch}%`
+          `display_name.ilike.%${debouncedSearch}%,username.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,school_name_legacy.ilike.%${debouncedSearch}%,contact_value.ilike.%${debouncedSearch}%`
         );
       }
 
@@ -121,11 +121,11 @@ export function UsersTable() {
       // Build the data query with pagination
       let dataQuery = supabase
         .from('profiles')
-        .select('*');
+        .select('*, schools(name)');
 
       // Apply the same filters
       if (schoolFilter !== 'all') {
-        dataQuery = dataQuery.eq('school_name', schoolFilter);
+        dataQuery = dataQuery.eq('school_name_legacy', schoolFilter);
       }
       if (ageBandFilter !== 'all') {
         dataQuery = dataQuery.eq('age_band', ageBandFilter);
@@ -135,13 +135,13 @@ export function UsersTable() {
       }
       if (debouncedSearch) {
         dataQuery = dataQuery.or(
-          `display_name.ilike.%${debouncedSearch}%,username.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,school_name.ilike.%${debouncedSearch}%,contact_value.ilike.%${debouncedSearch}%`
+          `display_name.ilike.%${debouncedSearch}%,username.ilike.%${debouncedSearch}%,first_name.ilike.%${debouncedSearch}%,school_name_legacy.ilike.%${debouncedSearch}%,contact_value.ilike.%${debouncedSearch}%`
         );
       }
 
       // Apply sorting
       const sortColumn = sortField === 'joined' ? 'created_at' 
-        : sortField === 'school' ? 'school_name'
+        : sortField === 'school' ? 'school_name_legacy'
         : sortField === 'type' ? 'account_type'
         : sortField === 'consent' ? 'consent_status'
         : sortField === 'email' ? 'contact_value'
@@ -200,7 +200,7 @@ export function UsersTable() {
         const poolCount = poolMemberships.filter(pm => pm.user_id === profile.id).length;
         const badgeCount = userBadges.filter(b => b.user_id === profile.id).length;
 
-        return {
+          return {
           id: profile.id,
           email: profile.contact_method === 'email' ? profile.contact_value : '',
           created_at: profile.created_at,
@@ -208,7 +208,7 @@ export function UsersTable() {
             username: profile.username,
             display_name: profile.display_name,
             first_name: profile.first_name,
-            school_name: profile.school_name,
+            school_name: (profile.schools as any)?.name || profile.school_name_legacy || '',
             age_band: profile.age_band,
             account_type: profile.account_type || 'adult',
             consent_status: profile.consent_status || 'pending',
@@ -235,13 +235,14 @@ export function UsersTable() {
   useEffect(() => {
     const fetchSchools = async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('school_name')
-        .not('school_name', 'is', null);
+        .from('schools')
+        .select('name')
+        .eq('is_visible', true)
+        .eq('is_archived', false)
+        .order('name');
       
       if (!error && data) {
-        const uniqueSchools = [...new Set(data.map(p => p.school_name).filter(Boolean))];
-        setSchools(uniqueSchools as string[]);
+        setSchools(data.map(s => s.name));
       }
     };
     fetchSchools();

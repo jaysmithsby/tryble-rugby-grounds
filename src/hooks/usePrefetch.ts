@@ -83,7 +83,7 @@ export function usePrefetch() {
       queryFn: async () => {
         const { data, error } = await supabase
           .from("profiles")
-          .select("first_name, school_name, display_name, province, user_type, year_of_birth, consent_status")
+          .select("first_name, school_name_legacy, school_id, display_name, province, user_type, year_of_birth, consent_status, schools(name)")
           .eq("id", user.id)
           .single();
 

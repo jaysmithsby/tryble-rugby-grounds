@@ -48,7 +48,7 @@ export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: Delete
           details: {
             email: user.email,
             display_name: user.profile?.display_name,
-            school_name: user.profile?.school_name,
+            school_name: user.profile?.school_name, // already resolved
           },
         });
 

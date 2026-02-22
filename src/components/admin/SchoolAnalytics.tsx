@@ -42,7 +42,7 @@ export function SchoolAnalytics() {
       // Fetch all profiles grouped by school
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('school_name, province, created_at');
+        .select('school_name_legacy, school_id, province, created_at, schools(name)');
       if (profilesError) throw profilesError;
 
       // Fetch all schools for province info
@@ -56,7 +56,7 @@ export function SchoolAnalytics() {
         .from('user_sanctions')
         .select(`
           *,
-          profiles:user_id (school_name)
+          profiles:user_id (school_name_legacy, school_id, schools(name))
         `);
       if (sanctionsError) throw sanctionsError;
 
@@ -65,7 +65,7 @@ export function SchoolAnalytics() {
         .from('user_reports')
         .select(`
           *,
-          profiles:reported_user_id (school_name)
+          profiles:reported_user_id (school_name_legacy, school_id, schools(name))
         `);
       if (reportsError) throw reportsError;
 
@@ -76,7 +76,7 @@ export function SchoolAnalytics() {
 
       // Initialize schools from profiles
       profiles?.forEach(profile => {
-        const schoolName = profile.school_name;
+        const schoolName = (profile.schools as any)?.name || profile.school_name_legacy;
         if (!schoolMap.has(schoolName)) {
           const schoolInfo = schools?.find(s => s.name === schoolName);
           schoolMap.set(schoolName, {
@@ -97,14 +97,14 @@ export function SchoolAnalytics() {
         school.total_users += 1;
 
         // Check if user was active in last 30 days (created recently or made predictions)
-        if (new Date(profile.created_at) >= thirtyDaysAgo) {
+        if (profile.created_at && new Date(profile.created_at) >= thirtyDaysAgo) {
           school.active_users_30d += 1;
         }
       });
 
       // Add sanctions data
       sanctions?.forEach(sanction => {
-        const schoolName = (sanction.profiles as any)?.school_name;
+        const schoolName = (sanction.profiles as any)?.schools?.name || (sanction.profiles as any)?.school_name_legacy;
         if (schoolName && schoolMap.has(schoolName)) {
           const school = schoolMap.get(schoolName)!;
           school.total_sanctions += 1;
@@ -116,7 +116,7 @@ export function SchoolAnalytics() {
 
       // Add reports data
       reports?.forEach(report => {
-        const schoolName = (report.profiles as any)?.school_name;
+        const schoolName = (report.profiles as any)?.schools?.name || (report.profiles as any)?.school_name_legacy;
         if (schoolName && schoolMap.has(schoolName)) {
           const school = schoolMap.get(schoolName)!;
           school.total_reports += 1;
