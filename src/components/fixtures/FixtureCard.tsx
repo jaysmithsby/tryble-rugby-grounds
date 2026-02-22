@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, Trophy, AlertCircle, MapPin } from "lucide-react";
-import { PredictionDialog } from "./PredictionDialog";
+import { PredictionDialog } from "@/components/home/PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { format } from "date-fns";
 
