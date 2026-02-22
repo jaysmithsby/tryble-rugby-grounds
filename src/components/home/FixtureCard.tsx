@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, Trophy } from "lucide-react";
+import { Lock, Trophy, AlertCircle, MapPin } from "lucide-react";
 import { PredictionDialog } from "./PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { format } from "date-fns";
@@ -57,7 +57,8 @@ export const FixtureCard = ({
     onPredictionMade?.(team, margin);
   };
 
-  const predictedTeamName = predictedTeam === "home" ? homeTeam : awayTeam;
+  const predictedTeamName = predictedTeam === "home" ? homeTeamShort : awayTeamShort;
+  const predictedTeamFullName = predictedTeam === "home" ? homeTeam : awayTeam;
 
   return (
     <>
@@ -74,8 +75,12 @@ export const FixtureCard = ({
         appliesTo={appliesTo}
         onPredictionSubmit={handlePredictionSubmit}
       />
-    <Card className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300">
+    <Card 
+      className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300 cursor-pointer"
+      onClick={() => !isPredicted && setDialogOpen(true)}
+    >
       <div className="p-4 space-y-3">
+        {/* Date + Venue row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {matchDate && (
@@ -99,6 +104,7 @@ export const FixtureCard = ({
           </div>
         )}
 
+        {/* Teams row */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
             <SchoolJerseyImage
@@ -117,8 +123,27 @@ export const FixtureCard = ({
             <span className="text-xs font-medium text-center line-clamp-2">{homeTeam}</span>
           </div>
 
-          <div className="flex flex-col items-center">
-            <span className="text-xl font-bold text-muted-foreground">VS</span>
+          {/* Center area: VS / Pick needed / Locked prediction */}
+          <div className="flex flex-col items-center gap-1 min-w-[80px]">
+            {isPredicted ? (
+              <>
+                <Lock className="w-5 h-5 text-primary" />
+                <span className="text-xs font-semibold text-primary text-center">
+                  {predictedTeamName} by {predictedMargin}
+                </span>
+              </>
+            ) : onPredictionMade ? (
+              <>
+                <div className="flex items-center gap-1 text-muted-foreground mb-0.5">
+                  <MapPin className="h-3 w-3" />
+                  <span className="text-[10px] truncate max-w-[70px]">{venue}</span>
+                </div>
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                <span className="text-xs font-semibold text-destructive">Pick needed</span>
+              </>
+            ) : (
+              <span className="text-xl font-bold text-muted-foreground">VS</span>
+            )}
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-1">
@@ -139,25 +164,18 @@ export const FixtureCard = ({
           </div>
         </div>
 
-        {isPredicted && (
-          <div className="pt-2 border-t border-border/40">
-            <p className="text-xs text-primary font-medium text-center">
-              Locked in. {predictedTeamName} by {predictedMargin}. Respect.
-            </p>
-          </div>
+        {/* CTA button - only show if not predicted and has prediction handler */}
+        {onPredictionMade && !isPredicted && (
+          <Button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setDialogOpen(true);
+            }}
+            className="w-full font-bold shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground"
+          >
+            Make Your Call
+          </Button>
         )}
-
-        <Button 
-          onClick={() => setDialogOpen(true)}
-          disabled={isPredicted}
-          className={`w-full font-bold shadow-lg ${
-            isPredicted 
-              ? "bg-muted text-muted-foreground cursor-not-allowed" 
-              : "bg-accent hover:bg-accent/90 text-accent-foreground"
-          }`}
-        >
-          {isPredicted ? "Prediction Made" : "Make Your Call"}
-        </Button>
       </div>
     </Card>
     </>
