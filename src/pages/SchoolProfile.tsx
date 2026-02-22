@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Calendar, Trophy, Flame, Users, Heart, HeartOff } from "lucide-react";
+import { MapPin, Calendar, Trophy, Flame, Users, Heart, HeartOff } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
+import GlobalHeader from "@/components/GlobalHeader";
 
 export default function SchoolProfile() {
   const { schoolSlug } = useParams();
@@ -205,19 +206,7 @@ export default function SchoolProfile() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </div>
-      </header>
+      <GlobalHeader />
 
       <div className="relative h-72 overflow-hidden border-b border-border/40">
         <div 

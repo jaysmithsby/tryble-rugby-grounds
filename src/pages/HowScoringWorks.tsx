@@ -1,32 +1,23 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Trophy, Target, Zap, Award } from "lucide-react";
+import { Trophy, Target, Zap, Award } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const HowScoringWorks = () => {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="mb-2"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <h1 className="text-2xl font-bold">How Scoring Works</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Everything you need to know about earning brags
-          </p>
-        </div>
-      </header>
+      <GlobalHeader />
+
+      <div className="container mx-auto px-4 py-4">
+        <h1 className="text-2xl font-bold">How Scoring Works</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Everything you need to know about earning brags
+        </p>
+      </div>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Overview */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,13 +101,7 @@ const ResetPassword = () => {
   if (!validSession) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="border-b border-border/40">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <button onClick={() => navigate("/")} className="text-2xl font-bold text-primary">
-              Trybal
-            </button>
-          </div>
-        </header>
+        <GlobalHeader />
 
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md text-center space-y-4">
@@ -125,13 +120,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border/40">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <button onClick={() => navigate("/")} className="text-2xl font-bold text-primary">
-            Trybal
-          </button>
-        </div>
-      </header>
+      <GlobalHeader />
 
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6">
