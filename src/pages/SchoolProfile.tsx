@@ -365,19 +365,7 @@ export default function SchoolProfile() {
         </div>
 
         {/* Upcoming Fixtures */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Fixtures</CardTitle>
-            <CardDescription>Next 5 matches</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {upcomingFixtures.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">No upcoming fixtures</p>
-            ) : (
-              <FixtureTable fixtures={upcomingFixtures} />
-            )}
-          </CardContent>
-        </Card>
+        <FixtureTable fixtures={upcomingFixtures} />
 
         {/* Recent Results */}
         <Card>
