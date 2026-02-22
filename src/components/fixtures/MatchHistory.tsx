@@ -73,15 +73,15 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
         return (
           <div
             key={match.id}
-            className="grid grid-cols-[1fr_60px_1fr] items-center gap-2 py-1.5 border-b border-border/30 last:border-0"
+            className="grid grid-cols-[1fr_60px_1fr] items-center py-1.5 border-b border-border/30 last:border-0"
           >
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground shrink-0">
                 {format(new Date(match.match_date), "d MMM yyyy")}
               </span>
               <span
                 className={cn(
-                  "font-mono text-sm",
+                  "font-mono text-sm ml-auto",
                   homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"
                 )}
               >
@@ -89,7 +89,7 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
               </span>
             </div>
             <span className="text-xs text-muted-foreground text-center">-</span>
-            <div className="flex items-center justify-center">
+            <div className="flex items-center">
               <span
                 className={cn(
                   "font-mono text-sm",
