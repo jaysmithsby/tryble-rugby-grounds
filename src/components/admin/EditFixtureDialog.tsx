@@ -56,8 +56,8 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
   const [matchDate, setMatchDate] = useState<Date | undefined>();
   const [venueType, setVenueType] = useState<"home_ground" | "away_ground" | "tournament">("home_ground");
   const [tournamentId, setTournamentId] = useState("");
-  const [homeScore, setHomeScore] = useState("");
-  const [awayScore, setAwayScore] = useState("");
+  const [scoreA, setScoreA] = useState("");
+  const [scoreB, setScoreB] = useState("");
   const [status, setStatus] = useState("upcoming");
   const [isVisible, setIsVisible] = useState(true);
   const [sourceUrl, setSourceUrl] = useState("");
@@ -76,14 +76,14 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
       setCheckingDuplicate(true);
       try {
         const dateStr = matchDate.toISOString().split("T")[0];
-        const homeId = fixture.home_school_id;
-        const awayId = fixture.away_school_id;
+        const schoolAId = fixture.school_a_id;
+        const schoolBId = fixture.school_b_id;
         const { data, error } = await supabase
           .from("fixtures")
           .select("id")
           .neq("id", fixture.id)
           .or(
-            `and(home_school_id.eq.${homeId},away_school_id.eq.${awayId}),and(home_school_id.eq.${awayId},away_school_id.eq.${homeId})`
+            `and(school_a_id.eq.${schoolAId},school_b_id.eq.${schoolBId}),and(school_a_id.eq.${schoolBId},school_b_id.eq.${schoolAId})`
           )
           .gte("match_date", `${dateStr}T00:00:00`)
           .lt("match_date", `${dateStr}T23:59:59`)
@@ -116,14 +116,14 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
       const storedType = fixture.venue_type || "school";
       if (storedType === "tournament") {
         setVenueType("tournament");
-      } else if (storedType === "school" && fixture.venue_id === fixture.away_school_id) {
+      } else if (storedType === "school" && fixture.venue_id === fixture.school_b_id) {
         setVenueType("away_ground");
       } else {
         setVenueType("home_ground");
       }
       setTournamentId(fixture.tournament_id || "none");
-      setHomeScore(fixture.home_score !== null ? String(fixture.home_score) : "");
-      setAwayScore(fixture.away_score !== null ? String(fixture.away_score) : "");
+      setScoreA(fixture.score_a !== null ? String(fixture.score_a) : "");
+      setScoreB(fixture.score_b !== null ? String(fixture.score_b) : "");
       setStatus(fixture.status || "upcoming");
       setIsVisible(fixture.is_visible !== false);
       setSourceUrl(fixture.source_url || "");
@@ -181,10 +181,10 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
       let computedVenueId: string | null = null;
       let computedVenueType: string = "school";
       if (venueType === "home_ground") {
-        computedVenueId = fixture.home_school_id;
+        computedVenueId = fixture.school_a_id;
         computedVenueType = "school";
       } else if (venueType === "away_ground") {
-        computedVenueId = fixture.away_school_id;
+        computedVenueId = fixture.school_b_id;
         computedVenueType = "school";
       } else if (venueType === "tournament" && resolvedTournamentId) {
         computedVenueId = resolvedTournamentId;
@@ -193,9 +193,9 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
 
       let venueLegacy = "TBD";
       if (venueType === "home_ground") {
-        venueLegacy = getSchoolName(fixture.home_school_id);
+        venueLegacy = getSchoolName(fixture.school_a_id);
       } else if (venueType === "away_ground") {
-        venueLegacy = getSchoolName(fixture.away_school_id);
+        venueLegacy = getSchoolName(fixture.school_b_id);
       } else if (venueType === "tournament" && resolvedTournamentId) {
         venueLegacy = tournaments.find(t => t.id === resolvedTournamentId)?.name || "TBD";
       }
@@ -206,8 +206,8 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
         venue_type: computedVenueType,
         venue_id: computedVenueId,
         tournament_id: resolvedTournamentId,
-        home_score: homeScore ? parseInt(homeScore) : null,
-        away_score: awayScore ? parseInt(awayScore) : null,
+        score_a: scoreA ? parseInt(scoreA) : null,
+        score_b: scoreB ? parseInt(scoreB) : null,
         status,
         is_visible: isVisible,
         source_url: sourceUrl || null,
@@ -258,9 +258,9 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
         {/* Display fixture teams (read-only) */}
         <div className="bg-muted/50 rounded-lg p-3 mb-4">
           <div className="flex items-center justify-center gap-4 text-sm">
-            <span className="font-medium">{getSchoolName(fixture.home_school_id)}</span>
+            <span className="font-medium">{getSchoolName(fixture.school_a_id)}</span>
             <span className="text-muted-foreground">vs</span>
-            <span className="font-medium">{getSchoolName(fixture.away_school_id)}</span>
+            <span className="font-medium">{getSchoolName(fixture.school_b_id)}</span>
           </div>
         </div>
         
@@ -331,10 +331,10 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
               ))}
             </div>
             {venueType === "home_ground" && (
-              <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.home_school_id)}</p>
+              <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.school_a_id)}</p>
             )}
             {venueType === "away_ground" && (
-              <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.away_school_id)}</p>
+              <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.school_b_id)}</p>
             )}
             {venueType === "tournament" && (
               <Select value={tournamentId} onValueChange={setTournamentId}>
@@ -395,26 +395,26 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
               <div className="flex-1">
                 <Input
                   type="number"
-                  placeholder="Home"
-                  value={homeScore}
-                  onChange={(e) => setHomeScore(e.target.value)}
+                  placeholder="Score A"
+                  value={scoreA}
+                  onChange={(e) => setScoreA(e.target.value)}
                   min="0"
                 />
                 <p className="text-xs text-muted-foreground mt-1 truncate">
-                  {getSchoolName(fixture.home_school_id)}
+                  {getSchoolName(fixture.school_a_id)}
                 </p>
               </div>
               <span className="text-muted-foreground font-medium">-</span>
               <div className="flex-1">
                 <Input
                   type="number"
-                  placeholder="Away"
-                  value={awayScore}
-                  onChange={(e) => setAwayScore(e.target.value)}
+                  placeholder="Score B"
+                  value={scoreB}
+                  onChange={(e) => setScoreB(e.target.value)}
                   min="0"
                 />
                 <p className="text-xs text-muted-foreground mt-1 truncate">
-                  {getSchoolName(fixture.away_school_id)}
+                  {getSchoolName(fixture.school_b_id)}
                 </p>
               </div>
             </div>

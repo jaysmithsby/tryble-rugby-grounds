@@ -38,7 +38,6 @@ export function BulkYearCorrectionDialog({
   const [targetYear, setTargetYear] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  // Generate year options (from 2020 to current year + 1)
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: currentYear - 2019 }, (_, i) => 2020 + i);
 
@@ -55,7 +54,6 @@ export function BulkYearCorrectionDialog({
     setLoading(true);
 
     try {
-      // Update each fixture's match_date, preserving month and day
       const updates = selectedFixtures.map(async (fixture) => {
         const originalDate = new Date(fixture.match_date);
         const month = originalDate.getMonth();
@@ -64,7 +62,6 @@ export function BulkYearCorrectionDialog({
         const minutes = originalDate.getMinutes();
         const seconds = originalDate.getSeconds();
 
-        // Create new date with target year, same month/day/time
         const newDate = new Date(parseInt(targetYear), month, day, hours, minutes, seconds);
 
         const { error } = await supabase
@@ -130,7 +127,7 @@ export function BulkYearCorrectionDialog({
               {selectedFixtures.slice(0, 10).map((fixture) => (
                 <div key={fixture.id} className="text-sm text-muted-foreground flex justify-between">
                   <span className="truncate flex-1">
-                    {fixture.homeName} vs {fixture.awayName}
+                    {fixture.schoolAName} vs {fixture.schoolBName}
                   </span>
                   <span className="text-xs ml-2">
                     {format(new Date(fixture.match_date), "MMM dd, yyyy")}

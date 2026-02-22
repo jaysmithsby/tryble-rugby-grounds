@@ -1,8 +1,5 @@
 /**
  * Navigation Prefetching Hook
- * 
- * Prefetches data for common navigation routes to enable
- * instant page transitions on mobile and desktop.
  */
 
 import { useCallback } from "react";
@@ -10,16 +7,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CACHE_TIMES } from "@/lib/queryConfig";
 
-/**
- * Hook that provides prefetch functions for common navigation routes.
- * Call these on hover/focus of nav items to warm the cache.
- */
 export function usePrefetch() {
   const queryClient = useQueryClient();
 
-  /**
-   * Prefetch schools list - used by Fixtures, Leaderboard, Profile
-   */
   const prefetchSchools = useCallback(() => {
     queryClient.prefetchQuery({
       queryKey: ["all-schools-list"],
@@ -31,7 +21,6 @@ export function usePrefetch() {
           .eq("is_archived", false)
           .eq("status", "verified")
           .order("name");
-
         if (error) throw error;
         return data;
       },
@@ -39,31 +28,16 @@ export function usePrefetch() {
     });
   }, [queryClient]);
 
-  /**
-   * Prefetch user's pools - used by Leaderboard, Profile
-   */
   const prefetchUserPools = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     queryClient.prefetchQuery({
       queryKey: ["user-pools", user.id],
       queryFn: async () => {
         const { data, error } = await supabase
           .from("pool_members")
-          .select(`
-            pool_id,
-            pools (
-              id,
-              name,
-              invite_code,
-              schools,
-              voting_mode,
-              pool_members(count)
-            )
-          `)
+          .select(`pool_id, pools (id, name, invite_code, schools, voting_mode, pool_members(count))`)
           .eq("user_id", user.id);
-
         if (error) throw error;
         return data?.map(d => d.pools) || [];
       },
@@ -71,13 +45,9 @@ export function usePrefetch() {
     });
   }, [queryClient]);
 
-  /**
-   * Prefetch user profile - used across most authenticated pages
-   */
   const prefetchProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     queryClient.prefetchQuery({
       queryKey: ["user-profile", user.id],
       queryFn: async () => {
@@ -86,7 +56,6 @@ export function usePrefetch() {
           .select("first_name, school_name_legacy, school_id, display_name, province, user_type, year_of_birth, consent_status, schools(name)")
           .eq("id", user.id)
           .single();
-
         if (error) throw error;
         return data;
       },
@@ -94,9 +63,6 @@ export function usePrefetch() {
     });
   }, [queryClient]);
 
-  /**
-   * Prefetch current month's fixtures
-   */
   const prefetchFixtures = useCallback(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -110,23 +76,16 @@ export function usePrefetch() {
         const { data, error } = await supabase
           .from("fixtures")
           .select(`
-            id,
-            match_date,
-            venue_legacy,
-            venue_type,
-            venue_id,
-            status,
-            home_school_id,
-            away_school_id,
-            home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
-            away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+            id, match_date, venue_legacy, venue_type, venue_id, status,
+            school_a_id, school_b_id,
+            school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
+            school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
             tournament:tournaments(id, name)
           `)
           .eq("is_visible", true)
           .gte("match_date", startOfMonth)
           .lte("match_date", endOfMonth)
           .order("match_date", { ascending: true });
-
         if (error) throw error;
         return data || [];
       },
@@ -134,41 +93,16 @@ export function usePrefetch() {
     });
   }, [queryClient]);
 
-  /**
-   * Prefetch data for a specific navigation target
-   */
   const prefetchForRoute = useCallback((route: string) => {
     switch (route) {
-      case "/home":
-        prefetchProfile();
-        prefetchUserPools();
-        break;
-      case "/pools":
-        prefetchUserPools();
-        prefetchSchools();
-        break;
-      case "/fixtures":
-        prefetchSchools();
-        prefetchFixtures();
-        break;
-      case "/leaderboard":
-        prefetchSchools();
-        prefetchUserPools();
-        break;
-      case "/profile":
-        prefetchProfile();
-        prefetchUserPools();
-        break;
-      default:
-        break;
+      case "/home": prefetchProfile(); prefetchUserPools(); break;
+      case "/pools": prefetchUserPools(); prefetchSchools(); break;
+      case "/fixtures": prefetchSchools(); prefetchFixtures(); break;
+      case "/leaderboard": prefetchSchools(); prefetchUserPools(); break;
+      case "/profile": prefetchProfile(); prefetchUserPools(); break;
+      default: break;
     }
   }, [prefetchProfile, prefetchUserPools, prefetchSchools, prefetchFixtures]);
 
-  return {
-    prefetchSchools,
-    prefetchUserPools,
-    prefetchProfile,
-    prefetchFixtures,
-    prefetchForRoute,
-  };
+  return { prefetchSchools, prefetchUserPools, prefetchProfile, prefetchFixtures, prefetchForRoute };
 }

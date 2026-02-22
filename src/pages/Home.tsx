@@ -27,7 +27,6 @@ const Home = () => {
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
   const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string, margin: number }>>({});
   
-  // Auth and profile data
   const {
     user,
     loading,
@@ -38,7 +37,6 @@ const Home = () => {
     handleSignOut,
   } = useHomeAuth();
 
-  // Fixtures data
   const {
     upcomingFixtures,
     recentFixtures,
@@ -48,7 +46,7 @@ const Home = () => {
     predictionsMap: dbPredictions,
   } = useHomeFixtures({
     userId: user?.id || null,
-    userSchoolName,
+    userSchoolName, // Note: This parameter is unused in useHomeFixtures, but keeping it for now to match interface
     userSchoolId,
     effectiveDate,
     weekendStart: weekendRange.start,
@@ -57,24 +55,19 @@ const Home = () => {
     profileLoaded,
   });
 
-  // Merge DB predictions with local state (local takes priority for immediate feedback)
   const predictions = { ...dbPredictions, ...localPredictions };
 
-  // Handle prediction submission - saves to DB and updates local state
   const handlePredictionMade = useCallback(async (matchId: string, schoolId: string, margin: number) => {
     if (!user?.id) return;
 
-    // Find the fixture to derive home/away for DB column
     const fixture = [...upcomingFixtures, userSchoolFixture].find(f => f?.id === matchId);
-    const predictedTeam = fixture && schoolId === fixture.home_school.id ? "home" : "away";
+    const predictedTeam = fixture && schoolId === fixture.school_a.id ? "school_a" : "school_b";
 
-    // Update local state immediately for instant feedback
     setLocalPredictions(prev => ({
       ...prev,
       [matchId]: { schoolId, margin }
     }));
 
-    // Save to database
     const { error } = await supabase
       .from("predictions")
       .upsert(
@@ -100,7 +93,6 @@ const Home = () => {
     }
   }, [user?.id, queryClient, upcomingFixtures, userSchoolFixture]);
 
-  // Helper to format match time
   const formatMatchTime = (matchDate: string, status: string) => {
     const date = new Date(matchDate);
     const dayName = format(date, "EEE");
@@ -111,7 +103,6 @@ const Home = () => {
     return `${dayName} ${time}`;
   };
 
-  // Helper to get short name (first 2 letters or abbreviation)
   const getShortName = (name: string) => {
     const words = name.split(" ");
     if (words.length >= 2) {
@@ -120,7 +111,6 @@ const Home = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Determine hero headline context
   const isDerbyWeek = userSchoolFixture?.is_derby === true;
   const hasSchoolFixture = !!userSchoolFixture;
 
@@ -148,7 +138,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -164,7 +153,6 @@ const Home = () => {
             </button>
           </div>
         </div>
-        {/* School-first identity banner */}
         {(userDisplayName || userSchoolName) && (
           <div className="container mx-auto px-4 pb-3">
             {userSchoolName ? (
@@ -186,9 +174,7 @@ const Home = () => {
         )}
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        {/* Hero Headline Block */}
         <div className="space-y-1.5">
           <h1 className="text-3xl md:text-4xl font-black text-foreground leading-tight">
             {getHeroHeadline()}
@@ -201,24 +187,21 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Dynamic Carousel: Derbies, News, Ads */}
         <HomeCarousel unpickedFixturesCount={upcomingFixtures.filter(f => !predictions[f.id]).length} />
 
-        {/* Weekly Summary Widget */}
         <WeeklySummaryWidget userId={user?.id} />
 
-        {/* Your School's Fixture - Special Highlight */}
         {userSchoolFixture && userSchoolName && (
           <div className="space-y-2">
             <SchoolFixtureCard
-              userSchool={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.name : userSchoolFixture.away_school.name}
-              userSchoolShort={getShortName(userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.name : userSchoolFixture.away_school.name)}
-              userSchoolIcon={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.jersey_url : userSchoolFixture.away_school.jersey_url}
-              userSchoolSlug={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.home_school.slug : userSchoolFixture.away_school.slug}
-              opponentSchool={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.name : userSchoolFixture.home_school.name}
-              opponentSchoolShort={getShortName(userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.name : userSchoolFixture.home_school.name)}
-              opponentSchoolIcon={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.jersey_url : userSchoolFixture.home_school.jersey_url}
-              opponentSchoolSlug={userSchoolFixture.home_school.name === userSchoolName ? userSchoolFixture.away_school.slug : userSchoolFixture.home_school.slug}
+              userSchool={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.name : userSchoolFixture.school_b.name}
+              userSchoolShort={getShortName(userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.name : userSchoolFixture.school_b.name)}
+              userSchoolIcon={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.jersey_url : userSchoolFixture.school_b.jersey_url}
+              userSchoolSlug={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.slug : userSchoolFixture.school_b.slug}
+              opponentSchool={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.name : userSchoolFixture.school_a.name}
+              opponentSchoolShort={getShortName(userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.name : userSchoolFixture.school_a.name)}
+              opponentSchoolIcon={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.jersey_url : userSchoolFixture.school_a.jersey_url}
+              opponentSchoolSlug={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.slug : userSchoolFixture.school_a.slug}
               time={formatMatchTime(userSchoolFixture.match_date, userSchoolFixture.status)}
               matchDate={userSchoolFixture.match_date}
               venue={userSchoolFixture.venue}
@@ -231,7 +214,6 @@ const Home = () => {
           </div>
         )}
 
-        {/* Upcoming Matches */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold px-1">Upcoming Matches</h2>
           {fixturesLoading ? (
@@ -243,16 +225,16 @@ const Home = () => {
               {upcomingFixtures.map((fixture, index) => (
                 <FixtureCard 
                   key={fixture.id}
-                  homeTeam={fixture.home_school.name}
-                  awayTeam={fixture.away_school.name}
-                  homeTeamShort={getShortName(fixture.home_school.name)}
-                  awayTeamShort={getShortName(fixture.away_school.name)}
-                  homeTeamIcon={fixture.home_school.jersey_url}
-                  awayTeamIcon={fixture.away_school.jersey_url}
-                  homeSchoolId={fixture.home_school.id}
-                  awaySchoolId={fixture.away_school.id}
-                  homeSchoolSlug={fixture.home_school.slug}
-                  awaySchoolSlug={fixture.away_school.slug}
+                  homeTeam={fixture.school_a.name}
+                  awayTeam={fixture.school_b.name}
+                  homeTeamShort={getShortName(fixture.school_a.name)}
+                  awayTeamShort={getShortName(fixture.school_b.name)}
+                  homeTeamIcon={fixture.school_a.jersey_url}
+                  awayTeamIcon={fixture.school_b.jersey_url}
+                  homeSchoolId={fixture.school_a.id}
+                  awaySchoolId={fixture.school_b.id}
+                  homeSchoolSlug={fixture.school_a.slug}
+                  awaySchoolSlug={fixture.school_b.slug}
                   time={formatMatchTime(fixture.match_date, fixture.status)}
                   venue={fixture.venue}
                   matchDate={fixture.match_date}
@@ -288,7 +270,6 @@ const Home = () => {
           )}
         </div>
 
-        {/* Full Time – Report the Score */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold px-1">Full Time – Report the Score</h2>
           {fixturesLoading ? (
@@ -300,14 +281,14 @@ const Home = () => {
               {recentFixtures.map((fixture, index) => (
                 <RecentFixtureCard
                   key={fixture.id}
-                  homeTeam={fixture.home_school.name}
-                  awayTeam={fixture.away_school.name}
-                  homeTeamShort={getShortName(fixture.home_school.name)}
-                  awayTeamShort={getShortName(fixture.away_school.name)}
-                  homeTeamIcon={fixture.home_school.jersey_url}
-                  awayTeamIcon={fixture.away_school.jersey_url}
-                  homeSchoolSlug={fixture.home_school.slug}
-                  awaySchoolSlug={fixture.away_school.slug}
+                  homeTeam={fixture.school_a.name}
+                  awayTeam={fixture.school_b.name}
+                  homeTeamShort={getShortName(fixture.school_a.name)}
+                  awayTeamShort={getShortName(fixture.school_b.name)}
+                  homeTeamIcon={fixture.school_a.jersey_url}
+                  awayTeamIcon={fixture.school_b.jersey_url}
+                  homeSchoolSlug={fixture.school_a.slug}
+                  awaySchoolSlug={fixture.school_b.slug}
                   completedTime={formatMatchTime(fixture.match_date, fixture.status)}
                   venue={fixture.venue}
                   matchDate={new Date(fixture.match_date)}
@@ -322,15 +303,10 @@ const Home = () => {
           )}
         </div>
 
-        {/* Trivia / News Carousel - removed for MVP */}
-
-        {/* School-Specific Score Submission (Official Scorekeepers) */}
         {userSchoolName && (
           <SchoolScoreSubmission userSchoolName={userSchoolName} />
         )}
 
-
-        {/* Become an Official Scorekeeper CTA */}
         {userSchoolName && (
           <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
             <CardContent className="p-5">
@@ -367,7 +343,6 @@ const Home = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </div>
   );

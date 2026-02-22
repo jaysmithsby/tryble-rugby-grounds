@@ -24,14 +24,13 @@ export default function SchoolProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
-  // Helper to convert hex to RGB for styling
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
       r: parseInt(result[1], 16),
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16)
-    } : { r: 34, g: 197, b: 94 }; // Default green
+    } : { r: 34, g: 197, b: 94 };
   };
 
   useEffect(() => {
@@ -44,7 +43,6 @@ export default function SchoolProfile() {
     if (!user || !schoolSlug) return;
     setCurrentUserId(user.id);
 
-    // Get user's primary school
     const { data: profile } = await supabase
       .from("profiles")
       .select("school_id")
@@ -52,7 +50,6 @@ export default function SchoolProfile() {
       .single();
     setPrimarySchoolId(profile?.school_id || null);
 
-    // Check if already following (need school id first)
     const { data: schoolData } = await supabase
       .from("schools")
       .select("id")
@@ -100,7 +97,6 @@ export default function SchoolProfile() {
     
     setLoading(true);
     try {
-      // Load school details by slug
       const { data: schoolData, error: schoolError } = await supabase
         .from("schools")
         .select("*")
@@ -114,18 +110,15 @@ export default function SchoolProfile() {
 
       const schoolId = schoolData.id;
 
-      // Fixtures are now fetched with joined school data directly
-
-      // Load upcoming fixtures (status: upcoming, holding, or future dates)
       const { data: upcomingData, error: upcomingError } = await supabase
         .from("fixtures")
         .select(`
-          id, match_date, venue_legacy, home_school_id, away_school_id, status, is_derby,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+          id, match_date, venue_legacy, school_a_id, school_b_id, status, is_derby,
+          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
+          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
           tournament:tournaments(id, name)
         `)
-        .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
+        .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
         .in("status", ["upcoming", "holding"])
         .gte("match_date", new Date().toISOString())
         .order("match_date", { ascending: true })
@@ -133,25 +126,23 @@ export default function SchoolProfile() {
 
       setUpcomingFixtures((upcomingData || []) as any[]);
 
-      // Load recent results (completed matches or past dates with scores)
       const { data: resultsData, error: resultsError } = await supabase
         .from("fixtures")
         .select(`
-          id, match_date, venue_legacy, home_school_id, away_school_id, status, is_derby, home_score, away_score,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+          id, match_date, venue_legacy, school_a_id, school_b_id, status, is_derby, score_a, score_b,
+          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
+          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
           tournament:tournaments(id, name)
         `)
-        .or(`home_school_id.eq.${schoolId},away_school_id.eq.${schoolId}`)
+        .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
         .eq("status", "completed")
-        .not("home_score", "is", null)
-        .not("away_score", "is", null)
+        .not("score_a", "is", null)
+        .not("score_b", "is", null)
         .order("match_date", { ascending: false })
         .limit(5);
 
       setRecentResults((resultsData || []) as any[]);
 
-      // Load top 5 users from this school
       const { data: topUsersData } = await supabase
         .from("user_scores")
         .select(`
@@ -200,14 +191,13 @@ export default function SchoolProfile() {
   }
 
   const isDerby = (fixture: any) => {
-    const homeSchool = fixture.home_school?.name;
-    const awaySchool = fixture.away_school?.name;
+    const schoolA = fixture.school_a?.name;
+    const schoolB = fixture.school_b?.name;
     return fixture.is_derby || 
-           homeSchool === school.main_rival || 
-           awaySchool === school.main_rival;
+           schoolA === school.main_rival || 
+           schoolB === school.main_rival;
   };
 
-  // Get school colors with fallback
   const primaryColor = school.primary_color || '#22C55E';
   const secondaryColor = school.secondary_color || '#FFD700';
   const primaryRgb = hexToRgb(primaryColor);
@@ -215,7 +205,6 @@ export default function SchoolProfile() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
       <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="container mx-auto px-4 py-4">
           <Button
@@ -230,9 +219,7 @@ export default function SchoolProfile() {
         </div>
       </header>
 
-      {/* Hero Section with Dynamic School Colors */}
       <div className="relative h-72 overflow-hidden border-b border-border/40">
-        {/* Dynamic gradient background based on school colors */}
         <div 
           className="absolute inset-0"
           style={{
@@ -262,7 +249,6 @@ export default function SchoolProfile() {
         </div>
         
         <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
-          {/* Shield-style School Crest Container */}
           <div className="relative mb-6">
             <div 
               className="w-36 h-36 rounded-2xl bg-card/90 backdrop-blur-md flex items-center justify-center border-2 overflow-hidden p-5 rotate-45 transform"
@@ -288,7 +274,6 @@ export default function SchoolProfile() {
                 )}
               </div>
             </div>
-            {/* Derby Flame if rivalry match upcoming */}
             {upcomingFixtures.some(f => isDerby(f)) && (
               <div className="absolute -top-2 -right-2 w-10 h-10 bg-destructive rounded-full flex items-center justify-center animate-pulse shadow-lg">
                 <Flame className="w-6 h-6 text-destructive-foreground" />
@@ -306,7 +291,6 @@ export default function SchoolProfile() {
             </p>
           )}
           
-          {/* Follow / Unfollow Button */}
           {currentUserId && (
             <div className="mt-4">
               {primarySchoolId === school.id ? (
@@ -340,9 +324,7 @@ export default function SchoolProfile() {
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="px-4 py-6 space-y-6 max-w-7xl mx-auto">
-        {/* Quick Facts Chips */}
         <div className="flex flex-wrap gap-3 justify-center">
           {school.established_year && (
             <div className="h-12 px-5 rounded-full bg-card border border-primary/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transition-shadow">
@@ -364,10 +346,8 @@ export default function SchoolProfile() {
           )}
         </div>
 
-        {/* Upcoming Fixtures */}
         <FixtureTable fixtures={upcomingFixtures} />
 
-        {/* Recent Results */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Results</CardTitle>
@@ -382,7 +362,6 @@ export default function SchoolProfile() {
           </CardContent>
         </Card>
 
-        {/* Community - Top Users */}
         <Card>
           <CardHeader>
             <CardTitle>Top Trybal Users</CardTitle>
@@ -413,7 +392,6 @@ export default function SchoolProfile() {
           </CardContent>
         </Card>
 
-        {/* Rivalry Match Highlight */}
         {school.main_rival && upcomingFixtures.some(f => isDerby(f)) && (
           <Card className="border-destructive/40 bg-gradient-to-br from-destructive/10 to-destructive/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-destructive/5 rounded-full blur-3xl"></div>
@@ -435,34 +413,26 @@ export default function SchoolProfile() {
                     <div className="flex items-center justify-between gap-4 mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-primary overflow-hidden p-1">
-                          {derbyMatch.home_school?.icon_url && (
-                            <img src={derbyMatch.home_school.icon_url} alt="" className="w-full h-full object-contain" />
+                          {derbyMatch.school_a?.icon_url && (
+                            <img src={derbyMatch.school_a.icon_url} alt="" className="w-full h-full object-contain" />
                           )}
                         </div>
-                        <span className="font-bold text-sm">{derbyMatch.home_school?.name}</span>
+                        <span className="font-bold text-sm">{derbyMatch.school_a?.name}</span>
                       </div>
-                      <Flame className="w-6 h-6 text-destructive animate-pulse" />
+                      <span className="font-black text-muted-foreground">VS</span>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm">{derbyMatch.away_school?.name}</span>
-                        <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-primary overflow-hidden p-1">
-                          {derbyMatch.away_school?.icon_url && (
-                            <img src={derbyMatch.away_school.icon_url} alt="" className="w-full h-full object-contain" />
+                        <span className="font-bold text-sm text-right">{derbyMatch.school_b?.name}</span>
+                        <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-accent overflow-hidden p-1">
+                          {derbyMatch.school_b?.icon_url && (
+                            <img src={derbyMatch.school_b.icon_url} alt="" className="w-full h-full object-contain" />
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(derbyMatch.match_date).toLocaleDateString('en-ZA', { 
-                          weekday: 'long', 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{derbyMatch.venue_legacy || "TBD"}</p>
+                      <Badge variant="outline" className="bg-background/50 border-destructive/30 text-destructive">
+                        {new Date(derbyMatch.match_date).toLocaleDateString()}
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -470,27 +440,8 @@ export default function SchoolProfile() {
             </CardContent>
           </Card>
         )}
-        
-        {/* Main Rival Info (when no upcoming derby) */}
-        {school.main_rival && !upcomingFixtures.some(f => isDerby(f)) && (
-          <Card className="border-destructive/30 bg-destructive/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-destructive" />
-                Historic Rivalry
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center text-sm">
-                The historic rivalry with <span className="font-bold text-destructive">{school.main_rival}</span> fuels 
-                the most anticipated matches of the season. Derby fixtures are must-watch events!
-              </p>
-            </CardContent>
-          </Card>
-        )}
       </main>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </div>
   );

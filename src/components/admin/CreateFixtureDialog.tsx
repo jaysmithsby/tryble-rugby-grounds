@@ -54,18 +54,6 @@ interface Tournament {
   name: string;
 }
 
-const PROVINCES = [
-  "Eastern Cape",
-  "Free State",
-  "Gauteng",
-  "KwaZulu-Natal",
-  "Limpopo",
-  "Mpumalanga",
-  "North West",
-  "Northern Cape",
-  "Western Cape",
-];
-
 export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFixtureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -74,24 +62,24 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
   
   // Form state
   const [matchDate, setMatchDate] = useState<Date>();
-  const [homeSchoolId, setHomeSchoolId] = useState("");
-  const [awaySchoolId, setAwaySchoolId] = useState("");
+  const [schoolAId, setSchoolAId] = useState("");
+  const [schoolBId, setSchoolBId] = useState("");
   const [venueType, setVenueType] = useState<"home_ground" | "away_ground" | "tournament">("home_ground");
   const [tournamentId, setTournamentId] = useState("");
-  const [homeScore, setHomeScore] = useState("");
-  const [awayScore, setAwayScore] = useState("");
+  const [scoreA, setScoreA] = useState("");
+  const [scoreB, setScoreB] = useState("");
   const [status, setStatus] = useState("upcoming");
   const [isVisible, setIsVisible] = useState(true);
   const [sourceUrl, setSourceUrl] = useState("");
   
   // Combobox state
-  const [homeSchoolOpen, setHomeSchoolOpen] = useState(false);
-  const [awaySchoolOpen, setAwaySchoolOpen] = useState(false);
-  const [homeSearchQuery, setHomeSearchQuery] = useState("");
-  const [awaySearchQuery, setAwaySearchQuery] = useState("");
+  const [schoolAOpen, setSchoolAOpen] = useState(false);
+  const [schoolBOpen, setSchoolBOpen] = useState(false);
+  const [schoolASearchQuery, setSchoolASearchQuery] = useState("");
+  const [schoolBSearchQuery, setSchoolBSearchQuery] = useState("");
   
   // Inline school creation state
-  const [showInlineSchool, setShowInlineSchool] = useState<"home" | "away" | null>(null);
+  const [showInlineSchool, setShowInlineSchool] = useState<"school_a" | "school_b" | null>(null);
   const [newSchoolName, setNewSchoolName] = useState("");
   const [newSchoolProvince, setNewSchoolProvince] = useState("");
   const [creatingSchool, setCreatingSchool] = useState(false);
@@ -103,7 +91,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
   // Check for mirror duplicates when schools + date are selected
   useEffect(() => {
     const checkDuplicate = async () => {
-      if (!homeSchoolId || !awaySchoolId || !matchDate) {
+      if (!schoolAId || !schoolBId || !matchDate) {
         setDuplicateWarning(null);
         return;
       }
@@ -114,7 +102,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
           .from("fixtures")
           .select("id")
           .or(
-            `and(home_school_id.eq.${homeSchoolId},away_school_id.eq.${awaySchoolId}),and(home_school_id.eq.${awaySchoolId},away_school_id.eq.${homeSchoolId})`
+            `and(school_a_id.eq.${schoolAId},school_b_id.eq.${schoolBId}),and(school_a_id.eq.${schoolBId},school_b_id.eq.${schoolAId})`
           )
           .gte("match_date", `${dateStr}T00:00:00`)
           .lt("match_date", `${dateStr}T23:59:59`)
@@ -133,7 +121,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
       }
     };
     checkDuplicate();
-  }, [homeSchoolId, awaySchoolId, matchDate]);
+  }, [schoolAId, schoolBId, matchDate]);
 
   useEffect(() => {
     if (open) {
@@ -171,19 +159,19 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
     }
   };
 
-  const filteredHomeSchools = useMemo(() => {
-    if (!homeSearchQuery) return schools;
+  const filteredSchoolA = useMemo(() => {
+    if (!schoolASearchQuery) return schools;
     return schools.filter(school =>
-      school.name.toLowerCase().includes(homeSearchQuery.toLowerCase())
+      school.name.toLowerCase().includes(schoolASearchQuery.toLowerCase())
     );
-  }, [schools, homeSearchQuery]);
+  }, [schools, schoolASearchQuery]);
 
-  const filteredAwaySchools = useMemo(() => {
-    if (!awaySearchQuery) return schools;
+  const filteredSchoolB = useMemo(() => {
+    if (!schoolBSearchQuery) return schools;
     return schools.filter(school =>
-      school.name.toLowerCase().includes(awaySearchQuery.toLowerCase())
+      school.name.toLowerCase().includes(schoolBSearchQuery.toLowerCase())
     );
-  }, [schools, awaySearchQuery]);
+  }, [schools, schoolBSearchQuery]);
 
   const getSchoolName = (id: string) => {
     return schools.find(s => s.id === id)?.name || "";
@@ -213,13 +201,12 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
 
       if (error) throw error;
 
-      // Add to schools list and select it
       setSchools(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       
-      if (showInlineSchool === "home") {
-        setHomeSchoolId(data.id);
+      if (showInlineSchool === "school_a") {
+        setSchoolAId(data.id);
       } else {
-        setAwaySchoolId(data.id);
+        setSchoolBId(data.id);
       }
 
       toast({
@@ -227,7 +214,6 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
         description: `${data.name} has been added. You can edit full details in Schools Manager.`,
       });
 
-      // Reset inline form
       setShowInlineSchool(null);
       setNewSchoolName("");
       setNewSchoolProvince("");
@@ -245,17 +231,17 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
 
   const resetForm = () => {
     setMatchDate(undefined);
-    setHomeSchoolId("");
-    setAwaySchoolId("");
+    setSchoolAId("");
+    setSchoolBId("");
     setVenueType("home_ground");
     setTournamentId("");
-    setHomeScore("");
-    setAwayScore("");
+    setScoreA("");
+    setScoreB("");
     setStatus("upcoming");
     setIsVisible(true);
     setSourceUrl("");
-    setHomeSearchQuery("");
-    setAwaySearchQuery("");
+    setSchoolASearchQuery("");
+    setSchoolBSearchQuery("");
     setShowInlineSchool(null);
     setNewSchoolName("");
     setNewSchoolProvince("");
@@ -264,19 +250,19 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!matchDate || !homeSchoolId || !awaySchoolId) {
+    if (!matchDate || !schoolAId || !schoolBId) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Date, Home School, Away School)",
+        description: "Please fill in all required fields (Date, School A, School B)",
         variant: "destructive",
       });
       return;
     }
 
-    if (homeSchoolId === awaySchoolId) {
+    if (schoolAId === schoolBId) {
       toast({
         title: "Validation Error",
-        description: "Home and Away school cannot be the same",
+        description: "School A and School B cannot be the same",
         variant: "destructive",
       });
       return;
@@ -285,41 +271,39 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
     setLoading(true);
 
     try {
-      // Compute venue_id based on venue type
       const resolvedTournamentId = tournamentId && tournamentId !== "none" ? tournamentId : null;
       let computedVenueId: string | null = null;
       let computedVenueType: string = "school";
       if (venueType === "home_ground") {
-        computedVenueId = homeSchoolId;
+        computedVenueId = schoolAId;
         computedVenueType = "school";
       } else if (venueType === "away_ground") {
-        computedVenueId = awaySchoolId;
+        computedVenueId = schoolBId;
         computedVenueType = "school";
       } else if (venueType === "tournament" && resolvedTournamentId) {
         computedVenueId = resolvedTournamentId;
         computedVenueType = "tournament";
       }
 
-      // Resolve venue_legacy text for backward compat
       let venueLegacy = "TBD";
       if (venueType === "home_ground") {
-        venueLegacy = getSchoolName(homeSchoolId) || "TBD";
+        venueLegacy = getSchoolName(schoolAId) || "TBD";
       } else if (venueType === "away_ground") {
-        venueLegacy = getSchoolName(awaySchoolId) || "TBD";
+        venueLegacy = getSchoolName(schoolBId) || "TBD";
       } else if (venueType === "tournament" && resolvedTournamentId) {
         venueLegacy = tournaments.find(t => t.id === resolvedTournamentId)?.name || "TBD";
       }
 
       const fixtureData = {
-        home_school_id: homeSchoolId,
-        away_school_id: awaySchoolId,
+        school_a_id: schoolAId,
+        school_b_id: schoolBId,
         match_date: matchDate.toISOString(),
         venue_legacy: venueLegacy,
         venue_type: computedVenueType,
         venue_id: computedVenueId,
         tournament_id: resolvedTournamentId,
-        home_score: homeScore ? parseInt(homeScore) : null,
-        away_score: awayScore ? parseInt(awayScore) : null,
+        score_a: scoreA ? parseInt(scoreA) : null,
+        score_b: scoreB ? parseInt(scoreB) : null,
         status,
         is_visible: isVisible,
         source_url: sourceUrl || null,
@@ -353,7 +337,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
   };
 
   const renderSchoolCombobox = (
-    type: "home" | "away",
+    type: "school_a" | "school_b",
     value: string,
     setValue: (val: string) => void,
     isOpen: boolean,
@@ -370,7 +354,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
           aria-expanded={isOpen}
           className="w-full justify-between"
         >
-          {value ? getSchoolName(value) : `Select ${type} school...`}
+          {value ? getSchoolName(value) : `Select ${type === "school_a" ? "School A" : "School B"}...`}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -446,330 +430,264 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
     </Popover>
   );
 
+  const renderInlineSchoolForm = (type: "school_a" | "school_b") => {
+    if (showInlineSchool !== type) return null;
+
+    return (
+      <div className="space-y-2">
+        <Label>New School Name</Label>
+        <Input
+          placeholder="School Name"
+          value={newSchoolName}
+          onChange={(e) => setNewSchoolName(e.target.value)}
+        />
+        <Label>Province</Label>
+        <Input
+          placeholder="Province"
+          value={newSchoolProvince}
+          onChange={(e) => setNewSchoolProvince(e.target.value)}
+        />
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleCreateInlineSchool}
+          disabled={creatingSchool || !newSchoolName.trim() || !newSchoolProvince}
+        >
+          {creatingSchool && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create School
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <>
-      <Dialog open={open} onOpenChange={(isOpen) => {
-        if (!isOpen) resetForm();
-        onOpenChange(isOpen);
-      }}>
-        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Fixture</DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Date Picker */}
-            <div className="space-y-2">
-              <Label>Match Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !matchDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {matchDate ? format(matchDate, "PPP 'at' HH:mm") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={matchDate}
-                    onSelect={setMatchDate}
-                    initialFocus
-                    className="pointer-events-auto"
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) resetForm();
+      onOpenChange(isOpen);
+    }}>
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Fixture</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Match Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !matchDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {matchDate ? format(matchDate, "PPP 'at' HH:mm") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={matchDate}
+                  onSelect={setMatchDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+                <div className="border-t p-3">
+                  <Label className="text-xs">Time</Label>
+                  <Input
+                    type="time"
+                    className="mt-1"
+                    onChange={(e) => {
+                      if (matchDate && e.target.value) {
+                        const [hours, minutes] = e.target.value.split(':');
+                        const newDate = new Date(matchDate);
+                        newDate.setHours(parseInt(hours), parseInt(minutes));
+                        setMatchDate(newDate);
+                      }
+                    }}
                   />
-                  <div className="border-t p-3">
-                    <Label className="text-xs">Time</Label>
-                    <Input
-                      type="time"
-                      className="mt-1"
-                      onChange={(e) => {
-                        if (matchDate && e.target.value) {
-                          const [hours, minutes] = e.target.value.split(':');
-                          const newDate = new Date(matchDate);
-                          newDate.setHours(parseInt(hours), parseInt(minutes));
-                          setMatchDate(newDate);
-                        }
-                      }}
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Home School */}
-            <div className="space-y-2">
-              <Label>Home School *</Label>
-              {renderSchoolCombobox(
-                "home",
-                homeSchoolId,
-                setHomeSchoolId,
-                homeSchoolOpen,
-                setHomeSchoolOpen,
-                homeSearchQuery,
-                setHomeSearchQuery,
-                filteredHomeSchools
-              )}
-            </div>
-
-            {/* Away School */}
-            <div className="space-y-2">
-              <Label>Away School *</Label>
-              {renderSchoolCombobox(
-                "away",
-                awaySchoolId,
-                setAwaySchoolId,
-                awaySchoolOpen,
-                setAwaySchoolOpen,
-                awaySearchQuery,
-                setAwaySearchQuery,
-                filteredAwaySchools
-              )}
-            </div>
-
-            {/* Venue Type */}
-            <div className="space-y-2">
-              <Label>Venue</Label>
-            <div className="flex gap-1 rounded-lg border p-1">
-                {([
-                  { value: "home_ground" as const, label: "Home Ground" },
-                  { value: "away_ground" as const, label: "Away Ground" },
-                  { value: "tournament" as const, label: "Tournament" },
-                ]).map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    variant={venueType === value ? "default" : "ghost"}
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setVenueType(value)}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              {venueType === "home_ground" && homeSchoolId && (
-                <p className="text-sm text-muted-foreground">📍 {getSchoolName(homeSchoolId)}</p>
-              )}
-              {venueType === "away_ground" && awaySchoolId && (
-                <p className="text-sm text-muted-foreground">📍 {getSchoolName(awaySchoolId)}</p>
-              )}
-              {venueType === "tournament" && (
-                <Select value={tournamentId} onValueChange={setTournamentId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select tournament..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {tournaments.map((tournament) => (
-                      <SelectItem key={tournament.id} value={tournament.id}>
-                        {tournament.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {(venueType !== "tournament") && (
-                <div className="space-y-2">
-                  <Label>Tournament (Optional)</Label>
-                  <Select value={tournamentId} onValueChange={setTournamentId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select tournament (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {tournaments.map((tournament) => (
-                        <SelectItem key={tournament.id} value={tournament.id}>
-                          {tournament.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>School A *</Label>
+              {renderSchoolCombobox(
+                "school_a",
+                schoolAId,
+                setSchoolAId,
+                schoolAOpen,
+                setSchoolAOpen,
+                schoolASearchQuery,
+                setSchoolASearchQuery,
+                filteredSchoolA
               )}
+              {renderInlineSchoolForm("school_a")}
             </div>
-
-            {/* Score (Optional) */}
             <div className="space-y-2">
-              <Label>Score (Optional)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  placeholder="Home"
-                  value={homeScore}
-                  onChange={(e) => setHomeScore(e.target.value)}
-                  className="w-24"
-                  min="0"
-                />
-                <span className="text-muted-foreground">–</span>
-                <Input
-                  type="number"
-                  placeholder="Away"
-                  value={awayScore}
-                  onChange={(e) => setAwayScore(e.target.value)}
-                  className="w-24"
-                  min="0"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Leave blank if match hasn't been played</p>
+              <Label>School B *</Label>
+              {renderSchoolCombobox(
+                "school_b",
+                schoolBId,
+                setSchoolBId,
+                schoolBOpen,
+                setSchoolBOpen,
+                schoolBSearchQuery,
+                setSchoolBSearchQuery,
+                filteredSchoolB
+              )}
+              {renderInlineSchoolForm("school_b")}
             </div>
+          </div>
 
-            {/* Status */}
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="final">Final</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="holding">Holding</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Source URL */}
-            <div className="space-y-2">
-              <Label htmlFor="sourceUrl">Source URL (Optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="sourceUrl"
-                  type="url"
-                  value={sourceUrl}
-                  onChange={(e) => setSourceUrl(e.target.value)}
-                  placeholder="https://example.com/fixture-info"
+          <div className="space-y-2">
+            <Label>Venue</Label>
+            <div className="flex gap-1 rounded-lg border p-1">
+              {([
+                { value: "home_ground" as const, label: "Home Ground" },
+                { value: "away_ground" as const, label: "Away Ground" },
+                { value: "tournament" as const, label: "Tournament" },
+              ]).map(({ value, label }) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={venueType === value ? "default" : "ghost"}
+                  size="sm"
                   className="flex-1"
-                />
-                {sourceUrl && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    asChild
-                  >
-                    <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">Where did you get this fixture information?</p>
+                  onClick={() => setVenueType(value)}
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
-
-            {/* Visible Toggle */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label>Visible to Users</Label>
-                <p className="text-xs text-muted-foreground">
-                  Show this fixture on the public app
-                </p>
-              </div>
-              <Switch
-                checked={isVisible}
-                onCheckedChange={setIsVisible}
-              />
-            </div>
-
-            {/* Duplicate Warning */}
-            {duplicateWarning && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{duplicateWarning}</AlertDescription>
-              </Alert>
+            {venueType === "home_ground" && schoolAId && (
+              <p className="text-sm text-muted-foreground">📍 {getSchoolName(schoolAId)}</p>
             )}
-
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading || checkingDuplicate}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Fixture
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Inline School Creation Dialog */}
-      <Dialog open={!!showInlineSchool} onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setShowInlineSchool(null);
-          setNewSchoolName("");
-          setNewSchoolProvince("");
-        }
-      }}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Add New School (Quick Add)</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Add minimal school info to continue. You can edit the full profile later in Schools Manager.
-            </p>
-            
-            <div className="space-y-2">
-              <Label htmlFor="newSchoolName">School Name *</Label>
-              <Input
-                id="newSchoolName"
-                value={newSchoolName}
-                onChange={(e) => setNewSchoolName(e.target.value)}
-                placeholder="e.g., Grey College"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Province *</Label>
-              <Select value={newSchoolProvince} onValueChange={setNewSchoolProvince}>
+            {venueType === "away_ground" && schoolBId && (
+              <p className="text-sm text-muted-foreground">📍 {getSchoolName(schoolBId)}</p>
+            )}
+            {venueType === "tournament" && (
+              <Select value={tournamentId} onValueChange={setTournamentId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select province" />
+                  <SelectValue placeholder="Select tournament..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROVINCES.map((province) => (
-                    <SelectItem key={province} value={province}>
-                      {province}
+                  <SelectItem value="none">None</SelectItem>
+                  {tournaments.map((tournament) => (
+                    <SelectItem key={tournament.id} value={tournament.id}>
+                      {tournament.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            )}
+          </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowInlineSchool(null);
-                  setNewSchoolName("");
-                  setNewSchoolProvince("");
-                }}
-                disabled={creatingSchool}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateInlineSchool}
-                disabled={creatingSchool || !newSchoolName.trim() || !newSchoolProvince}
-              >
-                {creatingSchool && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Add School
-              </Button>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="upcoming">Upcoming</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="final">Final</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="holding">Holding</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Score</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  placeholder="Score A"
+                  value={scoreA}
+                  onChange={(e) => setScoreA(e.target.value)}
+                  min="0"
+                />
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {schoolAId ? getSchoolName(schoolAId) : "School A"}
+                </p>
+              </div>
+              <span className="text-muted-foreground font-medium">-</span>
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  placeholder="Score B"
+                  value={scoreB}
+                  onChange={(e) => setScoreB(e.target.value)}
+                  min="0"
+                />
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {schoolBId ? getSchoolName(schoolBId) : "School B"}
+                </p>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+
+          <div className="space-y-2">
+            <Label htmlFor="source_url">Source URL (Optional)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="source_url"
+                type="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://example.com/fixture-info"
+                className="flex-1"
+              />
+              {sourceUrl && (
+                <Button type="button" variant="outline" size="icon" asChild>
+                  <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label>Visible to Users</Label>
+              <p className="text-xs text-muted-foreground">
+                Show this fixture on the app
+              </p>
+            </div>
+            <Switch checked={isVisible} onCheckedChange={setIsVisible} />
+          </div>
+
+          {duplicateWarning && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{duplicateWarning}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading || checkingDuplicate}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

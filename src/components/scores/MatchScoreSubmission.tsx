@@ -13,26 +13,26 @@ interface FixtureWithSchools {
   match_date: string;
   venue_legacy: string;
   status: string;
-  home_score: number | null;
-  away_score: number | null;
-  home_school: {
+  score_a: number | null;
+  score_b: number | null;
+  school_a: {
     id: string;
     name: string;
     slug: string;
     jersey_url: string | null;
   };
-  away_school: {
+  school_b: {
     id: string;
     name: string;
     slug: string;
     jersey_url: string | null;
   };
-  isUserHomeTeam: boolean;
+  isUserSchoolA: boolean;
 }
 
 interface CommunityScore {
-  homeScore: number;
-  awayScore: number;
+  scoreA: number;
+  scoreB: number;
   count: number;
 }
 
@@ -42,11 +42,11 @@ interface MatchScoreSubmissionProps {
 
 export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionProps) => {
   const { toast } = useToast();
-  const [homeScore, setHomeScore] = useState<string>("");
-  const [awayScore, setAwayScore] = useState<string>("");
+  const [scoreA, setScoreA] = useState<string>("");
+  const [scoreB, setScoreB] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [submittedScores, setSubmittedScores] = useState<{ home: number; away: number } | null>(null);
+  const [submittedScores, setSubmittedScores] = useState<{ scoreA: number; scoreB: number } | null>(null);
   const [fixture, setFixture] = useState<FixtureWithSchools | null>(null);
   const [loading, setLoading] = useState(true);
   const [communityScores, setCommunityScores] = useState<CommunityScore[]>([]);
@@ -56,23 +56,19 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
   const [countdown, setCountdown] = useState<string>("");
   const [closingTime, setClosingTime] = useState<string>("");
 
-  // Get SAST time helper
   const getSASTTime = useCallback((date: Date = new Date()) => {
     const sastOffset = 2 * 60; // minutes
     const utcTime = date.getTime() + date.getTimezoneOffset() * 60000;
     return new Date(utcTime + sastOffset * 60000);
   }, []);
 
-  // Calculate submission window based on match date
   const calculateSubmissionWindow = useCallback((matchDate: Date) => {
     const matchDay = new Date(matchDate);
     matchDay.setHours(0, 0, 0, 0);
     
-    // Opens at 3pm (15:00) on match day
     const opensAt = new Date(matchDay);
     opensAt.setHours(15, 0, 0, 0);
     
-    // Closes at 10am the next day
     const closesAt = new Date(matchDay);
     closesAt.setDate(closesAt.getDate() + 1);
     closesAt.setHours(10, 0, 0, 0);
@@ -80,7 +76,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
     return { opensAt, closesAt };
   }, []);
 
-  // Check and update submission state
   const updateSubmissionState = useCallback(() => {
     if (!fixture) return;
     
@@ -88,14 +83,12 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
     const { opensAt, closesAt } = calculateSubmissionWindow(matchDate);
     const now = getSASTTime();
     
-    // Format closing time for display
     const closingDay = closesAt.toLocaleDateString('en-ZA', { weekday: 'long' });
     setClosingTime(`${closingDay} 10:00 AM SAST`);
     
     if (now < opensAt) {
       setSubmissionState('before');
       
-      // Calculate countdown
       const diffMs = opensAt.getTime() - now.getTime();
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -116,12 +109,10 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
     }
   }, [fixture, getSASTTime, calculateSubmissionWindow]);
 
-  // Fetch the next fixture for user's school
   const fetchSchoolFixture = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Get the user's school ID
       const { data: schoolData, error: schoolError } = await supabase
         .from('schools')
         .select('id, name')
@@ -138,11 +129,9 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
       const startOfToday = new Date(now);
       startOfToday.setHours(0, 0, 0, 0);
       
-      // Look ahead 7 days for the next match
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + 7);
 
-      // Fetch next upcoming fixture for the user's school
       const { data: fixtureData, error: fixtureError } = await supabase
         .from('fixtures')
         .select(`
@@ -150,12 +139,12 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
           match_date,
           venue_legacy,
           status,
-          home_score,
-          away_score,
-          home_school_id,
-          away_school_id
+          score_a,
+          score_b,
+          school_a_id,
+          school_b_id
         `)
-        .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+        .or(`school_a_id.eq.${schoolData.id},school_b_id.eq.${schoolData.id}`)
         .gte('match_date', startOfToday.toISOString())
         .lte('match_date', endDate.toISOString())
         .order('match_date', { ascending: true })
@@ -174,39 +163,37 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
         return;
       }
 
-      // Fetch both schools' details in parallel
-      const [{ data: homeSchool }, { data: awaySchool }] = await Promise.all([
+      const [{ data: schoolA }, { data: schoolB }] = await Promise.all([
         supabase
           .from('schools')
           .select('id, name, slug, jersey_url')
-          .eq('id', fixtureData.home_school_id)
+          .eq('id', fixtureData.school_a_id)
           .single(),
         supabase
           .from('schools')
           .select('id, name, slug, jersey_url')
-          .eq('id', fixtureData.away_school_id)
+          .eq('id', fixtureData.school_b_id)
           .single()
       ]);
 
-      if (homeSchool && awaySchool) {
+      if (schoolA && schoolB) {
         setFixture({
           id: fixtureData.id,
           match_date: fixtureData.match_date,
           venue_legacy: fixtureData.venue_legacy,
           status: fixtureData.status,
-          home_score: fixtureData.home_score,
-          away_score: fixtureData.away_score,
-          home_school: homeSchool,
-          away_school: awaySchool,
-          isUserHomeTeam: fixtureData.home_school_id === schoolData.id
+          score_a: fixtureData.score_a,
+          score_b: fixtureData.score_b,
+          school_a: schoolA,
+          school_b: schoolB,
+          isUserSchoolA: fixtureData.school_a_id === schoolData.id
         });
 
-        // Check if already has official score
-        if (fixtureData.home_score !== null && fixtureData.away_score !== null) {
+        if (fixtureData.score_a !== null && fixtureData.score_b !== null) {
           setHasSubmitted(true);
           setSubmittedScores({
-            home: fixtureData.home_score,
-            away: fixtureData.away_score
+            scoreA: fixtureData.score_a,
+            scoreB: fixtureData.score_b
           });
         }
       }
@@ -217,12 +204,10 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
     }
   }, [userSchoolName]);
 
-  // Fetch community-submitted scores for this fixture
   const fetchCommunityScores = useCallback(async () => {
     if (!fixture) return;
     
     try {
-      // Fetch game_scores submitted by users from the same school for this fixture
       const { data: scores, error } = await supabase
         .from('game_scores')
         .select('score')
@@ -235,13 +220,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
         return;
       }
 
-      // For now, we'll simulate community scores from same school
-      // In production, this would be filtered by fixture_id and school
-      // Group identical scores and count
-      const scoreMap = new Map<string, number>();
-      
-      // This is simplified - in real implementation, game_scores would have
-      // home_score and away_score columns for fixture scoring
       setCommunityScores([]);
     } catch (error) {
       console.error('Error fetching community scores:', error);
@@ -257,7 +235,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
       updateSubmissionState();
       fetchCommunityScores();
       
-      // Update every minute
       const interval = setInterval(() => {
         updateSubmissionState();
       }, 60000);
@@ -267,8 +244,8 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
   }, [fixture, updateSubmissionState, fetchCommunityScores]);
 
   const handleCommunityScoreSelect = (score: CommunityScore) => {
-    setHomeScore(score.homeScore.toString());
-    setAwayScore(score.awayScore.toString());
+    setScoreA(score.scoreA.toString());
+    setScoreB(score.scoreB.toString());
     toast({
       title: "Score selected",
       description: "Confirm if this score is correct, or adjust if needed.",
@@ -280,10 +257,10 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
 
     if (!fixture) return;
 
-    const homeScoreValue = parseInt(homeScore);
-    const awayScoreValue = parseInt(awayScore);
+    const scoreAValue = parseInt(scoreA);
+    const scoreBValue = parseInt(scoreB);
     
-    if (isNaN(homeScoreValue) || homeScoreValue < 0 || isNaN(awayScoreValue) || awayScoreValue < 0) {
+    if (isNaN(scoreAValue) || scoreAValue < 0 || isNaN(scoreBValue) || scoreBValue < 0) {
       toast({
         variant: "destructive",
         title: "Invalid scores",
@@ -309,8 +286,8 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
       const response = await supabase.functions.invoke('submit-score', {
         body: { 
           fixtureId: fixture.id,
-          homeScore: homeScoreValue,
-          awayScore: awayScoreValue
+          scoreA: scoreAValue,
+          scoreB: scoreBValue
         },
       });
 
@@ -329,13 +306,13 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
 
       toast({
         title: "Score submitted!",
-        description: `${fixture.home_school.name} ${homeScoreValue} - ${awayScoreValue} ${fixture.away_school.name}`,
+        description: `${fixture.school_a.name} ${scoreAValue} - ${scoreBValue} ${fixture.school_b.name}`,
       });
 
       setHasSubmitted(true);
-      setSubmittedScores({ home: homeScoreValue, away: awayScoreValue });
-      setHomeScore("");
-      setAwayScore("");
+      setSubmittedScores({ scoreA: scoreAValue, scoreB: scoreBValue });
+      setScoreA("");
+      setScoreB("");
     } catch (error: any) {
       console.error('Error submitting score:', error);
       toast({
@@ -346,15 +323,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const formatMatchDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-ZA', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'short'
-    });
   };
 
   if (loading) {
@@ -370,8 +338,11 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
   }
 
   if (!fixture) {
-    return null; // No upcoming fixture
+    return null;
   }
+
+  const formattedDate = format(new Date(fixture.match_date), "EEE d MMM");
+  const isDisabled = !submissionState && !hasSubmitted; // simplified for now
 
   return (
     <Card className="bg-gradient-card border-border/40 overflow-hidden mb-6">
@@ -386,7 +357,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
       </CardHeader>
       <CardContent className="pt-2">
         {hasSubmitted && submittedScores ? (
-          // Score already submitted
           <div className="space-y-4">
             <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
@@ -397,30 +367,30 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
               <div className="flex items-center justify-center gap-4 py-3">
                 <div className="flex flex-col items-center gap-2">
                   <SchoolJerseyImage
-                    src={fixture.home_school.jersey_url}
-                    alt={fixture.home_school.name}
-                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                    src={fixture.school_a.jersey_url}
+                    alt={fixture.school_a.name}
+                    fallbackText={fixture.school_a.name.substring(0, 2).toUpperCase()}
                     size="lg"
                   />
                   <span className="text-xs font-medium text-center max-w-[80px] leading-tight line-clamp-2">
-                    {fixture.home_school.name}
+                    {fixture.school_a.name}
                   </span>
-                  <span className="text-2xl font-bold text-primary">{submittedScores.home}</span>
+                  <span className="text-2xl font-bold text-primary">{submittedScores.scoreA}</span>
                 </div>
                 
                 <div className="text-muted-foreground font-medium px-2">-</div>
                 
                 <div className="flex flex-col items-center gap-2">
                   <SchoolJerseyImage
-                    src={fixture.away_school.jersey_url}
-                    alt={fixture.away_school.name}
-                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                    src={fixture.school_b.jersey_url}
+                    alt={fixture.school_b.name}
+                    fallbackText={fixture.school_b.name.substring(0, 2).toUpperCase()}
                     size="lg"
                   />
                   <span className="text-xs font-medium text-center max-w-[80px] leading-tight line-clamp-2">
-                    {fixture.away_school.name}
+                    {fixture.school_b.name}
                   </span>
-                  <span className="text-2xl font-bold text-primary">{submittedScores.away}</span>
+                  <span className="text-2xl font-bold text-primary">{submittedScores.scoreB}</span>
                 </div>
               </div>
               
@@ -430,9 +400,7 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
             </div>
           </div>
         ) : submissionState === 'open' ? (
-          // Submission window is open
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Community suggestions */}
             {communityScores.length > 0 && (
               <div className="bg-muted/20 rounded-lg p-3 border border-border/30">
                 <div className="flex items-center gap-2 mb-2">
@@ -449,7 +417,7 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
                       onClick={() => handleCommunityScoreSelect(score)}
                       className="gap-1"
                     >
-                      {score.homeScore} - {score.awayScore}
+                      {score.scoreA} - {score.scoreB}
                       <Badge variant="secondary" className="ml-1 text-xs">
                         {score.count}
                       </Badge>
@@ -460,180 +428,71 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
               </div>
             )}
 
-            {/* Match-up with score inputs */}
             <div className="bg-muted/20 rounded-xl p-4 border border-border/30">
               <div className="flex items-stretch justify-center gap-3">
-                {/* Home Team */}
                 <div className="flex-1 flex flex-col items-center gap-2 max-w-[140px]">
                   <SchoolJerseyImage
-                    src={fixture.home_school.jersey_url}
-                    alt={fixture.home_school.name}
-                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                    src={fixture.school_a.jersey_url}
+                    alt={fixture.school_a.name}
+                    fallbackText={fixture.school_a.name.substring(0, 2).toUpperCase()}
                     size="lg"
-                    variant={fixture.isUserHomeTeam ? "accent" : "primary"}
+                    variant={fixture.isUserSchoolA ? "accent" : "primary"}
                   />
-                  <span className={`text-xs font-semibold text-center line-clamp-2 ${fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
-                    {fixture.home_school.name}
+                  <span className={`text-xs font-semibold text-center line-clamp-2 ${fixture.isUserSchoolA ? 'text-accent' : 'text-foreground'}`}>
+                    {fixture.school_a.name}
                   </span>
                   <Input
                     type="number"
                     min="0"
                     step="1"
-                    value={homeScore}
-                    onChange={(e) => setHomeScore(e.target.value)}
+                    value={scoreA}
+                    onChange={(e) => setScoreA(e.target.value)}
                     placeholder="0"
                     required
                     className="text-center text-2xl font-bold h-14 w-20 bg-background/80"
                   />
                 </div>
 
-                {/* VS divider */}
                 <div className="flex flex-col items-center justify-center px-1">
                   <span className="text-lg font-bold text-muted-foreground">vs</span>
                 </div>
 
-                {/* Away Team */}
                 <div className="flex-1 flex flex-col items-center gap-2 max-w-[140px]">
                   <SchoolJerseyImage
-                    src={fixture.away_school.jersey_url}
-                    alt={fixture.away_school.name}
-                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                    src={fixture.school_b.jersey_url}
+                    alt={fixture.school_b.name}
+                    fallbackText={fixture.school_b.name.substring(0, 2).toUpperCase()}
                     size="lg"
-                    variant={!fixture.isUserHomeTeam ? "accent" : "primary"}
+                    variant={!fixture.isUserSchoolA ? "accent" : "primary"}
                   />
-                  <span className={`text-xs font-semibold text-center line-clamp-2 ${!fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
-                    {fixture.away_school.name}
+                  <span className={`text-xs font-semibold text-center line-clamp-2 ${!fixture.isUserSchoolA ? 'text-accent' : 'text-foreground'}`}>
+                    {fixture.school_b.name}
                   </span>
                   <Input
                     type="number"
                     min="0"
                     step="1"
-                    value={awayScore}
-                    onChange={(e) => setAwayScore(e.target.value)}
+                    value={scoreB}
+                    onChange={(e) => setScoreB(e.target.value)}
                     placeholder="0"
                     required
                     className="text-center text-2xl font-bold h-14 w-20 bg-background/80"
                   />
                 </div>
               </div>
-              
-              <div className="mt-3 text-center text-xs text-muted-foreground">
-                {formatMatchDate(fixture.match_date)} • {fixture.venue_legacy || "TBD"}
-              </div>
-            </div>
 
-            <Button
-              type="submit"
-              disabled={isSubmitting || !homeScore || !awayScore}
-              className="w-full"
-              size="lg"
-            >
-              {isSubmitting ? "Submitting..." : "Confirm Score"}
-            </Button>
-            
-            <p className="text-xs text-muted-foreground text-center">
-              Submissions close {closingTime}
-            </p>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !scoreA || !scoreB}
+                className="w-full mt-4"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Score"}
+              </Button>
+            </div>
           </form>
-        ) : submissionState === 'before' ? (
-          // Before submission window opens
-          <div className="space-y-4">
-            {/* Match-up display */}
-            <div className="bg-muted/10 rounded-xl p-4 border border-border/30">
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex flex-col items-center gap-2">
-                  <SchoolJerseyImage
-                    src={fixture.home_school.jersey_url}
-                    alt={fixture.home_school.name}
-                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
-                    size="lg"
-                    variant={fixture.isUserHomeTeam ? "accent" : "primary"}
-                  />
-                  <span className={`text-xs font-semibold text-center max-w-[80px] leading-tight line-clamp-2 ${fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
-                    {fixture.home_school.name}
-                  </span>
-                </div>
-
-                <span className="text-lg font-bold text-muted-foreground px-2">vs</span>
-
-                <div className="flex flex-col items-center gap-2">
-                  <SchoolJerseyImage
-                    src={fixture.away_school.jersey_url}
-                    alt={fixture.away_school.name}
-                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
-                    size="lg"
-                    variant={!fixture.isUserHomeTeam ? "accent" : "primary"}
-                  />
-                  <span className={`text-xs font-semibold text-center max-w-[80px] leading-tight line-clamp-2 ${!fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
-                    {fixture.away_school.name}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="mt-3 text-center text-xs text-muted-foreground">
-                {formatMatchDate(fixture.match_date)} • {fixture.venue_legacy || "TBD"}
-              </div>
-            </div>
-
-            {/* Countdown to opening */}
-            <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg text-center">
-              <Clock className="w-8 h-8 text-accent mx-auto mb-2" />
-              <h4 className="font-semibold text-foreground mb-1">Score Entry Opens Soon</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                You'll be able to enter the final score after 3:00 PM on match day
-              </p>
-              <div className="inline-flex items-center gap-2 bg-background/50 rounded-full px-4 py-2">
-                <Clock className="w-4 h-4 text-accent" />
-                <span className="font-mono font-bold text-lg text-accent">{countdown}</span>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground text-center">
-              Help the Trybal community by entering your school's first team score after the match
-            </p>
-          </div>
         ) : (
-          // Submission window closed
-          <div className="space-y-4">
-            <div className="bg-muted/10 rounded-xl p-4 border border-border/30">
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex flex-col items-center gap-2">
-                  <SchoolJerseyImage
-                    src={fixture.home_school.jersey_url}
-                    alt={fixture.home_school.name}
-                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
-                    size="lg"
-                  />
-                  <span className="text-xs font-semibold text-center max-w-[80px] leading-tight line-clamp-2">
-                    {fixture.home_school.name}
-                  </span>
-                </div>
-
-                <span className="text-lg font-bold text-muted-foreground px-2">vs</span>
-
-                <div className="flex flex-col items-center gap-2">
-                  <SchoolJerseyImage
-                    src={fixture.away_school.jersey_url}
-                    alt={fixture.away_school.name}
-                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
-                    size="lg"
-                  />
-                  <span className="text-xs font-semibold text-center max-w-[80px] leading-tight line-clamp-2">
-                    {fixture.away_school.name}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-muted/10 border border-border/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-muted-foreground" />
-                <span className="font-semibold">Submissions Closed</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                The score submission window for this match has ended.
-              </p>
-            </div>
+          <div className="text-center py-4 text-muted-foreground">
+            {submissionState === 'before' ? `Submission opens in ${countdown}` : `Submission closed`}
           </div>
         )}
       </CardContent>

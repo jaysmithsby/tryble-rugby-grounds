@@ -121,17 +121,17 @@ export type Database = {
       }
       fixtures: {
         Row: {
-          away_school_id: string
-          away_score: number | null
           created_at: string
           festival_id: string | null
-          home_school_id: string
-          home_score: number | null
           id: string
           is_derby: boolean | null
           is_visible: boolean | null
           match_date: string
           round_name: string | null
+          school_a_id: string
+          school_b_id: string
+          score_a: number | null
+          score_b: number | null
           season: string
           source_url: string | null
           sport: string
@@ -144,17 +144,17 @@ export type Database = {
           year: number
         }
         Insert: {
-          away_school_id: string
-          away_score?: number | null
           created_at?: string
           festival_id?: string | null
-          home_school_id: string
-          home_score?: number | null
           id?: string
           is_derby?: boolean | null
           is_visible?: boolean | null
           match_date: string
           round_name?: string | null
+          school_a_id: string
+          school_b_id: string
+          score_a?: number | null
+          score_b?: number | null
           season: string
           source_url?: string | null
           sport?: string
@@ -167,17 +167,17 @@ export type Database = {
           year: number
         }
         Update: {
-          away_school_id?: string
-          away_score?: number | null
           created_at?: string
           festival_id?: string | null
-          home_school_id?: string
-          home_score?: number | null
           id?: string
           is_derby?: boolean | null
           is_visible?: boolean | null
           match_date?: string
           round_name?: string | null
+          school_a_id?: string
+          school_b_id?: string
+          score_a?: number | null
+          score_b?: number | null
           season?: string
           source_url?: string | null
           sport?: string
@@ -191,15 +191,15 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fixtures_away_school_id_fkey"
-            columns: ["away_school_id"]
+            foreignKeyName: "fixtures_school_a_id_fkey"
+            columns: ["school_a_id"]
             isOneToOne: false
             referencedRelation: "schools"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fixtures_home_school_id_fkey"
-            columns: ["home_school_id"]
+            foreignKeyName: "fixtures_school_b_id_fkey"
+            columns: ["school_b_id"]
             isOneToOne: false
             referencedRelation: "schools"
             referencedColumns: ["id"]

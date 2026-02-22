@@ -82,10 +82,9 @@ export function TestingCenter() {
       const startDate = weekendRange.start.toISOString();
       const endDate = weekendRange.end.toISOString();
 
-      // Get fixture stats for the weekend
       const { data: fixtures, error: fixturesError } = await supabase
         .from("fixtures")
-        .select("id, home_score, away_score")
+        .select("id, score_a, score_b")
         .gte("match_date", startDate)
         .lte("match_date", endDate)
         .eq("year", year);
@@ -93,9 +92,8 @@ export function TestingCenter() {
       if (fixturesError) throw fixturesError;
 
       const fixtureIds = fixtures?.map(f => f.id) || [];
-      const fixturesWithScores = fixtures?.filter(f => f.home_score !== null && f.away_score !== null).length || 0;
+      const fixturesWithScores = fixtures?.filter(f => f.score_a !== null && f.score_b !== null).length || 0;
 
-      // Get prediction stats for these fixtures
       let predictionsCount = 0;
       let usersWithPredictions = 0;
 
@@ -128,21 +126,19 @@ export function TestingCenter() {
       const startDate = weekendRange.start.toISOString();
       const endDate = weekendRange.end.toISOString();
 
-      // Get all fixtures for this weekend with scores
       const { data: fixtures, error: fixturesError } = await supabase
         .from("fixtures")
         .select("id")
         .gte("match_date", startDate)
         .lte("match_date", endDate)
         .eq("year", year)
-        .not("home_score", "is", null)
-        .not("away_score", "is", null);
+        .not("score_a", "is", null)
+        .not("score_b", "is", null);
 
       if (fixturesError) throw fixturesError;
 
       let totalPredictionsProcessed = 0;
 
-      // Process each fixture
       for (const fixture of fixtures || []) {
         const { data, error } = await supabase.rpc("calculate_prediction_points", {
           p_fixture_id: fixture.id,
@@ -154,7 +150,6 @@ export function TestingCenter() {
         }
       }
 
-      // Rollup user scores for this week
       const { error: rollupError } = await supabase.rpc("rollup_week_scores", {
         p_week: weekNumber,
         p_year: year,
@@ -184,7 +179,6 @@ export function TestingCenter() {
     setIsResetting(true);
     try {
       if (type === "predictions" || type === "all") {
-        // Delete 2025 predictions (predictions linked to 2025 fixtures)
         const { data: fixtures2025 } = await supabase
           .from("fixtures")
           .select("id")
@@ -201,7 +195,6 @@ export function TestingCenter() {
       }
 
       if (type === "scores" || type === "all") {
-        // Delete 2025 user_scores
         const { error } = await supabase
           .from("user_scores")
           .delete()
@@ -240,7 +233,6 @@ export function TestingCenter() {
         </p>
       </div>
 
-      {/* Simulation Mode Toggle */}
       <Card className={isSimulationMode ? "border-primary/50 bg-primary/5" : ""}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -275,7 +267,6 @@ export function TestingCenter() {
 
       {isSimulationMode && (
         <>
-          {/* Date Controls */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -287,7 +278,6 @@ export function TestingCenter() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Date Picker */}
               <div className="flex items-center gap-4">
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
@@ -312,7 +302,6 @@ export function TestingCenter() {
                 </Popover>
               </div>
 
-              {/* Week Navigation */}
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={goToPreviousWeek}>
                   <ChevronLeft className="h-4 w-4 mr-1" />
@@ -331,7 +320,6 @@ export function TestingCenter() {
             </CardContent>
           </Card>
 
-          {/* Week Stats */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -364,7 +352,6 @@ export function TestingCenter() {
             </CardContent>
           </Card>
 
-          {/* Actions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -408,7 +395,6 @@ export function TestingCenter() {
             </CardContent>
           </Card>
 
-          {/* Reset Options */}
           <Card className="border-destructive/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
@@ -476,15 +462,15 @@ export function TestingCenter() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Clear All 2025 Test Data?</AlertDialogTitle>
+                      <AlertDialogTitle>Clear All Test Data?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will delete all predictions AND leaderboard scores for 2025. Use this to start fresh. This action cannot be undone.
+                        This will completely wipe all test predictions and scores for 2025. Use this when starting a fresh test cycle.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={() => resetTestData("all")}>
-                        Clear Everything
+                        Clear All Data
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

@@ -21,10 +21,12 @@ interface SchoolFixtureCardProps {
   matchDate?: string;
   matchId?: string;
   isPredicted?: boolean;
-  predictedTeam?: "home" | "away";
+  predictedTeam?: "home" | "away" | "school_a" | "school_b"; // added school_a/school_b
   predictedMargin?: number;
   onPredictionMade?: (team: "home" | "away", margin: number) => void;
   priority?: boolean;
+  homeSchoolId?: string; // added
+  awaySchoolId?: string; // added
 }
 
 export const SchoolFixtureCard = ({
@@ -44,7 +46,9 @@ export const SchoolFixtureCard = ({
   predictedTeam,
   predictedMargin,
   onPredictionMade,
-  priority = false
+  priority = false,
+  homeSchoolId,
+  awaySchoolId
 }: SchoolFixtureCardProps) => {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,7 +57,7 @@ export const SchoolFixtureCard = ({
     onPredictionMade?.(team, margin);
   };
 
-  const predictedTeamName = predictedTeam === "home" ? userSchool : opponentSchool;
+  const predictedTeamName = predictedTeam === "home" || predictedTeam === "school_a" ? userSchool : opponentSchool;
 
   return (
     <>

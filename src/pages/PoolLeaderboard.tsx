@@ -76,7 +76,6 @@ export const PoolLeaderboard = () => {
     }
 
     try {
-      // Get schools by name to get their IDs
       const { data: schoolsData } = await supabase
         .from("schools")
         .select("id, name")
@@ -89,12 +88,11 @@ export const PoolLeaderboard = () => {
 
       const schoolIds = schoolsData.map(s => s.id);
 
-      // Find the earliest upcoming fixture for these schools
       const now = new Date();
       const { data: fixtures } = await supabase
         .from("fixtures")
         .select("match_date")
-        .or(`home_school_id.in.(${schoolIds.join(",")}),away_school_id.in.(${schoolIds.join(",")})`)
+        .or(`school_a_id.in.(${schoolIds.join(",")}),school_b_id.in.(${schoolIds.join(",")})`)
         .gte("match_date", now.toISOString())
         .order("match_date", { ascending: true })
         .limit(1);
@@ -131,7 +129,6 @@ export const PoolLeaderboard = () => {
     const currentYear = new Date().getFullYear();
 
     try {
-      // Load pool details
       const { data: poolData, error: poolError } = await supabase
         .from("pools")
         .select("*")
@@ -141,10 +138,8 @@ export const PoolLeaderboard = () => {
       if (poolError) throw poolError;
       setPool(poolData);
 
-      // Check if editing should be locked
       await checkEditableLock(poolData.schools || []);
 
-      // Load members with profiles
       const { data: membersData, error: membersError } = await supabase
         .from("pool_members")
         .select("user_id, joined_at")
@@ -162,7 +157,6 @@ export const PoolLeaderboard = () => {
         return;
       }
 
-      // Fetch profiles for members
       const { data: profilesData } = await supabase
         .from("profiles_public")
         .select("id, display_name, school_name")
@@ -175,7 +169,6 @@ export const PoolLeaderboard = () => {
         }
       });
 
-      // Build members list
       const membersList: PoolMember[] = membersData.map(m => ({
         user_id: m.user_id,
         joined_at: m.joined_at,
@@ -184,7 +177,6 @@ export const PoolLeaderboard = () => {
       }));
       setMembers(membersList);
 
-      // Fetch user scores for pool members
       const { data: scoresData, error: scoresError } = await supabase
         .from("user_scores")
         .select("*")
@@ -196,7 +188,6 @@ export const PoolLeaderboard = () => {
         console.error("Error fetching scores:", scoresError);
       }
 
-      // Build leaderboard entries
       const scoresMap: Record<string, any> = {};
       scoresData?.forEach(s => {
         scoresMap[s.user_id] = s;
@@ -217,13 +208,11 @@ export const PoolLeaderboard = () => {
         };
       });
 
-      // Sort by points and assign ranks
       entries.sort((a, b) => b.points - a.points);
       entries.forEach((e, i) => e.rank = i + 1);
 
       setLeaderboard(entries);
 
-      // Calculate highlights (Hilux = top scorer, Spud = bottom scorer with points > 0)
       if (entries.length >= 2) {
         const hilux = entries[0];
         const activeEntries = entries.filter(e => e.points > 0);
@@ -279,7 +268,6 @@ export const PoolLeaderboard = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
       <header className="border-b border-border/40 sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="container mx-auto px-4 py-4">
           <Button
@@ -321,7 +309,6 @@ export const PoolLeaderboard = () => {
             )}
           </div>
 
-          {/* Lock Status Banner */}
           {!isEditable && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4">
               <Lock className="w-4 h-4" />
@@ -335,7 +322,6 @@ export const PoolLeaderboard = () => {
             </div>
           )}
 
-          {/* Weekly/Season Toggle */}
           <div className="flex gap-2 justify-center">
             <Button
               variant={period === "weekly" ? "default" : "outline"}
@@ -355,7 +341,6 @@ export const PoolLeaderboard = () => {
         </div>
       </header>
 
-      {/* Weekly Highlight Banner */}
       {highlights.hilux ? (
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
           <div className="container mx-auto px-4 py-3">
@@ -379,9 +364,7 @@ export const PoolLeaderboard = () => {
         </div>
       )}
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Members Section */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center justify-between">
@@ -404,7 +387,6 @@ export const PoolLeaderboard = () => {
           </CardContent>
         </Card>
 
-        {/* Invite Card */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Invite Friends</CardTitle>
@@ -417,7 +399,6 @@ export const PoolLeaderboard = () => {
           </CardContent>
         </Card>
 
-        {/* Schools Section */}
         {!pool.voting_mode && pool.schools?.length > 0 && (
           <Card>
             <CardHeader>
@@ -441,7 +422,6 @@ export const PoolLeaderboard = () => {
           </Card>
         )}
 
-        {/* Voting Section (if voting mode and not finalized) */}
         {pool.voting_mode && !pool.is_voting_finalized && pool.voting_closes_at && (
           <Card>
             <CardHeader>
@@ -461,7 +441,6 @@ export const PoolLeaderboard = () => {
           </Card>
         )}
 
-        {/* Finalized Schools from Voting */}
         {pool.voting_mode && pool.is_voting_finalized && pool.schools?.length > 0 && (
           <Card>
             <CardHeader>
@@ -482,7 +461,6 @@ export const PoolLeaderboard = () => {
           </Card>
         )}
 
-        {/* Leaderboard */}
         <Card>
           <CardHeader>
             <CardTitle>Pool Leaderboard</CardTitle>
@@ -496,53 +474,45 @@ export const PoolLeaderboard = () => {
                 {leaderboard.map((entry) => (
                   <div
                     key={entry.userId}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${getRankStyle(entry.rank)} transition-colors hover:bg-muted/50`}
-                    style={{ minHeight: '60px' }}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      entry.userId === currentUserId ? "border-primary bg-primary/5" : "border-border/40"
+                    } ${getRankStyle(entry.rank)}`}
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={`text-lg font-bold w-12 text-center ${entry.rank <= 3 ? "text-accent" : "text-muted-foreground"}`}>
-                        #{entry.rank}
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        entry.rank <= 3 ? "bg-background/80" : "bg-muted"
+                      }`}>
+                        {entry.rank}
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {entry.nickname} — {entry.schoolCode}
-                          {entry.rank === 1 && entry.points > 0 && <span className="ml-2 text-base">🚙</span>}
-                          {entry.badges?.includes("top_dog") && <span className="ml-2 text-base">👑</span>}
+                      <div>
+                        <div className="font-medium text-sm flex items-center gap-2">
+                          {entry.nickname}
+                          {entry.userId === currentUserId && (
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1">You</Badge>
+                          )}
                         </div>
+                        <div className="text-xs text-muted-foreground">{entry.schoolCode}</div>
                       </div>
-                      <div className="text-lg font-bold text-primary">
-                        {entry.points} brags
-                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-lg">{entry.points}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Brags</div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Trophy className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="font-semibold mb-2">No rankings yet</h3>
-                <p className="text-muted-foreground text-sm">
-                  Pool rankings will appear once predictions are scored.
-                  <br />Make predictions on upcoming fixtures to get started!
-                </p>
+              <div className="text-center py-8 text-muted-foreground">
+                No scores recorded yet for this period
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Scoring Info */}
         <ScoringInfoCard />
-
-        {/* Safety Notice */}
-        <p className="text-xs text-muted-foreground text-center">
-          💡 Pool activity is visible in the Parent Dashboard
-        </p>
       </main>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </div>
   );
 };
-
-export default PoolLeaderboard;

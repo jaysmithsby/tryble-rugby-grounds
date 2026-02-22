@@ -8,8 +8,8 @@ import { JerseyFallbackIcon } from "@/components/ui/JerseyFallbackIcon";
 interface DerbySlideProps {
   derby: {
     id: string;
-    home_school: { name: string; slug: string; icon_url: string | null };
-    away_school: { name: string; slug: string; icon_url: string | null };
+    school_a: { name: string; slug: string; icon_url: string | null };
+    school_b: { name: string; slug: string; icon_url: string | null };
     match_date: string;
     venue_legacy: string;
   };
@@ -73,14 +73,14 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
 
         <div className="flex items-center justify-between gap-4">
           <button 
-            onClick={() => navigate(`/school/${derby.home_school.slug}`)}
+            onClick={() => navigate(`/school/${derby.school_a.slug}`)}
             className="flex flex-col items-center gap-2 flex-1 group"
           >
             <div className="w-16 h-16 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center border-2 border-primary/30 overflow-hidden group-hover:border-primary transition-colors">
-              {derby.home_school.icon_url ? (
+              {derby.school_a.icon_url ? (
                 <img 
-                  src={derby.home_school.icon_url} 
-                  alt={derby.home_school.name}
+                  src={derby.school_a.icon_url} 
+                  alt={derby.school_a.name}
                   className="w-12 h-12 object-contain"
                 />
               ) : (
@@ -88,7 +88,7 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
               )}
             </div>
             <span className="text-sm font-bold text-center line-clamp-1">
-              {getShortName(derby.home_school.name)}
+              {getShortName(derby.school_a.name)}
             </span>
           </button>
 
@@ -97,14 +97,14 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
           </div>
 
           <button 
-            onClick={() => navigate(`/school/${derby.away_school.slug}`)}
+            onClick={() => navigate(`/school/${derby.school_b.slug}`)}
             className="flex flex-col items-center gap-2 flex-1 group"
           >
             <div className="w-16 h-16 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center border-2 border-accent/30 overflow-hidden group-hover:border-accent transition-colors">
-              {derby.away_school.icon_url ? (
+              {derby.school_b.icon_url ? (
                 <img 
-                  src={derby.away_school.icon_url} 
-                  alt={derby.away_school.name}
+                  src={derby.school_b.icon_url} 
+                  alt={derby.school_b.name}
                   className="w-12 h-12 object-contain"
                 />
               ) : (
@@ -112,7 +112,7 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
               )}
             </div>
             <span className="text-sm font-bold text-center line-clamp-1">
-              {getShortName(derby.away_school.name)}
+              {getShortName(derby.school_b.name)}
             </span>
           </button>
         </div>

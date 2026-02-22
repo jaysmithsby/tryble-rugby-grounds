@@ -13,10 +13,10 @@ interface MatchHistoryProps {
 interface HistoricalFixture {
   id: string;
   match_date: string;
-  home_score: number | null;
-  away_score: number | null;
-  home_school_id: string;
-  away_school_id: string;
+  score_a: number | null;
+  score_b: number | null;
+  school_a_id: string;
+  school_b_id: string;
 }
 
 export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps) => {
@@ -25,11 +25,11 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fixtures")
-        .select(`id, match_date, home_score, away_score, home_school_id, away_school_id`)
+        .select(`id, match_date, score_a, score_b, school_a_id, school_b_id`)
         .eq("is_visible", true)
         .neq("status", "upcoming")
         .or(
-          `and(home_school_id.eq.${leftSchoolId},away_school_id.eq.${rightSchoolId}),and(home_school_id.eq.${rightSchoolId},away_school_id.eq.${leftSchoolId})`
+          `and(school_a_id.eq.${leftSchoolId},school_b_id.eq.${rightSchoolId}),and(school_a_id.eq.${rightSchoolId},school_b_id.eq.${leftSchoolId})`
         )
         .order("match_date", { ascending: false })
         .limit(5);
@@ -65,10 +65,9 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
         Head-to-Head History
       </p>
       {matches.map((match) => {
-        const leftIsHome = match.home_school_id === leftSchoolId;
-        const leftScore = leftIsHome ? match.home_score : match.away_score;
-        const rightScore = leftIsHome ? match.away_score : match.home_score;
-        const homeIsLeft = leftIsHome;
+        const leftIsA = match.school_a_id === leftSchoolId;
+        const leftScore = leftIsA ? match.score_a : match.score_b;
+        const rightScore = leftIsA ? match.score_b : match.score_a;
 
         return (
           <div
@@ -79,23 +78,13 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
               <span className="text-xs text-muted-foreground shrink-0">
                 {format(new Date(match.match_date), "d MMM yyyy")}
               </span>
-              <span
-                className={cn(
-                  "font-mono text-sm ml-auto",
-                  homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"
-                )}
-              >
+              <span className={cn("font-mono text-sm ml-auto", leftIsA ? "font-bold text-foreground" : "text-muted-foreground")}>
                 {leftScore ?? "–"}
               </span>
             </div>
             <span className="text-xs text-muted-foreground text-center">-</span>
             <div className="flex items-center">
-              <span
-                className={cn(
-                  "font-mono text-sm",
-                  !homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"
-                )}
-              >
+              <span className={cn("font-mono text-sm", !leftIsA ? "font-bold text-foreground" : "text-muted-foreground")}>
                 {rightScore ?? "–"}
               </span>
             </div>
