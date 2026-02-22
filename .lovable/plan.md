@@ -1,81 +1,102 @@
 
 
-## Fix: Strip Festival Text from Away Team Names in Bulk Parser
+## Consolidate School Tables into Single `schools` Table
 
-### The Problem
+This is a significant refactoring that touches the edge function, admin UI, user-facing request modal, and query hooks. The old `school_submissions` and `school_requests` tables have already been dropped, so all references must be updated.
 
-When festival parsing was removed, all text after the scores is treated as the away team name. For a line like:
+### Database Migration
 
-```
-16 Mar Brandwag EP 19 34 St Andrews Graeme Rugby Festival
-```
+Add columns to `schools` that the request workflow previously stored in `school_requests`:
 
-The away team becomes **"St Andrews Graeme Rugby Festival"** instead of just **"St Andrews"**. This causes incorrect school matching, phantom school creation, and data quality issues.
+- `school_type` (text, nullable) -- boys/girls/co-ed
+- `note_to_admin` (text, nullable)
+- `submitted_by_user_id` (uuid, nullable)
+- `request_logo_url` (text, nullable) -- logo uploaded during request
 
-### The Solution
+Also update the default status from `'verified'` to `'approved'` to match the new enum vocabulary:
 
-Update the `parseFixtureLine` function in `multiSchoolParser.ts` to use **progressive trimming** when extracting the away team name:
-
-1. Take all tokens after the scores (minus "Cancelled" if present)
-2. Try fuzzy-matching the full string against the schools database
-3. If no match, remove the last token and try again
-4. Repeat until a match is found or only 1 token remains
-5. If a match is found at a shorter length, use that as the away team name (the removed tokens were festival text)
-6. If no match at any length, fall back to the full text (current behaviour -- lets the user fix it manually in the review UI)
-
-This approach works because school names are typically 1-3 words, while festival names add 2-4 extra words at the end.
-
-### Example Walkthrough
-
-Input: `"St Andrews Graeme Rugby Festival"`
-
-| Attempt | Text tried | Match? |
-|---------|-----------|--------|
-| 1 | "St Andrews Graeme Rugby Festival" | No |
-| 2 | "St Andrews Graeme Rugby" | No |
-| 3 | "St Andrews Graeme" | No |
-| 4 | "St Andrews" | Yes -- use this |
-
-The same logic is applied to the home team text (before scores) as well, since festival host names could appear there too, though this is rarer.
-
-### Technical Details
-
-**File changed:** `src/lib/fixtureParser/multiSchoolParser.ts`
-
-**What changes (lines 120-131):**
-
-Replace the simple token join with a progressive matching function:
-
-```typescript
-function extractTeamName(
-  tokens: string[],
-  schools: School[]
-): { teamName: string; matched: boolean } {
-  if (tokens.length === 0) return { teamName: '', matched: false };
-
-  // Try progressively shorter prefixes
-  for (let len = tokens.length; len >= 1; len--) {
-    const candidate = tokens.slice(0, len).join(' ');
-    const match = fuzzyMatchSchool(candidate, schools);
-    if (match) {
-      return { teamName: candidate, matched: true };
-    }
-  }
-
-  // No match found -- use full text, let user fix in review
-  return { teamName: tokens.join(' '), matched: false };
-}
+```text
+Status values: draft, pending_review, approved, rejected, archived
 ```
 
-Then use it for the away team tokens (after removing "Cancelled"):
+Update existing `'verified'` rows to `'approved'`.
 
-```typescript
-const cleanedTokens = lastToken.toLowerCase() === 'cancelled'
-  ? afterScoreTokens.slice(0, -1)
-  : afterScoreTokens;
+### 1. Edge Function: `supabase/functions/school-onboarding/index.ts`
 
-const { teamName: awayTeamName } = extractTeamName(cleanedTokens, schools);
-```
+**`handleSubmitForm`** -- Change from inserting into `school_submissions` to inserting into `schools`:
+- Generate slug from `full_official_name`
+- Insert with `status: 'pending_review'`, `is_visible: false`
+- Map fields using standardized names:
+  - `school_motto` to `motto`
+  - `number_of_springboks` to `springboks_count`
+  - `school_trivia` to `trivia_fact`
+  - `crest_image_url` to `emblem_url`
+  - `primary_colour` / `secondary_colour` to `primary_color` / `secondary_color`
+- Store `contact_name`, `contact_email`, `contact_phone`, `invitation_id`
 
-No other files need to change. The review UI, submission logic, and school comboboxes all remain untouched.
+**`handleUploadCrest`** -- No change needed (only touches `school_invitations` and storage).
 
+### 2. User-Facing Request Modal: `SchoolRequestModal.tsx`
+
+Change from inserting into `school_requests` to inserting into `schools`:
+- Generate slug from school name
+- Set `status: 'draft'`, `is_visible: false`
+- Map `school_type`, `province`, `note_to_admin`, `submitted_by_user_id`
+- Store logo as `request_logo_url`
+
+### 3. Admin UI Updates
+
+**`SchoolOnboardingTab.tsx`** -- No change needed (reads from `school_invitations`, which still exists).
+
+**`ReviewSubmissionDialog.tsx`** -- Change to read from `schools` table:
+- Fetch by `invitation_id` instead of from `school_submissions`
+- Display using standardized column names (motto, springboks_count, trivia_fact, etc.)
+- **Approve action**: Update status to `'approved'`, set `is_visible: true`
+- **Reject action**: Update status to `'rejected'`
+- Remove the old logic that created a new school row on approve (it already exists)
+
+**`SchoolRequestsTable.tsx`** -- Change to read from `schools` table:
+- Query `schools` where `status = 'draft'` (user-submitted requests)
+- Adapt grouping logic to work with schools columns
+- Map old column names to new ones
+
+**`ReviewSchoolRequestDialog.tsx`** -- Update to work with `schools` table:
+- Change decline action from updating `school_requests` to updating `schools.status = 'rejected'`
+- Change approve flow: instead of creating a new school, just update status to `'approved'` and `is_visible: true`
+
+**`CreateSchoolDialog.tsx`** -- Remove the block (lines 279-291) that updates `school_requests` on success.
+
+**`AdminLayout.tsx`** -- No structural change, but the "Requests" tab now reads draft schools.
+
+### 4. Query Hooks
+
+**`useSchoolsQuery.ts`** -- Change `status: 'verified'` filter to `status: 'approved'`:
+- Line 41: `.eq("status", "approved")`
+- Line 74: `.eq("status", "approved")`
+
+This ensures drafts, pending_review, and rejected schools are excluded from public-facing views.
+
+**`fuzzyMatchSchool`** in `src/lib/fixtureParser/` -- Already works against the schools list provided by `useSchoolsQuery`, which will now only return approved schools. No change needed.
+
+### 5. Cleanup
+
+- Remove all `'school_submissions'` and `'school_requests'` string references across the codebase (7 files affected)
+- The TypeScript types file (`types.ts`) will auto-regenerate after migration
+
+### Files Changed Summary
+
+| File | Change |
+|------|--------|
+| **Migration SQL** | Add columns, update status values |
+| `supabase/functions/school-onboarding/index.ts` | Insert into `schools` instead of `school_submissions` |
+| `src/components/auth/SchoolRequestModal.tsx` | Insert into `schools` instead of `school_requests` |
+| `src/components/admin/ReviewSubmissionDialog.tsx` | Read from `schools`, simplify approve/reject |
+| `src/components/admin/SchoolRequestsTable.tsx` | Query `schools` where status = 'draft' |
+| `src/components/admin/ReviewSchoolRequestDialog.tsx` | Update `schools` status instead of `school_requests` |
+| `src/components/admin/CreateSchoolDialog.tsx` | Remove `school_requests` update block |
+| `src/hooks/useSchoolsQuery.ts` | Change 'verified' to 'approved' |
+
+### Risk Mitigation
+
+- The `SchoolRequestModal` needs RLS consideration: currently schools INSERT requires admin role. A new RLS policy will be needed to allow authenticated users to insert schools with `status = 'draft'`.
+- The edge function uses service role key so it bypasses RLS -- no policy change needed there.
