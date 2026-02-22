@@ -5,9 +5,7 @@ import { format } from "date-fns";
 import { History } from "lucide-react";
 
 interface MatchHistoryProps {
-  /** The school displayed on the left in the fixture row */
   leftSchoolId: string;
-  /** The school displayed on the right in the fixture row */
   rightSchoolId: string;
 }
 
@@ -66,7 +64,6 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
         Head-to-Head History
       </p>
       {matches.map((match) => {
-        // Map scores to left/right school order (matching the fixture row)
         const leftIsHome = match.home_school_id === leftSchoolId;
         const leftScore = leftIsHome ? match.home_score : match.away_score;
         const rightScore = leftIsHome ? match.away_score : match.home_score;
@@ -75,20 +72,27 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
         return (
           <div
             key={match.id}
-            className="flex items-center justify-between text-sm py-1.5 border-b border-border/30 last:border-0"
+            className="flex items-center text-sm py-1.5 border-b border-border/30 last:border-0"
           >
-            <span className="text-xs text-muted-foreground w-20 shrink-0">
+            <span className="text-xs text-muted-foreground w-24 shrink-0">
               {format(new Date(match.match_date), "d MMM yyyy")}
             </span>
-            <div className="flex items-center gap-3 flex-1 justify-center">
-              <span className={`font-mono ${homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+            {/* Scores centered to align with the "vs" column above */}
+            <div className="flex-1 flex items-center justify-center gap-3">
+              <span
+                className={`font-mono text-sm ${homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"}`}
+              >
                 {leftScore ?? "–"}
               </span>
               <span className="text-xs text-muted-foreground">-</span>
-              <span className={`font-mono ${!homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+              <span
+                className={`font-mono text-sm ${!homeIsLeft ? "font-bold text-foreground" : "text-muted-foreground"}`}
+              >
                 {rightScore ?? "–"}
               </span>
             </div>
+            {/* Spacer to balance the chevron column */}
+            <div className="w-10 shrink-0" />
           </div>
         );
       })}
