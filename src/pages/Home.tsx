@@ -190,9 +190,9 @@ const Home = () => {
           </div>
         )}
 
-        {/* This Week's Matches */}
+        {/* Upcoming Matches */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold px-1">This Week's Matches</h2>
+          <h2 className="text-lg font-bold px-1">Upcoming Matches</h2>
           {fixturesLoading ? (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">Loading fixtures...</p>
@@ -240,7 +240,7 @@ const Home = () => {
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No matches this week. Rest up — next Saturday's coming.</p>
+              <p className="text-muted-foreground">No upcoming matches yet.</p>
             </div>
           )}
         </div>
