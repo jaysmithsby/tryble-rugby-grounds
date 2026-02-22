@@ -15,6 +15,8 @@ export interface FixtureWithSchools {
   score_a: number | null;
   score_b: number | null;
   is_derby: boolean | null;
+  venue_type: string | null;
+  venue_id: string | null;
   tournament_id: string | null;
   tournament_name: string | null;
   school_a: {
@@ -34,7 +36,8 @@ export interface FixtureWithSchools {
 const FIXTURE_SELECT = `
   id,
   match_date,
-  venue_legacy,
+  venue_type,
+  venue_id,
   status,
   score_a,
   score_b,
@@ -48,14 +51,25 @@ const FIXTURE_SELECT = `
 `;
 
 function mapFixture(f: any): FixtureWithSchools {
+  // Resolve venue name from venue_type + venue_id / tournament
+  let venue = 'TBD';
+  if (f.venue_type === 'tournament' && f.tournament?.name) {
+    venue = f.tournament.name;
+  } else if (f.venue_type === 'school' && f.venue_id) {
+    if (f.school_a && f.venue_id === f.school_a.id) venue = f.school_a.name;
+    else if (f.school_b && f.venue_id === f.school_b.id) venue = f.school_b.name;
+  }
+
   return {
     id: f.id,
     match_date: f.match_date,
-    venue: f.venue_legacy || 'TBD',
+    venue,
     status: f.status,
     score_a: f.score_a,
     score_b: f.score_b,
     is_derby: f.is_derby,
+    venue_type: f.venue_type ?? null,
+    venue_id: f.venue_id ?? null,
     tournament_id: f.tournament_id ?? null,
     tournament_name: f.tournament?.name ?? null,
     school_a: f.school_a as FixtureWithSchools["school_a"],

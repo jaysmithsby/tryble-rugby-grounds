@@ -76,7 +76,7 @@ export function usePrefetch() {
         const { data, error } = await supabase
           .from("fixtures")
           .select(`
-            id, match_date, venue_legacy, venue_type, venue_id, status,
+            id, match_date, venue_type, venue_id, status,
             school_a_id, school_b_id,
             school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
             school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),

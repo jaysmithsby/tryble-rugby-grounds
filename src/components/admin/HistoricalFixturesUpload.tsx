@@ -560,12 +560,13 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
           }
 
           fixturesToInsert.push({
-            home_school_id: homeId,
-            away_school_id: awayId,
-            home_score: isNaN(homeScore as number) ? null : homeScore,
-            away_score: isNaN(awayScore as number) ? null : awayScore,
+            school_a_id: homeId,
+            school_b_id: awayId,
+            score_a: isNaN(homeScore as number) ? null : homeScore,
+            score_b: isNaN(awayScore as number) ? null : awayScore,
             match_date: matchDate.toISOString(),
-            venue: fixture.homeTeamName || "TBD",
+            venue_type: "school",
+            venue_id: homeId,
             status: isUpcoming ? "upcoming" : "completed",
             season: fixture.year,
             year,
@@ -710,9 +711,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
         const homeScore = isUpcoming ? null : (isHome ? scoreFor : scoreAgainst);
         const awayScore = isUpcoming ? null : (isHome ? scoreAgainst : scoreFor);
 
-        const primarySchoolName = getSchoolName(primarySchoolId);
-        const opponentName = row.opponentName.trim() || getSchoolName(opponentId);
-        const venue = isHome ? primarySchoolName : opponentName;
+
 
         const status = isUpcoming ? "upcoming" : "completed";
 
@@ -724,19 +723,22 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
           matchDate = new Date(year, 2, 15, 14, 0, 0);
         }
 
+        const resolvedTournamentId = row.tournamentId && row.tournamentId !== "none" ? row.tournamentId : null;
+
         fixturesToInsert.push({
-          home_school_id: homeSchoolId,
-          away_school_id: awaySchoolId,
-          home_score: homeScore,
-          away_score: awayScore,
+          school_a_id: homeSchoolId,
+          school_b_id: awaySchoolId,
+          score_a: homeScore,
+          score_b: awayScore,
           match_date: matchDate.toISOString(),
-          venue: venue || "TBD",
+          venue_type: resolvedTournamentId ? "tournament" : "school",
+          venue_id: resolvedTournamentId || (isHome ? primarySchoolId : opponentId),
           status,
           season: year.toString(),
           year,
           sport: "Rugby",
           is_visible: true,
-          tournament_id: row.tournamentId && row.tournamentId !== "none" ? row.tournamentId : null,
+          tournament_id: resolvedTournamentId,
         });
       }
 

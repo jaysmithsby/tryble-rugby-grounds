@@ -89,7 +89,6 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
                 school_b_id: schoolBId,
                 sport: row.sport || 'Rugby',
                 match_date: matchDate,
-                venue_legacy: row.venue || 'TBD',
                 venue_type: tournamentId ? 'tournament' : 'school',
                 venue_id: tournamentId || schoolAId,
                 status: row.status || 'upcoming',
