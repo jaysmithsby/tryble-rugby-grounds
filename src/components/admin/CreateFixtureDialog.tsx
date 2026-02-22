@@ -274,15 +274,17 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
       const resolvedTournamentId = tournamentId && tournamentId !== "none" ? tournamentId : null;
       let computedVenueId: string | null = null;
       let computedVenueType: string = "school";
-      if (venueType === "home_ground") {
+
+      if (resolvedTournamentId) {
+        // Tournament always drives venue
+        computedVenueId = resolvedTournamentId;
+        computedVenueType = "tournament";
+      } else if (venueType === "home_ground") {
         computedVenueId = schoolAId;
         computedVenueType = "school";
       } else if (venueType === "away_ground") {
         computedVenueId = schoolBId;
         computedVenueType = "school";
-      } else if (venueType === "tournament" && resolvedTournamentId) {
-        computedVenueId = resolvedTournamentId;
-        computedVenueType = "tournament";
       }
 
       let venueLegacy = "TBD";

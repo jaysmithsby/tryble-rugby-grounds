@@ -488,12 +488,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         </Table>
       </div>
 
-      <PaginationControls
-        currentPage={pagination.currentPage}
-        totalPages={pagination.totalPages}
-        onPageChange={pagination.goToPage}
-        totalItems={pagination.totalCount}
-      />
+      <PaginationControls pagination={pagination} />
 
       <BulkYearCorrectionDialog 
         open={bulkYearDialogOpen}

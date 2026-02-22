@@ -24,7 +24,7 @@ import Fixtures from "./pages/Fixtures";
 import Profile from "./pages/Profile";
 import Badges from "./pages/Badges";
 import Leaderboard from "./pages/Leaderboard";
-import PoolLeaderboard from "./pages/PoolLeaderboard";
+import { PoolLeaderboard } from "./pages/PoolLeaderboard";
 import SchoolProfile from "./pages/SchoolProfile";
 import Tournament from "./pages/Tournament";
 import Admin from "./pages/Admin";

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Clock, Trophy, CheckCircle2, AlertCircle, Users, ThumbsUp } from "lucide-react";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 
 interface FixtureWithSchools {
   id: string;
