@@ -193,18 +193,8 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
         computedVenueType = "school";
       }
 
-      let venueLegacy = "TBD";
-      if (venueType === "home_ground") {
-        venueLegacy = getSchoolName(fixture.school_a_id);
-      } else if (venueType === "away_ground") {
-        venueLegacy = getSchoolName(fixture.school_b_id);
-      } else if (venueType === "tournament" && resolvedTournamentId) {
-        venueLegacy = tournaments.find(t => t.id === resolvedTournamentId)?.name || "TBD";
-      }
-
       const updateData = {
         match_date: matchDate.toISOString(),
-        venue_legacy: venueLegacy,
         venue_type: computedVenueType,
         venue_id: computedVenueId,
         tournament_id: resolvedTournamentId,

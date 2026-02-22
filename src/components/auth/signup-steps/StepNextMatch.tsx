@@ -7,9 +7,10 @@ import { format, formatDistanceToNow, isFuture } from "date-fns";
 interface Fixture {
   id: string;
   match_date: string;
-  venue_legacy: string;
-  school_a: { name: string; emblem_url: string | null };
-  school_b: { name: string; emblem_url: string | null };
+  venue_type: string | null;
+  venue_id: string | null;
+  school_a: { id: string; name: string; emblem_url: string | null };
+  school_b: { id: string; name: string; emblem_url: string | null };
 }
 
 interface StepNextMatchProps {
@@ -42,9 +43,10 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           .select(`
             id,
             match_date,
-            venue_legacy,
-            school_a:schools!fixtures_school_a_id_fkey(name, emblem_url),
-            school_b:schools!fixtures_school_b_id_fkey(name, emblem_url)
+            venue_type,
+            venue_id,
+            school_a:schools!fixtures_school_a_id_fkey(id, name, emblem_url),
+            school_b:schools!fixtures_school_b_id_fkey(id, name, emblem_url)
           `)
           .or(`school_a_id.eq.${schoolData.id},school_b_id.eq.${schoolData.id}`)
           .gte("match_date", now)
@@ -162,7 +164,14 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4" />
-            <span>{fixture.venue_legacy || "TBD"}</span>
+            <span>{(() => {
+              if (fixture.venue_type === 'tournament') return 'Tournament';
+              if (fixture.venue_type === 'school' && fixture.venue_id) {
+                if (fixture.venue_id === fixture.school_a.id) return fixture.school_a.name;
+                if (fixture.venue_id === fixture.school_b.id) return fixture.school_b.name;
+              }
+              return 'TBD';
+            })()}</span>
           </div>
         </div>
 

@@ -11,7 +11,8 @@ interface DerbySlideProps {
     school_a: { name: string; slug: string; icon_url: string | null };
     school_b: { name: string; slug: string; icon_url: string | null };
     match_date: string;
-    venue_legacy: string;
+    venue_type?: string | null;
+    venue_id?: string | null;
   };
 }
 
@@ -123,7 +124,13 @@ export const DerbySlide = ({ derby }: DerbySlideProps) => {
               weekday: "long",
               hour: "2-digit",
               minute: "2-digit",
-            })} @ {derby.venue_legacy || "TBD"}
+            })} @ {(() => {
+              if (derby.venue_type === 'school' && derby.venue_id) {
+                if (derby.school_a && (derby.venue_id as any) === (derby.school_a as any).id) return derby.school_a.name;
+                if (derby.school_b && (derby.venue_id as any) === (derby.school_b as any).id) return derby.school_b.name;
+              }
+              return "TBD";
+            })()}
           </p>
         </div>
       </div>

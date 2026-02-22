@@ -12,7 +12,6 @@ import { format } from "date-fns";
 interface FixtureWithSchools {
   id: string;
   match_date: string;
-  venue_legacy: string;
   status: string;
   score_a: number | null;
   score_b: number | null;
@@ -138,7 +137,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
         .select(`
           id,
           match_date,
-          venue_legacy,
           status,
           score_a,
           score_b,
@@ -181,7 +179,6 @@ export const MatchScoreSubmission = ({ userSchoolName }: MatchScoreSubmissionPro
         setFixture({
           id: fixtureData.id,
           match_date: fixtureData.match_date,
-          venue_legacy: fixtureData.venue_legacy,
           status: fixtureData.status,
           score_a: fixtureData.score_a,
           score_b: fixtureData.score_b,

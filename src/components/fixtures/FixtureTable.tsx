@@ -11,6 +11,7 @@ import {
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { MatchHistory } from "./MatchHistory";
 import { cn } from "@/lib/utils";
+import { resolveVenueName } from "@/lib/venueUtils";
 
 export interface FixtureSchool {
   id: string;
@@ -23,7 +24,8 @@ export interface FixtureSchool {
 export interface Fixture {
   id: string;
   match_date: string;
-  venue_legacy: string;
+  venue_type?: string | null;
+  venue_id?: string | null;
   school_a_id: string;
   school_b_id: string;
   school_a: FixtureSchool;
@@ -134,10 +136,8 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
           <TableRow className="cursor-pointer hover:bg-muted/50">
             <TableCell className="text-sm align-middle">
               <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
-              {fixture.venue_legacy && (
-                <span className="text-muted-foreground ml-2 text-xs">{fixture.venue_legacy}</span>
-              )}
-              {fixture.tournament && (
+              {(() => { const v = resolveVenueName(fixture); return v !== "TBD" ? <span className="text-muted-foreground ml-2 text-xs">{v}</span> : null; })()}
+              {fixture.tournament && fixture.venue_type !== "tournament" && (
                 <span className="text-[10px] text-muted-foreground ml-1">
                   ({fixture.tournament.name})
                 </span>
@@ -185,11 +185,9 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
         <div className="border border-border/40 rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs">
-              <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
-              {fixture.venue_legacy && (
-                <span className="text-muted-foreground ml-2">{fixture.venue_legacy}</span>
-              )}
-              {fixture.tournament && (
+             <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
+              {(() => { const v = resolveVenueName(fixture); return v !== "TBD" ? <span className="text-muted-foreground ml-2">{v}</span> : null; })()}
+              {fixture.tournament && fixture.venue_type !== "tournament" && (
                 <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
               )}
             </span>

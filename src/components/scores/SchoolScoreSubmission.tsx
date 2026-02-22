@@ -12,7 +12,6 @@ import { format } from "date-fns";
 interface FixtureWithSchools {
   id: string;
   match_date: string;
-  venue_legacy: string;
   status: string;
   score_a: number | null;
   score_b: number | null;
@@ -90,7 +89,7 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
       const { data: fixtureData, error: fixtureError } = await supabase
         .from('fixtures')
         .select(`
-          id, match_date, venue_legacy, status, score_a, score_b,
+          id, match_date, status, score_a, score_b,
           school_a_id, school_b_id
         `)
         .or(`school_a_id.eq.${schoolData.id},school_b_id.eq.${schoolData.id}`)
@@ -121,7 +120,6 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
         setFixture({
           id: fixtureData.id,
           match_date: fixtureData.match_date,
-          venue_legacy: fixtureData.venue_legacy,
           status: fixtureData.status,
           score_a: fixtureData.score_a,
           score_b: fixtureData.score_b,
@@ -240,7 +238,7 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
             <div className="flex items-center gap-2">
               <Trophy className="w-4 h-4 text-accent" />
               <span className="text-sm font-semibold text-foreground">{formattedDate}</span>
-              <span className="text-sm text-muted-foreground">{fixture.venue_legacy || "TBD"}</span>
+              <span className="text-sm text-muted-foreground">Match Score</span>
             </div>
           </div>
         </div>

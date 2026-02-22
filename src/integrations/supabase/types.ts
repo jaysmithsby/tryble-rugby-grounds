@@ -139,7 +139,6 @@ export type Database = {
           tournament_id: string | null
           updated_at: string
           venue_id: string | null
-          venue_legacy: string
           venue_type: string | null
           year: number
         }
@@ -162,7 +161,6 @@ export type Database = {
           tournament_id?: string | null
           updated_at?: string
           venue_id?: string | null
-          venue_legacy: string
           venue_type?: string | null
           year: number
         }
@@ -185,7 +183,6 @@ export type Database = {
           tournament_id?: string | null
           updated_at?: string
           venue_id?: string | null
-          venue_legacy?: string
           venue_type?: string | null
           year?: number
         }

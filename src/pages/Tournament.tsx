@@ -220,7 +220,7 @@ export default function Tournament() {
                     homeSchoolSlug={fixture.school_a?.slug}
                     awaySchoolSlug={fixture.school_b?.slug}
                     time={format(new Date(fixture.match_date), "MMM d, h:mm a")}
-                    venue={fixture.venue_legacy || "TBD"}
+                    venue={tournament.venue || "TBD"}
                     matchId={fixture.id}
                     priority={index < 3}
                     homeSchoolId={fixture.school_a?.id}

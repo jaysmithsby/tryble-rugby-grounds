@@ -113,7 +113,7 @@ export default function SchoolProfile() {
       const { data: upcomingData, error: upcomingError } = await supabase
         .from("fixtures")
         .select(`
-          id, match_date, venue_legacy, school_a_id, school_b_id, status, is_derby,
+          id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby,
           school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
           school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
           tournament:tournaments(id, name)
@@ -129,7 +129,7 @@ export default function SchoolProfile() {
       const { data: resultsData, error: resultsError } = await supabase
         .from("fixtures")
         .select(`
-          id, match_date, venue_legacy, school_a_id, school_b_id, status, is_derby, score_a, score_b,
+          id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby, score_a, score_b,
           school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
           school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
           tournament:tournaments(id, name)

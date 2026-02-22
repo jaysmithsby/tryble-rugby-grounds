@@ -149,7 +149,10 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
           const matchDate = format(new Date(fixture.match_date), 'MMM dd yyyy').toLowerCase();
           
-          return (fixture.venue_legacy || '').toLowerCase().includes(query) ||
+          const venueName = fixture.venue_type === 'tournament' 
+            ? (fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '')
+            : (fixture.venue_id ? schools.get(fixture.venue_id) || '' : '');
+          return venueName.toLowerCase().includes(query) ||
             schoolA.toLowerCase().includes(query) ||
             schoolB.toLowerCase().includes(query) ||
             tournamentName.toLowerCase().includes(query) ||
@@ -433,7 +436,13 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                   </TableCell>
                   <TableCell className="text-sm">{schoolAName}</TableCell>
                   <TableCell className="text-sm">{schoolBName}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{fixture.venue_legacy || 'TBD'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{
+                    fixture.venue_type === 'tournament' 
+                      ? (fixture.tournament_id ? tournaments.get(fixture.tournament_id) || 'Tournament' : 'Tournament')
+                      : fixture.venue_type === 'school' && fixture.venue_id
+                        ? (schools.get(fixture.venue_id) || 'TBD')
+                        : 'TBD'
+                  }</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{tournamentName || '-'}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={getStatusColor(fixture.status)}>

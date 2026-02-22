@@ -11,7 +11,6 @@ interface FixtureListCardProps {
   fixture: {
     id: string;
     match_date: string;
-    venue_legacy: string;
     venue_type: string | null;
     venue_id: string | null;
     status: string;
@@ -39,7 +38,7 @@ const getVenue = (fixture: FixtureListCardProps["fixture"]) => {
   if (fixture.venue_type === "tournament" && fixture.tournament) {
     return fixture.tournament.name;
   }
-  return fixture.venue_legacy || "TBD";
+  return "TBD";
 };
 
 export const FixtureListCard = ({

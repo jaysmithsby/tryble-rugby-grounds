@@ -18,7 +18,8 @@ interface Derby {
   school_a: { name: string; slug: string; icon_url: string | null };
   school_b: { name: string; slug: string; icon_url: string | null };
   match_date: string;
-  venue_legacy: string;
+  venue_type: string | null;
+  venue_id: string | null;
 }
 
 interface NewsArticle {
@@ -72,7 +73,8 @@ export const HomeCarousel = ({
         .select(`
           id,
           match_date,
-          venue_legacy,
+          venue_type,
+          venue_id,
           school_a:schools!fixtures_school_a_id_fkey(name, slug, icon_url),
           school_b:schools!fixtures_school_b_id_fkey(name, slug, icon_url)
         `)
