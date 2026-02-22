@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 
+import { supabase } from "@/integrations/supabase/client";
 import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
 import { HomeCarousel } from "@/components/home/HomeCarousel";
 import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
@@ -21,6 +23,7 @@ import { buildWhatsAppUrl } from "@/lib/constants";
 
 const Home = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
   const [localPredictions, setLocalPredictions] = useState<Record<string, { team: "home" | "away", margin: number, schoolId: string }>>({});
   
@@ -57,13 +60,43 @@ const Home = () => {
   // Merge DB predictions with local state (local takes priority for immediate feedback)
   const predictions = { ...dbPredictions, ...localPredictions };
 
-  // Handle prediction submission
-  const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number, schoolId: string) => {
+  // Handle prediction submission - saves to DB and updates local state
+  const handlePredictionMade = useCallback(async (matchId: string, team: "home" | "away", margin: number, schoolId: string) => {
+    if (!user?.id) return;
+
+    // Update local state immediately for instant feedback
     setLocalPredictions(prev => ({
       ...prev,
       [matchId]: { team, margin, schoolId }
     }));
-  };
+
+    // Save to database
+    const { error } = await supabase
+      .from("predictions")
+      .upsert(
+        {
+          fixture_id: matchId,
+          user_id: user.id,
+          predicted_team: team,
+          predicted_margin: margin,
+          predicted_school_id: schoolId,
+        },
+        { onConflict: "fixture_id,user_id" }
+      );
+
+    if (error) {
+      console.error("Error saving prediction:", error);
+      // Remove from local state on failure
+      setLocalPredictions(prev => {
+        const next = { ...prev };
+        delete next[matchId];
+        return next;
+      });
+    } else {
+      // Invalidate predictions cache so it refetches
+      queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
+    }
+  }, [user?.id, queryClient]);
 
   // Helper to format match time
   const formatMatchTime = (matchDate: string, status: string) => {
