@@ -127,10 +127,11 @@ export const FixtureListCard = ({
           <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-3">
             <MapPin className="h-3 w-3" />
             <span className="truncate">
-              {fixture.venue_type === "home" ? fixture.home_school.name :
-               fixture.venue_type === "away" ? fixture.away_school.name :
-               fixture.venue_type === "tournament" && fixture.tournament ? fixture.tournament.name :
-               fixture.venue_legacy || "TBD"}
+              {fixture.venue_type === "school" && fixture.venue_id
+                ? (fixture.venue_id === fixture.home_school.id ? fixture.home_school.name : fixture.away_school.name)
+                : fixture.venue_type === "tournament" && fixture.tournament
+                ? fixture.tournament.name
+                : fixture.venue_legacy || "TBD"}
             </span>
           </div>
 

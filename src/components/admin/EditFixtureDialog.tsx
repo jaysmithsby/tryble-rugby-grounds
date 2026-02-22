@@ -54,7 +54,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
   
   // Form state
   const [matchDate, setMatchDate] = useState<Date | undefined>();
-  const [venueType, setVenueType] = useState<"home" | "away" | "tournament">("home");
+  const [venueType, setVenueType] = useState<"home_ground" | "away_ground" | "tournament">("home_ground");
   const [tournamentId, setTournamentId] = useState("");
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
@@ -112,7 +112,15 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
       
       // Initialize form with fixture data
       setMatchDate(fixture.match_date ? new Date(fixture.match_date) : undefined);
-      setVenueType(fixture.venue_type || "home");
+      // Map stored venue_type back to UI state
+      const storedType = fixture.venue_type || "school";
+      if (storedType === "tournament") {
+        setVenueType("tournament");
+      } else if (storedType === "school" && fixture.venue_id === fixture.away_school_id) {
+        setVenueType("away_ground");
+      } else {
+        setVenueType("home_ground");
+      }
       setTournamentId(fixture.tournament_id || "none");
       setHomeScore(fixture.home_score !== null ? String(fixture.home_score) : "");
       setAwayScore(fixture.away_score !== null ? String(fixture.away_score) : "");
@@ -171,18 +179,22 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
     try {
       const resolvedTournamentId = tournamentId && tournamentId !== "none" ? tournamentId : null;
       let computedVenueId: string | null = null;
-      if (venueType === "home") {
+      let computedVenueType: string = "school";
+      if (venueType === "home_ground") {
         computedVenueId = fixture.home_school_id;
-      } else if (venueType === "away") {
+        computedVenueType = "school";
+      } else if (venueType === "away_ground") {
         computedVenueId = fixture.away_school_id;
+        computedVenueType = "school";
       } else if (venueType === "tournament" && resolvedTournamentId) {
         computedVenueId = resolvedTournamentId;
+        computedVenueType = "tournament";
       }
 
       let venueLegacy = "TBD";
-      if (venueType === "home") {
+      if (venueType === "home_ground") {
         venueLegacy = getSchoolName(fixture.home_school_id);
-      } else if (venueType === "away") {
+      } else if (venueType === "away_ground") {
         venueLegacy = getSchoolName(fixture.away_school_id);
       } else if (venueType === "tournament" && resolvedTournamentId) {
         venueLegacy = tournaments.find(t => t.id === resolvedTournamentId)?.name || "TBD";
@@ -191,7 +203,7 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
       const updateData = {
         match_date: matchDate.toISOString(),
         venue_legacy: venueLegacy,
-        venue_type: venueType,
+        venue_type: computedVenueType,
         venue_id: computedVenueId,
         tournament_id: resolvedTournamentId,
         home_score: homeScore ? parseInt(homeScore) : null,
@@ -301,23 +313,27 @@ export function EditFixtureDialog({ open, onOpenChange, fixture, onSuccess }: Ed
           <div className="space-y-2">
             <Label>Venue</Label>
             <div className="flex gap-1 rounded-lg border p-1">
-              {(["home", "away", "tournament"] as const).map((type) => (
+              {([
+                { value: "home_ground" as const, label: "Home Ground" },
+                { value: "away_ground" as const, label: "Away Ground" },
+                { value: "tournament" as const, label: "Tournament" },
+              ]).map(({ value, label }) => (
                 <Button
-                  key={type}
+                  key={value}
                   type="button"
-                  variant={venueType === type ? "default" : "ghost"}
+                  variant={venueType === value ? "default" : "ghost"}
                   size="sm"
-                  className="flex-1 capitalize"
-                  onClick={() => setVenueType(type)}
+                  className="flex-1"
+                  onClick={() => setVenueType(value)}
                 >
-                  {type}
+                  {label}
                 </Button>
               ))}
             </div>
-            {venueType === "home" && (
+            {venueType === "home_ground" && (
               <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.home_school_id)}</p>
             )}
-            {venueType === "away" && (
+            {venueType === "away_ground" && (
               <p className="text-sm text-muted-foreground">📍 {getSchoolName(fixture.away_school_id)}</p>
             )}
             {venueType === "tournament" && (
