@@ -13,6 +13,7 @@ interface UseHomeAuthResult {
   loading: boolean;
   profileLoaded: boolean;
   userSchoolName: string | null;
+  userSchoolId: string | null;
   userDisplayName: string | null;
   handleSignOut: () => Promise<void>;
 }
@@ -23,6 +24,7 @@ export function useHomeAuth(): UseHomeAuthResult {
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [userSchoolName, setUserSchoolName] = useState<string | null>(null);
+  const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function useHomeAuth(): UseHomeAuthResult {
           const schoolName = (data?.schools as any)?.name || data?.school_name_legacy || null;
           const displayName = data?.display_name || data?.first_name || null;
           setUserSchoolName(schoolName);
+          setUserSchoolId(data?.school_id || null);
           setUserDisplayName(displayName);
           setProfileLoaded(true);
           setLoading(false);
@@ -75,6 +78,7 @@ export function useHomeAuth(): UseHomeAuthResult {
             const schoolName = (data?.schools as any)?.name || data?.school_name_legacy || null;
             const displayName = data?.display_name || data?.first_name || null;
             setUserSchoolName(schoolName);
+            setUserSchoolId(data?.school_id || null);
             setUserDisplayName(displayName);
             setProfileLoaded(true);
           });
@@ -97,6 +101,7 @@ export function useHomeAuth(): UseHomeAuthResult {
     loading,
     profileLoaded,
     userSchoolName,
+    userSchoolId,
     userDisplayName,
     handleSignOut,
   };
