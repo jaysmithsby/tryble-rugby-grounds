@@ -30,6 +30,7 @@ const Home = () => {
     loading,
     profileLoaded,
     userSchoolName,
+    userSchoolId,
     userDisplayName,
     handleSignOut,
   } = useHomeAuth();
@@ -44,6 +45,7 @@ const Home = () => {
   } = useHomeFixtures({
     userId: user?.id || null,
     userSchoolName,
+    userSchoolId,
     effectiveDate,
     weekendStart: weekendRange.start,
     weekendEnd: weekendRange.end,

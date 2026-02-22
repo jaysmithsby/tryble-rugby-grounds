@@ -72,6 +72,7 @@ function mapFixture(f: any): FixtureWithSchools {
 interface UseHomeFixturesParams {
   userId: string | null;
   userSchoolName: string | null;
+  userSchoolId: string | null;
   effectiveDate: Date;
   weekendStart: Date;
   weekendEnd: Date;
@@ -91,6 +92,7 @@ interface UseHomeFixturesResult {
 export function useHomeFixtures({
   userId,
   userSchoolName,
+  userSchoolId,
   effectiveDate,
   weekendStart,
   weekendEnd,
@@ -151,11 +153,23 @@ export function useHomeFixtures({
   const poolSchoolIds = poolData?.poolSchoolIds || [];
   const hasNoPools = poolData?.hasNoPools ?? true;
 
-  // Fetch upcoming fixtures
+  // Fetch upcoming fixtures (pools + user's school)
   const { data: upcomingFixtures = [], isLoading: upcomingLoading } = useQuery({
-    queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, poolSchoolIds],
+    queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, poolSchoolIds, userSchoolId],
     queryFn: async () => {
       const now = effectiveDate.toISOString();
+
+      // Combine pool school IDs with user's own school ID
+      const allSchoolIds = [...poolSchoolIds];
+      if (userSchoolId && !allSchoolIds.includes(userSchoolId)) {
+        allSchoolIds.push(userSchoolId);
+      }
+
+      if (allSchoolIds.length === 0) return [];
+
+      const schoolFilter = allSchoolIds
+        .map((id) => `home_school_id.eq.${id},away_school_id.eq.${id}`)
+        .join(",");
 
       const { data, error } = await supabase
         .from("fixtures")
@@ -164,6 +178,7 @@ export function useHomeFixtures({
         .eq("status", "upcoming")
         .eq("year", seasonYear)
         .gte("match_date", now)
+        .or(schoolFilter)
         .order("match_date", { ascending: true })
         .limit(20);
 
@@ -172,16 +187,7 @@ export function useHomeFixtures({
         return [];
       }
 
-      let filtered = data || [];
-      if (poolSchoolIds.length > 0) {
-        filtered = filtered.filter(
-          (f: any) =>
-            poolSchoolIds.includes(f.home_school_id) ||
-            poolSchoolIds.includes(f.away_school_id)
-        );
-      }
-
-      return filtered.slice(0, 10).map(mapFixture);
+      return (data || []).slice(0, 10).map(mapFixture);
     },
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
@@ -220,24 +226,16 @@ export function useHomeFixtures({
 
   // Fetch user's school fixture for this weekend
   const { data: userSchoolFixture = null } = useQuery({
-    queryKey: ["home-user-school-fixture", userSchoolName, weekendStartStr, weekendEndStr, seasonYear],
+    queryKey: ["home-user-school-fixture", userSchoolId, weekendStartStr, weekendEndStr, seasonYear],
     queryFn: async () => {
-      if (!userSchoolName) return null;
-
-      const { data: schoolData } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("name", userSchoolName)
-        .maybeSingle();
-
-      if (!schoolData) return null;
+      if (!userSchoolId) return null;
 
       const { data: fixture } = await supabase
         .from("fixtures")
         .select(FIXTURE_SELECT)
         .eq("is_visible", true)
         .eq("year", seasonYear)
-        .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+        .or(`home_school_id.eq.${userSchoolId},away_school_id.eq.${userSchoolId}`)
         .gte("match_date", weekendStart.toISOString())
         .lte("match_date", weekendEnd.toISOString())
         .order("match_date", { ascending: true })
@@ -248,7 +246,7 @@ export function useHomeFixtures({
 
       return mapFixture(fixture);
     },
-    enabled: !!userId && !!userSchoolName && profileLoaded,
+    enabled: !!userId && !!userSchoolId && profileLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
