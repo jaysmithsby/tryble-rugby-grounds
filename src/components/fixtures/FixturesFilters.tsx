@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { saProvinces } from "@/data/saProvinces";
+import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 
 interface FixturesFiltersProps {
   viewMode: "my-schools" | "all-schools";
@@ -18,6 +19,8 @@ interface FixturesFiltersProps {
   onSearchQueryChange: (query: string) => void;
   selectedProvince?: string;
   onProvinceChange: (province: string | undefined) => void;
+  dateRange: { from: Date; to: Date };
+  onDateRangeChange: (range: { from: Date; to: Date }) => void;
 }
 
 export const FixturesFilters = ({
@@ -27,11 +30,11 @@ export const FixturesFilters = ({
   onSearchQueryChange,
   selectedProvince,
   onProvinceChange,
+  dateRange,
+  onDateRangeChange,
 }: FixturesFiltersProps) => {
-  const hasActiveFilters = selectedProvince;
-
   return (
-    <div className="space-y-3 p-4 bg-card/50 border-b border-border/40">
+    <div className="space-y-2 p-4 bg-card/50 border-b border-border/40">
       {/* View Mode Toggle */}
       <div className="flex gap-2">
         <Button
@@ -52,35 +55,36 @@ export const FixturesFilters = ({
         </Button>
       </div>
 
-      {/* Search Bar - always visible */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          placeholder="Search by school name..."
-          value={searchQuery}
-          onChange={(e) => onSearchQueryChange(e.target.value)}
-          className="pl-9 h-9 text-sm"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => onSearchQueryChange("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      {/* Search + Date + Province in one row */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search school..."
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchQueryChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
 
-      {/* Province Filter - Only in All Schools mode */}
-      {viewMode === "all-schools" && (
-        <div className="flex gap-2">
+        <FixturesDateSelector dateRange={dateRange} onDateRangeChange={onDateRangeChange} />
+
+        {viewMode === "all-schools" && (
           <Select
             value={selectedProvince || "all"}
             onValueChange={(value) => onProvinceChange(value === "all" ? undefined : value)}
           >
             <SelectTrigger
               className={cn(
-                "w-[140px] h-9 text-sm",
+                "w-auto h-8 text-xs gap-1 shrink-0",
                 selectedProvince && "border-primary text-primary"
               )}
             >
@@ -95,20 +99,8 @@ export const FixturesFilters = ({
               ))}
             </SelectContent>
           </Select>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onProvinceChange(undefined)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5 mr-1" />
-              Clear
-            </Button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
