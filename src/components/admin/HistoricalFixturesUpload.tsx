@@ -31,7 +31,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2, CalendarIcon, ClipboardPaste, ChevronDown } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, Trash2, History, AlertCircle, CheckCircle2, CalendarIcon, ClipboardPaste, ChevronDown, Upload, AlertTriangle } from "lucide-react";
 import {
   Command,
   CommandGroup,
@@ -40,6 +40,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import {
   FixtureRow,
@@ -52,6 +54,11 @@ import {
   parseFixtureData,
   UPCOMING_YEAR_THRESHOLD,
 } from "@/lib/fixtureParser";
+import {
+  parseMultiSchoolData,
+  BulkParseResult,
+  BulkFixtureRow,
+} from "@/lib/fixtureParser/multiSchoolParser";
 
 interface HistoricalFixturesUploadProps {
   open: boolean;
@@ -65,27 +72,29 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
   const [schools, setSchools] = useState<School[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   
-  // Step 1: Primary school selection
+  // Mode toggle
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  
+  // === Single School Mode State ===
   const [primarySchoolId, setPrimarySchoolId] = useState("");
   const [primarySchoolOpen, setPrimarySchoolOpen] = useState(false);
   const [primarySearchQuery, setPrimarySearchQuery] = useState("");
   const [defaultYear, setDefaultYear] = useState(currentYear.toString());
-  
-  // Step 2: Fixture rows
   const [rows, setRows] = useState<FixtureRow[]>([createEmptyRow()]);
-  
-  // Dropdown states
   const [activeOpponentDropdown, setActiveOpponentDropdown] = useState<string | null>(null);
   const [opponentSearchQueries, setOpponentSearchQueries] = useState<Record<string, string>>({});
   const [activeTournamentDropdown, setActiveTournamentDropdown] = useState<string | null>(null);
   const [tournamentSearchQueries, setTournamentSearchQueries] = useState<Record<string, string>>({});
-  
-  // Quick Paste state
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [parseInfo, setParseInfo] = useState<string | null>(null);
   
-  // Submission state
+  // === Bulk Mode State ===
+  const [bulkPasteText, setBulkPasteText] = useState("");
+  const [bulkResult, setBulkResult] = useState<BulkParseResult | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  
+  // === Shared State ===
   const [submitted, setSubmitted] = useState(false);
   const [submittedCount, setSubmittedCount] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
@@ -186,7 +195,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     return `${baseSlug}-${Date.now()}`;
   };
 
-  const createNewSchool = async (name: string): Promise<string | null> => {
+  const createNewSchool = async (name: string, province?: string): Promise<string | null> => {
     const trimmedName = name.trim();
     if (!trimmedName) return null;
 
@@ -200,6 +209,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
           slug,
           status: "verified",
           is_visible: true,
+          ...(province ? { province } : {}),
         })
         .select("id, name, province")
         .single();
@@ -305,6 +315,9 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     setErrors([]);
     setPasteText("");
     setParseInfo(null);
+    setBulkPasteText("");
+    setBulkResult(null);
+    setExpandedSections(new Set());
   };
 
   const createNewTournament = async (name: string, year: string): Promise<string | null> => {
@@ -419,6 +432,176 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     setPasteText("");
     setPasteOpen(false);
   };
+
+  // === Bulk Mode Functions ===
+
+  const parseBulkData = () => {
+    if (!bulkPasteText.trim()) return;
+
+    const result = parseMultiSchoolData(bulkPasteText, schools, tournaments);
+
+    if (result.schoolSections.length === 0) {
+      toast({
+        title: "No fixtures parsed",
+        description: "Could not find any school sections or fixture data. Make sure each school name is on its own line followed by fixture rows.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkResult(result);
+    // Expand all sections by default
+    setExpandedSections(new Set(result.schoolSections.map(s => s.schoolName)));
+
+    toast({
+      title: "Data parsed successfully",
+      description: `Found ${result.schoolSections.length} school(s), ${result.totalFixtures} unique fixture(s), ${result.duplicates} duplicate(s) removed.`,
+    });
+  };
+
+  const updateBulkFixture = (sectionIndex: number, fixtureIndex: number, field: keyof BulkFixtureRow, value: string) => {
+    if (!bulkResult) return;
+    setBulkResult(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+      updated.schoolSections = [...prev.schoolSections];
+      updated.schoolSections[sectionIndex] = { ...prev.schoolSections[sectionIndex] };
+      updated.schoolSections[sectionIndex].fixtures = [...prev.schoolSections[sectionIndex].fixtures];
+      updated.schoolSections[sectionIndex].fixtures[fixtureIndex] = {
+        ...prev.schoolSections[sectionIndex].fixtures[fixtureIndex],
+        [field]: value,
+      };
+      return updated;
+    });
+    if (errors.length > 0) setErrors([]);
+  };
+
+  const removeBulkFixture = (sectionIndex: number, fixtureIndex: number) => {
+    if (!bulkResult) return;
+    setBulkResult(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+      updated.schoolSections = [...prev.schoolSections];
+      updated.schoolSections[sectionIndex] = { ...prev.schoolSections[sectionIndex] };
+      updated.schoolSections[sectionIndex].fixtures = prev.schoolSections[sectionIndex].fixtures.filter((_, i) => i !== fixtureIndex);
+      updated.totalFixtures = updated.schoolSections.reduce((sum, s) => sum + s.fixtures.length, 0);
+      return updated;
+    });
+  };
+
+  const toggleSection = (schoolName: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(schoolName)) {
+        next.delete(schoolName);
+      } else {
+        next.add(schoolName);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkSubmit = async () => {
+    if (!bulkResult || bulkResult.totalFixtures === 0) return;
+
+    setLoading(true);
+    setErrors([]);
+
+    try {
+      // Collect all unique school names that need creating
+      const allSchoolNames = new Set<string>();
+      for (const section of bulkResult.schoolSections) {
+        for (const fixture of section.fixtures) {
+          if (!fixture.homeTeamId && fixture.homeTeamName) allSchoolNames.add(fixture.homeTeamName);
+          if (!fixture.awayTeamId && fixture.awayTeamName) allSchoolNames.add(fixture.awayTeamName);
+        }
+      }
+
+      // Create missing schools
+      const createdSchoolIds: Record<string, string> = {};
+      for (const name of allSchoolNames) {
+        // Check if already in DB (may have been matched differently)
+        const existing = schools.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          createdSchoolIds[name.toLowerCase()] = existing.id;
+          continue;
+        }
+        
+        const newId = await createNewSchool(name, bulkResult.province || undefined);
+        if (newId) {
+          createdSchoolIds[name.toLowerCase()] = newId;
+        }
+      }
+
+      // Build fixture inserts
+      const fixturesToInsert = [];
+
+      for (const section of bulkResult.schoolSections) {
+        for (const fixture of section.fixtures) {
+          if (fixture.isCancelled) continue; // Skip cancelled matches
+
+          const homeId = fixture.homeTeamId || createdSchoolIds[fixture.homeTeamName.toLowerCase()];
+          const awayId = fixture.awayTeamId || createdSchoolIds[fixture.awayTeamName.toLowerCase()];
+
+          if (!homeId || !awayId) continue;
+
+          const isUpcoming = fixture.result === "upcoming";
+          const homeScore = isUpcoming ? null : (fixture.homeAway === "home" ? parseInt(fixture.scoreFor) : parseInt(fixture.scoreAgainst));
+          const awayScore = isUpcoming ? null : (fixture.homeAway === "home" ? parseInt(fixture.scoreAgainst) : parseInt(fixture.scoreFor));
+
+          const year = parseInt(fixture.year);
+          let matchDate: Date;
+          if (fixture.matchDate) {
+            matchDate = new Date(fixture.matchDate);
+          } else {
+            matchDate = new Date(year, 2, 15, 14, 0, 0);
+          }
+
+          fixturesToInsert.push({
+            home_school_id: homeId,
+            away_school_id: awayId,
+            home_score: isNaN(homeScore as number) ? null : homeScore,
+            away_score: isNaN(awayScore as number) ? null : awayScore,
+            match_date: matchDate.toISOString(),
+            venue: fixture.homeTeamName || "TBD",
+            status: isUpcoming ? "upcoming" : "completed",
+            season: fixture.year,
+            year,
+            sport: "Rugby",
+            is_visible: true,
+            tournament_id: fixture.tournamentId && fixture.tournamentId !== "none" ? fixture.tournamentId : null,
+          });
+        }
+      }
+
+      if (fixturesToInsert.length === 0) {
+        throw new Error("No valid fixtures to insert");
+      }
+
+      const { error } = await supabase.from("fixtures").insert(fixturesToInsert);
+      if (error) throw error;
+
+      setSubmitted(true);
+      setSubmittedCount(fixturesToInsert.length);
+
+      toast({
+        title: "Success",
+        description: `${fixturesToInsert.length} fixture(s) created successfully`,
+      });
+    } catch (error: any) {
+      console.error("Error creating fixtures:", error);
+      setErrors([error.message || "Failed to create fixtures"]);
+      toast({
+        title: "Failed to create fixtures",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // === Single School Submit (unchanged logic) ===
 
   const validateRows = (): string[] => {
     const validationErrors: string[] = [];
@@ -591,6 +774,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     resetForm();
     onOpenChange(false);
   };
+
+  // === Render Helpers ===
 
   const renderOpponentCombobox = (row: FixtureRow) => {
     const searchQuery = opponentSearchQueries[row.id] || "";
@@ -767,17 +952,206 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     );
   };
 
+  // === Render Bulk Review ===
+
+  const renderBulkReview = () => {
+    if (!bulkResult) return null;
+
+    const matchedSchools = bulkResult.schoolSections.filter(s => s.schoolId).length;
+    const unmatchedSchools = bulkResult.schoolSections.filter(s => !s.schoolId).length;
+
+    return (
+      <div className="flex-1 flex flex-col gap-3 overflow-hidden">
+        {/* Summary Bar */}
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-muted/50 border">
+          <Badge variant="secondary" className="gap-1">
+            <Upload className="h-3 w-3" />
+            {bulkResult.totalFixtures} fixtures
+          </Badge>
+          {bulkResult.province && (
+            <Badge variant="outline">{bulkResult.province}</Badge>
+          )}
+          <Badge variant="outline">{bulkResult.year}</Badge>
+          <Badge variant="secondary" className="gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {matchedSchools} matched
+          </Badge>
+          {unmatchedSchools > 0 && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {unmatchedSchools} unmatched
+            </Badge>
+          )}
+          {bulkResult.duplicates > 0 && (
+            <Badge variant="outline" className="text-muted-foreground">
+              {bulkResult.duplicates} duplicates removed
+            </Badge>
+          )}
+        </div>
+
+        {/* School Sections */}
+        <div className="flex-1 overflow-auto space-y-2">
+          {bulkResult.schoolSections.map((section, sectionIndex) => {
+            const isExpanded = expandedSections.has(section.schoolName);
+            const hasFixtures = section.fixtures.length > 0;
+
+            return (
+              <div key={section.schoolName} className="border rounded-lg overflow-hidden">
+                {/* Section Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.schoolName)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                    <span className="font-semibold text-sm">{section.schoolName}</span>
+                    {section.schoolId ? (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Matched
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <AlertTriangle className="h-3 w-3" /> New School
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {section.fixtures.length} match{section.fixtures.length !== 1 ? "es" : ""}
+                  </span>
+                </button>
+
+                {/* Section Content */}
+                {isExpanded && hasFixtures && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/20">
+                          <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground w-[80px]">Date</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Home</th>
+                          <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground w-[80px]">Score</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Away</th>
+                          <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground w-[90px]">Result</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Festival</th>
+                          <th className="px-3 py-2 w-[40px]"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.fixtures.map((fixture, fixtureIndex) => (
+                          <tr 
+                            key={fixture.id} 
+                            className={cn(
+                              "border-b last:border-0 hover:bg-muted/20",
+                              fixture.isCancelled && "bg-amber-50 dark:bg-amber-950/20",
+                            )}
+                          >
+                            <td className="px-3 py-2 text-xs">
+                              {fixture.matchDate ? format(new Date(fixture.matchDate), "dd MMM") : "—"}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1">
+                                <span className={cn("text-xs", !fixture.homeTeamId && "text-amber-600")}>
+                                  {fixture.homeTeamName}
+                                </span>
+                                {!fixture.homeTeamId && (
+                                  <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {fixture.isCancelled ? (
+                                <span className="text-xs text-amber-600 font-medium">CXL</span>
+                              ) : (
+                                <span className="text-xs font-mono">
+                                  {fixture.homeAway === "home" ? fixture.scoreFor : fixture.scoreAgainst}
+                                  {" - "}
+                                  {fixture.homeAway === "home" ? fixture.scoreAgainst : fixture.scoreFor}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1">
+                                <span className={cn("text-xs", !fixture.awayTeamId && "text-amber-600")}>
+                                  {fixture.awayTeamName}
+                                </span>
+                                {!fixture.awayTeamId && (
+                                  <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <Select
+                                value={fixture.result}
+                                onValueChange={(val) => updateBulkFixture(sectionIndex, fixtureIndex, "result", val)}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-[80px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {RESULT_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      <span className={option.color}>{option.label}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="text-xs text-muted-foreground">
+                                {fixture.tournamentId ? getTournamentName(fixture.tournamentId) : fixture.festivalName || "—"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => removeBulkFixture(sectionIndex, fixtureIndex)}
+                              >
+                                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) handleClose();
       else onOpenChange(isOpen);
     }}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-[1000px] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Upload Historical Fixtures
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Upload Historical Fixtures
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="bulk-mode" className="text-xs text-muted-foreground cursor-pointer">
+                Bulk Upload
+              </Label>
+              <Switch
+                id="bulk-mode"
+                checked={isBulkMode}
+                onCheckedChange={(checked) => {
+                  setIsBulkMode(checked);
+                  setErrors([]);
+                }}
+              />
+            </div>
+          </div>
         </DialogHeader>
 
         {submitted ? (
@@ -789,7 +1163,117 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
             </p>
             <Button onClick={handleClose}>Close & Refresh</Button>
           </div>
+        ) : isBulkMode ? (
+          /* === BULK UPLOAD MODE === */
+          <div className="flex-1 flex flex-col overflow-hidden gap-3">
+            {!bulkResult ? (
+              /* Step 1: Paste */
+              <div className="flex-1 flex flex-col gap-3">
+                <Textarea
+                  placeholder={`Paste province-wide results here...
+
+Expected format:
+
+KZN Schoolboy Rugby Results 2025
+
+Clifton
+
+Date Home Team Home Score Away Score Away Team Festival
+09 Mar Clifton 43 0 KZN Development
+16 Mar Maritzburg College 83 10 Clifton
+...
+
+Durban HS
+
+Date Home Team Home Score Away Score Away Team Festival
+16 Mar Kearsney 0 23 Durban HS
+...`}
+                  value={bulkPasteText}
+                  onChange={(e) => setBulkPasteText(e.target.value)}
+                  className="flex-1 min-h-[300px] font-mono text-xs"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground max-w-md">
+                    Include the province/year header, then each school on its own line followed by fixture rows. Scores act as anchors to split team names.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkPasteText("")}
+                      disabled={!bulkPasteText}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={parseBulkData}
+                      disabled={!bulkPasteText.trim()}
+                      className="gap-1"
+                    >
+                      <ClipboardPaste className="h-3 w-3" />
+                      Parse Data
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Step 2: Review */
+              <>
+                {renderBulkReview()}
+
+                {/* Error Display */}
+                {errors.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <ul className="list-disc list-inside">
+                        {errors.map((error, i) => (
+                          <li key={i}>{error}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <DialogFooter className="pt-3 border-t">
+                  <div className="flex items-center justify-between w-full">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBulkResult(null)}
+                    >
+                      ← Back to Paste
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleClose}
+                        disabled={loading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleBulkSubmit}
+                        disabled={loading || bulkResult.totalFixtures === 0}
+                        className="gap-2"
+                      >
+                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                        <Upload className="h-4 w-4" />
+                        Upload {bulkResult.totalFixtures} Fixture{bulkResult.totalFixtures !== 1 ? "s" : ""}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogFooter>
+              </>
+            )}
+          </div>
         ) : (
+          /* === SINGLE SCHOOL MODE (unchanged) === */
           <>
             {/* Step 1: Primary School Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4 mb-4">
