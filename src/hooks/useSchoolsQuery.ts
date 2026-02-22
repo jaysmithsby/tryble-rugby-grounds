@@ -38,7 +38,7 @@ export function useSchoolsQuery<T extends SchoolBase>({
       // Only filter by status when NOT in simulation mode
       // In simulation mode, we want ALL schools regardless of status
       if (!isSimulationMode) {
-        query = query.eq("status", "verified");
+        query = query.eq("status", "approved");
       }
 
       // Apply any additional filters
@@ -72,7 +72,7 @@ export function useVerifiedSchoolNames() {
       let query = supabase.from("schools").select("name").eq("is_archived", false);
 
       if (!isSimulationMode) {
-        query = query.eq("status", "verified");
+        query = query.eq("status", "approved");
       }
 
       const { data, error } = await query;

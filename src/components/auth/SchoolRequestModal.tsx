@@ -72,16 +72,22 @@ export function SchoolRequestModal({ open, onOpenChange, initialSchoolName = "" 
       // Get current user if logged in
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Insert school request
+      // Generate slug from school name
+      const slug = schoolName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+      // Insert into schools table with draft status
       const { error } = await supabase
-        .from('school_requests')
+        .from('schools')
         .insert({
-          school_name: schoolName.trim(),
+          name: schoolName.trim(),
+          slug,
           province,
           school_type: schoolType,
-          logo_url: logoUrl,
+          request_logo_url: logoUrl,
           note_to_admin: noteToAdmin.trim() || null,
           submitted_by_user_id: user?.id || null,
+          status: 'draft',
+          is_visible: false,
         });
 
       if (error) throw error;
