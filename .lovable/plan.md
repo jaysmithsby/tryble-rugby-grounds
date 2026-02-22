@@ -1,39 +1,76 @@
 
 
-## Fix: Predictions Not Persisting on Home Screen Refresh
+## Refactor "All Schools" View into Searchable Table with Match History
 
-### Root Cause
+### Overview
+Replace the card-based fixture layout in the "All Schools" view with a searchable, collapsible table. Users can browse fixtures, click school names/logos to navigate to school profiles, and expand rows to see head-to-head match history. No prediction CTAs in this view.
 
-The Home page stores predictions in **local React state** only (`useState`). When you make a prediction, it saves to the database AND updates local state -- so it looks correct. But on refresh, the local state resets to empty and no code fetches existing predictions from the database. So every fixture shows "Pick needed" again.
+### New Files
 
-### Solution
+**1. `src/components/fixtures/MatchHistory.tsx`**
+- Accepts `homeSchoolId` and `awaySchoolId` props
+- Uses a React Query to fetch the last 5 completed fixtures between those two schools (matching both directions: A vs B and B vs A)
+- Query: fixtures where status is not "upcoming", ordered by match_date descending, limit 5
+- Selects: match_date, home_score, away_score, home_school(name), away_school(name)
+- Displays each result as a row: date, school names, scoreline (e.g. "24 - 10"), with the winner's name bolded
+- Shows a "No previous matches" message if empty
+- Loading skeleton while fetching
 
-Add a query to fetch the user's existing predictions for the displayed fixtures, and merge them with any new predictions made in the current session.
+**2. `src/components/fixtures/FixtureTable.tsx`**
+- Accepts `fixtures` (the flat array from useFixturesData), `searchQuery` string
+- Client-side filters fixtures by `searchQuery` (matches against home or away school name)
+- Renders a shadcn `<Table>` with columns: Date, Teams, Venue
+- Each row is wrapped in a `<Collapsible>` -- clicking the row (outside school links) toggles the collapsible content
+- **Teams column**: Shows jersey icons + school names as clickable links navigating to `/school/${slug}`
+- **Expanded content**: Renders `<MatchHistory>` with the fixture's home/away school IDs, styled with `bg-muted/30`
+- No prediction buttons or CTAs anywhere
+- Mobile responsive: on small screens, the table uses a stacked card-like layout via CSS (hiding table headers, stacking cells)
 
-### Changes
+### Modified Files
 
-**`src/hooks/useHomeFixtures.ts`**:
+**3. `src/pages/Fixtures.tsx`**
+- Add `searchQuery` state (`useState("")`)
+- Add a search `<Input>` in the header area (visible in "all-schools" mode) with real-time filtering
+- Conditional rendering in the content area:
+  - `viewMode === "my-schools"`: keep existing `FixtureDateGroup` + `FixtureListCard` layout with predictions
+  - `viewMode === "all-schools"`: render the new `<FixtureTable>` component, passing flat fixtures array and searchQuery
+- The existing school/province dropdown filters in `FixturesFilters` remain functional alongside the new search input
 
-1. Add a new React Query that fetches predictions from the `predictions` table for the current user and the fixture IDs returned by the upcoming fixtures query
-2. Return a `predictionsMap` (keyed by fixture ID) containing `team`, `margin`, and `schoolId` -- matching the shape Home.tsx already expects
-3. The query will select `fixture_id, predicted_team, predicted_margin, predicted_school_id` from `predictions` where `user_id` matches and `fixture_id` is in the list of upcoming fixture IDs
-
-**`src/pages/Home.tsx`**:
-
-1. Consume the new `predictionsMap` from `useHomeFixtures`
-2. Merge DB predictions with local state predictions (local state takes priority so newly-made predictions show immediately)
-3. Use the merged map when passing `isPredicted`, `predictedTeam`, and `predictedMargin` to `FixtureCard`
-4. This applies to both the "Upcoming Matches" section and the "Your School's Fixture" section
+**4. `src/hooks/useFixturesData.ts`**
+- No changes needed. The hook already returns `home_school_id`, `away_school_id`, and the flat `fixtures` array alongside `groupedFixtures`. The `FixtureWithSchools` interface already has these fields.
 
 ### Technical Details
 
-The predictions query follows the same pattern already used in `useFixturesData.ts`:
-
+**MatchHistory query:**
 ```text
-SELECT fixture_id, predicted_team, predicted_margin, predicted_school_id
-FROM predictions
-WHERE user_id = :userId AND fixture_id IN (:fixtureIds)
+SELECT id, match_date, home_score, away_score,
+  home_school:schools!fixtures_home_school_id_fkey(name),
+  away_school:schools!fixtures_away_school_id_fkey(name)
+FROM fixtures
+WHERE status != 'upcoming'
+  AND is_visible = true
+  AND (
+    (home_school_id = :schoolA AND away_school_id = :schoolB)
+    OR (home_school_id = :schoolB AND away_school_id = :schoolA)
+  )
+ORDER BY match_date DESC
+LIMIT 5
 ```
 
-The query is enabled only when the user is logged in and fixtures have loaded. It uses `CACHE_TIMES.DYNAMIC` (2 minutes) for staleness, consistent with fixture data.
+**FixtureTable row structure:**
+```text
+<Collapsible>
+  <TableRow as CollapsibleTrigger>
+    | Date (formatted) | [jersey] SchoolA link  vs  [jersey] SchoolB link | Venue |
+  </TableRow>
+  <CollapsibleContent>
+    <TableRow with bg-muted/30 spanning full width>
+      <MatchHistory homeSchoolId=... awaySchoolId=... />
+    </TableRow>
+  </CollapsibleContent>
+</Collapsible>
+```
 
+**Mobile approach:** On screens < 640px, hide `<TableHeader>` and style each `<TableRow>` as a stacked card using Tailwind responsive utilities. The date and venue appear as small labels above/below the teams row.
+
+**Search filtering:** Pure client-side filter on the already-fetched fixtures array -- no additional DB queries. Filters where either `home_school.name` or `away_school.name` includes the search string (case-insensitive).
