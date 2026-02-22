@@ -10,3 +10,5 @@
 export * from './types';
 export * from './fuzzyMatch';
 export * from './parsers';
+export * from './provinceMap';
+export * from './multiSchoolParser';
