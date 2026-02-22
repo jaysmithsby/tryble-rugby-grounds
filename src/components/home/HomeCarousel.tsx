@@ -149,7 +149,7 @@ export const HomeCarousel = ({
   }, [api, count]);
 
   const hasNudge = unpickedFixturesCount > 0;
-  const totalSlides = derbies.length + (hasNudge ? 1 : 0) + news.length + ads.length;
+  const totalSlides = derbies.length + (hasNudge ? 1 : 0) + news.length;
 
   if (loading) {
     return (
@@ -193,11 +193,7 @@ export const HomeCarousel = ({
             </CarouselItem>
           ))}
           
-          {ads.map((ad) => (
-            <CarouselItem key={`ad-${ad.id}`}>
-              <AdSlide ad={ad} />
-            </CarouselItem>
-          ))}
+          {/* MVP: ads hidden */}
         </CarouselContent>
       </Carousel>
 

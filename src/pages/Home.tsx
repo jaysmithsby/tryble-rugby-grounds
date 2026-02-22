@@ -189,8 +189,6 @@ const Home = () => {
 
         <HomeCarousel unpickedFixturesCount={upcomingFixtures.filter(f => !predictions[f.id]).length} />
 
-        <WeeklySummaryWidget userId={user?.id} />
-
         {userSchoolFixture && userSchoolName && (
           <div className="space-y-2">
             <SchoolFixtureCard
@@ -270,77 +268,7 @@ const Home = () => {
           )}
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold px-1">Full Time – Report the Score</h2>
-          {fixturesLoading ? (
-            <div className="text-center py-8 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">Loading recent matches...</p>
-            </div>
-          ) : recentFixtures.length > 0 ? (
-            <div className="space-y-3">
-              {recentFixtures.map((fixture, index) => (
-                <RecentFixtureCard
-                  key={fixture.id}
-                  homeTeam={fixture.school_a.name}
-                  awayTeam={fixture.school_b.name}
-                  homeTeamShort={getShortName(fixture.school_a.name)}
-                  awayTeamShort={getShortName(fixture.school_b.name)}
-                  homeTeamIcon={fixture.school_a.jersey_url}
-                  awayTeamIcon={fixture.school_b.jersey_url}
-                  homeSchoolSlug={fixture.school_a.slug}
-                  awaySchoolSlug={fixture.school_b.slug}
-                  completedTime={formatMatchTime(fixture.match_date, fixture.status)}
-                  venue={fixture.venue}
-                  matchDate={new Date(fixture.match_date)}
-                  priority={index === 0}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No recent matches to report.</p>
-            </div>
-          )}
-        </div>
-
-        {userSchoolName && (
-          <SchoolScoreSubmission userSchoolName={userSchoolName} />
-        )}
-
-        {userSchoolName && (
-          <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Award className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h3 className="font-semibold text-foreground">Be the Voice of {userSchoolName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Report first team scores. Earn your official scorekeeper badge.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 border-primary/30 hover:bg-primary/10"
-                    asChild
-                  >
-                    <a
-                      href={buildWhatsAppUrl(`Hey Trybal! I want to be an official scorekeeper for ${userSchoolName}, I'll let you know what the final first team score is`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      Apply via WhatsApp
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* MVP: Full Time score reporting, SchoolScoreSubmission, and scorekeeper card hidden */}
       </main>
 
       <BottomNav />
