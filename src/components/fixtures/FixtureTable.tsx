@@ -43,7 +43,6 @@ interface FixtureTableProps {
   searchQuery: string;
 }
 
-/** Returns [leftSchool, rightSchool, leftIsHome] sorted alphabetically */
 function sortSchoolsAlpha(fixture: Fixture): [FixtureSchool, FixtureSchool, boolean] {
   const homeName = fixture.home_school?.name || "";
   const awayName = fixture.away_school?.name || "";
@@ -80,7 +79,8 @@ export const FixtureTable = ({ fixtures, searchQuery }: FixtureTableProps) => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[120px]">Date</TableHead>
-              <TableHead>Match</TableHead>
+              <TableHead className="text-center">Match</TableHead>
+              <TableHead className="w-[40px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -101,6 +101,40 @@ export const FixtureTable = ({ fixtures, searchQuery }: FixtureTableProps) => {
   );
 };
 
+/** Shared school column: jersey on top, name below */
+const SchoolBlock = ({
+  school,
+  isHome,
+  onNavigate,
+}: {
+  school: FixtureSchool;
+  isHome: boolean;
+  onNavigate: (e: React.MouseEvent, slug: string) => void;
+}) => (
+  <button
+    type="button"
+    className="flex flex-col items-center gap-1 min-w-[80px] max-w-[120px] hover:opacity-80 transition-opacity"
+    onClick={(e) => onNavigate(e, school.slug)}
+  >
+    <SchoolJerseyImage
+      src={school.jersey_url}
+      alt={school.name}
+      fallbackText={school.name?.substring(0, 2) || ""}
+      size="sm"
+      variant={isHome ? "primary" : "accent"}
+      containerClassName="border-border"
+    />
+    <span
+      className={cn(
+        "text-xs text-center line-clamp-2 leading-tight",
+        isHome ? "font-bold" : "font-medium"
+      )}
+    >
+      {school.name}
+    </span>
+  </button>
+);
+
 const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -116,73 +150,38 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
       <>
         <CollapsibleTrigger asChild>
           <TableRow className="cursor-pointer hover:bg-muted/50">
-            <TableCell className="text-sm text-muted-foreground">
+            <TableCell className="text-sm text-muted-foreground align-middle">
               {format(new Date(fixture.match_date), "EEE d MMM")}
             </TableCell>
             <TableCell>
-              <div className="flex items-center gap-2">
-                <SchoolJerseyImage
-                  src={left?.jersey_url}
-                  alt={left?.name}
-                  fallbackText={left?.name?.substring(0, 2) || ""}
-                  size="sm"
-                  variant="primary"
-                  onClick={(e) => handleSchoolClick(e, left.slug)}
-                  containerClassName="border-border"
-                />
-                <button
-                  type="button"
-                  className={cn(
-                    "text-sm hover:text-primary hover:underline text-left",
-                    leftIsHome && "font-bold"
-                  )}
-                  onClick={(e) => handleSchoolClick(e, left.slug)}
-                >
-                  {left?.name}
-                </button>
+              <div className="flex items-center justify-center gap-4">
+                <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
 
-                <div className="flex flex-col items-center mx-1">
-                  <span className="text-xs text-muted-foreground">vs</span>
+                <div className="flex flex-col items-center min-w-[40px]">
+                  <span className="text-sm font-semibold text-muted-foreground">vs</span>
                   {fixture.tournament && (
-                    <span className="text-[10px] text-muted-foreground leading-tight truncate max-w-[100px]">
+                    <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[100px]">
                       {fixture.tournament.name}
                     </span>
                   )}
                 </div>
 
-                <SchoolJerseyImage
-                  src={right?.jersey_url}
-                  alt={right?.name}
-                  fallbackText={right?.name?.substring(0, 2) || ""}
-                  size="sm"
-                  variant="accent"
-                  onClick={(e) => handleSchoolClick(e, right.slug)}
-                  containerClassName="border-border"
-                />
-                <button
-                  type="button"
-                  className={cn(
-                    "text-sm hover:text-primary hover:underline text-left",
-                    !leftIsHome && "font-bold"
-                  )}
-                  onClick={(e) => handleSchoolClick(e, right.slug)}
-                >
-                  {right?.name}
-                </button>
-
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-muted-foreground ml-auto shrink-0 transition-transform",
-                    open && "rotate-180"
-                  )}
-                />
+                <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
               </div>
+            </TableCell>
+            <TableCell className="align-middle">
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform",
+                  open && "rotate-180"
+                )}
+              />
             </TableCell>
           </TableRow>
         </CollapsibleTrigger>
         <CollapsibleContent asChild>
           <tr>
-            <td colSpan={2} className="bg-muted/30 p-0">
+            <td colSpan={3} className="bg-muted/30 p-0">
               <MatchHistory leftSchoolId={left.id} rightSchoolId={right.id} />
             </td>
           </tr>
@@ -217,55 +216,19 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
               )}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <SchoolJerseyImage
-              src={left?.jersey_url}
-              alt={left?.name}
-              fallbackText={left?.name?.substring(0, 2) || ""}
-              size="sm"
-              variant="primary"
-              onClick={(e) => handleSchoolClick(e, left.slug)}
-              containerClassName="border-border"
-            />
-            <button
-              type="button"
-              className={cn(
-                "text-xs hover:text-primary hover:underline text-left flex-1 truncate",
-                leftIsHome && "font-bold"
-              )}
-              onClick={(e) => handleSchoolClick(e, left.slug)}
-            >
-              {left?.name}
-            </button>
+          <div className="flex items-center justify-center gap-3">
+            <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
 
             <div className="flex flex-col items-center">
-              <span className="text-xs text-muted-foreground">vs</span>
+              <span className="text-sm font-semibold text-muted-foreground">vs</span>
               {fixture.tournament && (
-                <span className="text-[10px] text-muted-foreground leading-tight truncate max-w-[80px]">
+                <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[80px]">
                   {fixture.tournament.name}
                 </span>
               )}
             </div>
 
-            <button
-              type="button"
-              className={cn(
-                "text-xs hover:text-primary hover:underline text-right flex-1 truncate",
-                !leftIsHome && "font-bold"
-              )}
-              onClick={(e) => handleSchoolClick(e, right.slug)}
-            >
-              {right?.name}
-            </button>
-            <SchoolJerseyImage
-              src={right?.jersey_url}
-              alt={right?.name}
-              fallbackText={right?.name?.substring(0, 2) || ""}
-              size="sm"
-              variant="accent"
-              onClick={(e) => handleSchoolClick(e, right.slug)}
-              containerClassName="border-border"
-            />
+            <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
           </div>
         </div>
       </CollapsibleTrigger>
