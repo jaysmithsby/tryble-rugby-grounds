@@ -1132,6 +1132,7 @@ export type Database = {
         Args: { pool_id_param: string }
         Returns: undefined
       }
+      fixture_match_day: { Args: { ts: string }; Returns: string }
       get_next_friday_8pm: { Args: { from_time: string }; Returns: string }
       get_pool_by_invite_code: {
         Args: { code: string }

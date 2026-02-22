@@ -347,7 +347,9 @@ export function parseMultiSchoolData(
   for (const section of schoolSections) {
     const deduped: BulkFixtureRow[] = [];
     for (const fixture of section.fixtures) {
-      const fingerprint = `${normalizeSchoolName(fixture.homeTeamName)}|${normalizeSchoolName(fixture.awayTeamName)}|${fixture.matchDate}`;
+      // Sort school names alphabetically to catch mirror duplicates (A vs B == B vs A)
+      const sortedTeams = [normalizeSchoolName(fixture.homeTeamName), normalizeSchoolName(fixture.awayTeamName)].sort();
+      const fingerprint = `${sortedTeams[0]}|${sortedTeams[1]}|${fixture.matchDate}`;
       if (!seen.has(fingerprint)) {
         seen.add(fingerprint);
         deduped.push(fixture);
