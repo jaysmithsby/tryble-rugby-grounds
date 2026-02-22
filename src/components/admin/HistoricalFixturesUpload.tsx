@@ -93,6 +93,8 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
   const [bulkPasteText, setBulkPasteText] = useState("");
   const [bulkResult, setBulkResult] = useState<BulkParseResult | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [activeBulkSchoolDropdown, setActiveBulkSchoolDropdown] = useState<string | null>(null);
+  const [bulkSchoolSearchQueries, setBulkSchoolSearchQueries] = useState<Record<string, string>>({});
   
   // === Shared State ===
   const [submitted, setSubmitted] = useState(false);
@@ -952,6 +954,116 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
     );
   };
 
+  // === Render Bulk School Combobox ===
+
+  const renderBulkSchoolCombobox = (
+    sectionIndex: number,
+    fixtureIndex: number,
+    teamType: "home" | "away",
+    fixture: BulkFixtureRow,
+  ) => {
+    const dropdownKey = `${sectionIndex}-${fixtureIndex}-${teamType}`;
+    const nameField = teamType === "home" ? "homeTeamName" : "awayTeamName";
+    const idField = teamType === "home" ? "homeTeamId" : "awayTeamId";
+    const currentName = teamType === "home" ? fixture.homeTeamName : fixture.awayTeamName;
+    const currentId = teamType === "home" ? fixture.homeTeamId : fixture.awayTeamId;
+
+    const searchQuery = bulkSchoolSearchQueries[dropdownKey] || "";
+    const isOpen = activeBulkSchoolDropdown === dropdownKey;
+
+    const filtered = searchQuery
+      ? schools.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      : schools;
+
+    return (
+      <Popover open={isOpen} onOpenChange={(open) => {
+        setActiveBulkSchoolDropdown(open ? dropdownKey : null);
+        if (open) {
+          setBulkSchoolSearchQueries(prev => ({ ...prev, [dropdownKey]: "" }));
+        }
+      }}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={isOpen}
+            className={cn(
+              "w-full justify-between h-7 text-xs px-1",
+              !currentId && "border-amber-400"
+            )}
+          >
+            <span className="truncate">
+              {currentId ? getSchoolName(currentId) : currentName || "Select..."}
+            </span>
+            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[250px] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search or type new..."
+              value={searchQuery}
+              onValueChange={(val) => {
+                setBulkSchoolSearchQueries(prev => ({ ...prev, [dropdownKey]: val }));
+              }}
+            />
+            <CommandList>
+              <CommandGroup>
+                {filtered.slice(0, 10).map((school) => (
+                  <CommandItem
+                    key={school.id}
+                    value={school.id}
+                    onSelect={() => {
+                      updateBulkFixture(sectionIndex, fixtureIndex, nameField, school.name);
+                      updateBulkFixture(sectionIndex, fixtureIndex, idField, school.id);
+                      setActiveBulkSchoolDropdown(null);
+                      setBulkSchoolSearchQueries(prev => ({ ...prev, [dropdownKey]: "" }));
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        currentId === school.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <span className="truncate">{school.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              {searchQuery && !filtered.some(s =>
+                s.name.toLowerCase() === searchQuery.toLowerCase()
+              ) && (
+                <CommandGroup>
+                  <CommandItem
+                    value={`create-bulk-${dropdownKey}-${searchQuery}`}
+                    onSelect={async () => {
+                      const newId = await createNewSchool(searchQuery, bulkResult?.province || undefined);
+                      if (newId) {
+                        updateBulkFixture(sectionIndex, fixtureIndex, nameField, searchQuery.trim());
+                        updateBulkFixture(sectionIndex, fixtureIndex, idField, newId);
+                        setActiveBulkSchoolDropdown(null);
+                        setBulkSchoolSearchQueries(prev => ({ ...prev, [dropdownKey]: "" }));
+                      }
+                    }}
+                    className="text-primary"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span>Create "{searchQuery}" as new school</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+              {filtered.length === 0 && !searchQuery && (
+                <div className="p-2 text-center text-sm text-muted-foreground">
+                  Type to search or add new school
+                </div>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   // === Render Bulk Review ===
 
   const renderBulkReview = () => {
@@ -1104,11 +1216,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                               />
                             </td>
                             <td className="px-3 py-2">
-                              <Input
-                                value={fixture.homeTeamName}
-                                onChange={(e) => updateBulkFixture(sectionIndex, fixtureIndex, "homeTeamName", e.target.value)}
-                                className={cn("h-7 text-xs w-full px-1", !fixture.homeTeamId && "border-amber-400")}
-                              />
+                              {renderBulkSchoolCombobox(sectionIndex, fixtureIndex, "home", fixture)}
                             </td>
                             <td className="px-3 py-2 text-center">
                               {fixture.isCancelled ? (
@@ -1136,11 +1244,7 @@ export function HistoricalFixturesUpload({ open, onOpenChange, onSuccess }: Hist
                               )}
                             </td>
                             <td className="px-3 py-2">
-                              <Input
-                                value={fixture.awayTeamName}
-                                onChange={(e) => updateBulkFixture(sectionIndex, fixtureIndex, "awayTeamName", e.target.value)}
-                                className={cn("h-7 text-xs w-full px-1", !fixture.awayTeamId && "border-amber-400")}
-                              />
+                              {renderBulkSchoolCombobox(sectionIndex, fixtureIndex, "away", fixture)}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <Select
