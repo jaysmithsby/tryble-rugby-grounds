@@ -1,5 +1,4 @@
-import { useState, useMemo } from "react";
-import { Search, X, ChevronDown } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,65 +8,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { saProvinces } from "@/data/saProvinces";
-
-interface School {
-  id: string;
-  name: string;
-  province?: string | null;
-}
 
 interface FixturesFiltersProps {
   viewMode: "my-schools" | "all-schools";
   onViewModeChange: (mode: "my-schools" | "all-schools") => void;
-  selectedSchoolId?: string;
-  onSchoolChange: (schoolId: string | undefined) => void;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
   selectedProvince?: string;
   onProvinceChange: (province: string | undefined) => void;
-  schools: School[];
-  isLoadingSchools?: boolean;
 }
 
 export const FixturesFilters = ({
   viewMode,
   onViewModeChange,
-  selectedSchoolId,
-  onSchoolChange,
+  searchQuery,
+  onSearchQueryChange,
   selectedProvince,
   onProvinceChange,
-  schools,
-  isLoadingSchools = false,
 }: FixturesFiltersProps) => {
-  const [schoolSearchOpen, setSchoolSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const selectedSchool = useMemo(
-    () => schools.find((s) => s.id === selectedSchoolId),
-    [schools, selectedSchoolId]
-  );
-
-  const filteredSchools = useMemo(() => {
-    if (!searchQuery) return schools.slice(0, 50);
-    const query = searchQuery.toLowerCase();
-    return schools
-      .filter((s) => s.name.toLowerCase().includes(query))
-      .slice(0, 50);
-  }, [schools, searchQuery]);
-
-  const hasActiveFilters = selectedSchoolId || selectedProvince;
-
-  const clearFilters = () => {
-    onSchoolChange(undefined);
-    onProvinceChange(undefined);
-    setSearchQuery("");
-  };
+  const hasActiveFilters = selectedProvince;
 
   return (
     <div className="space-y-3 p-4 bg-card/50 border-b border-border/40">
@@ -91,75 +52,35 @@ export const FixturesFilters = ({
         </Button>
       </div>
 
-      {/* Filters - Only show in All Schools mode */}
-      {viewMode === "all-schools" && (
-        <div className="flex gap-2 flex-wrap">
-          {/* School Search */}
-          <Popover open={schoolSearchOpen} onOpenChange={setSchoolSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "min-w-[140px] justify-between",
-                  selectedSchoolId && "border-primary text-primary"
-                )}
-              >
-                {selectedSchool ? (
-                  <span className="truncate max-w-[120px]">{selectedSchool.name}</span>
-                ) : (
-                  <>
-                    <Search className="h-3.5 w-3.5 mr-1" />
-                    School
-                  </>
-                )}
-                <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
-              <Command>
-                <CommandInput
-                  placeholder="Search schools..."
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                />
-                <CommandList>
-                  <CommandEmpty>
-                    {isLoadingSchools ? "Loading..." : "No schools found."}
-                  </CommandEmpty>
-                  <CommandGroup>
-                    {filteredSchools.map((school) => (
-                      <CommandItem
-                        key={school.id}
-                        value={school.name}
-                        onSelect={() => {
-                          onSchoolChange(school.id);
-                          setSchoolSearchOpen(false);
-                          setSearchQuery("");
-                        }}
-                      >
-                        <span className="truncate">{school.name}</span>
-                        {school.province && (
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {school.province}
-                          </span>
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+      {/* Search Bar - always visible */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Search by school name..."
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
+          className="pl-9 h-9 text-sm"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => onSearchQueryChange("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
 
-          {/* Province Filter */}
+      {/* Province Filter - Only in All Schools mode */}
+      {viewMode === "all-schools" && (
+        <div className="flex gap-2">
           <Select
             value={selectedProvince || "all"}
             onValueChange={(value) => onProvinceChange(value === "all" ? undefined : value)}
           >
-            <SelectTrigger 
+            <SelectTrigger
               className={cn(
-                "w-[130px] h-9 text-sm",
+                "w-[140px] h-9 text-sm",
                 selectedProvince && "border-primary text-primary"
               )}
             >
@@ -175,12 +96,11 @@ export const FixturesFilters = ({
             </SelectContent>
           </Select>
 
-          {/* Clear Filters */}
           {hasActiveFilters && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={clearFilters}
+              onClick={() => onProvinceChange(undefined)}
               className="text-muted-foreground hover:text-foreground"
             >
               <X className="h-3.5 w-3.5 mr-1" />

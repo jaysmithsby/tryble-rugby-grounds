@@ -35,7 +35,6 @@ interface UseFixturesDataOptions {
   startDate: string;
   endDate: string;
   viewMode: "my-schools" | "all-schools";
-  selectedSchoolId?: string;
   selectedProvince?: string;
 }
 
@@ -43,7 +42,6 @@ export const useFixturesData = ({
   startDate,
   endDate,
   viewMode,
-  selectedSchoolId,
   selectedProvince,
 }: UseFixturesDataOptions) => {
   const [userId, setUserId] = useState<string | null>(null);
@@ -72,7 +70,7 @@ export const useFixturesData = ({
   });
 
   const { data: fixtures = [], isLoading: isLoadingFixtures } = useQuery({
-    queryKey: ["fixtures", startDate, endDate, viewMode, selectedSchoolId, selectedProvince, userSchoolIds],
+    queryKey: ["fixtures", startDate, endDate, viewMode, selectedProvince, userSchoolIds],
     queryFn: async () => {
       let query = supabase
         .from("fixtures")
@@ -100,9 +98,7 @@ export const useFixturesData = ({
         query = query.or(schoolFilter);
       }
 
-      if (viewMode === "all-schools" && selectedSchoolId) {
-        query = query.or(`school_a_id.eq.${selectedSchoolId},school_b_id.eq.${selectedSchoolId}`);
-      }
+
 
       const { data, error } = await query;
       if (error) throw error;
