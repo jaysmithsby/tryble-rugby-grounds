@@ -1,146 +1,81 @@
 
 
-## Multi-School Historical Fixtures Bulk Upload
+## Fix: Strip Festival Text from Away Team Names in Bulk Parser
 
 ### The Problem
 
-The current Historical Fixtures Upload only handles one school at a time -- you select a "Primary School", paste its fixtures, submit, then repeat for every school. With province-wide data covering 10+ schools, this is painfully slow.
+When festival parsing was removed, all text after the scores is treated as the away team name. For a line like:
+
+```
+16 Mar Brandwag EP 19 34 St Andrews Graeme Rugby Festival
+```
+
+The away team becomes **"St Andrews Graeme Rugby Festival"** instead of just **"St Andrews"**. This causes incorrect school matching, phantom school creation, and data quality issues.
 
 ### The Solution
 
-A new **Bulk Upload** mode that accepts an entire province's results in one paste, auto-parses all schools and their fixtures, auto-fills scores/results/home-away/festivals, and presents everything in a grouped, reviewable table before submission.
+Update the `parseFixtureLine` function in `multiSchoolParser.ts` to use **progressive trimming** when extracting the away team name:
 
-### Recommended Input Format
+1. Take all tokens after the scores (minus "Cancelled" if present)
+2. Try fuzzy-matching the full string against the schools database
+3. If no match, remove the last token and try again
+4. Repeat until a match is found or only 1 token remains
+5. If a match is found at a shorter length, use that as the away team name (the removed tokens were festival text)
+6. If no match at any length, fall back to the full text (current behaviour -- lets the user fix it manually in the review UI)
 
-Your example data is already in a great format. The ideal structure is:
+This approach works because school names are typically 1-3 words, while festival names add 2-4 extra words at the end.
 
-```
-[Province] Schoolboy Rugby Results [Year]
+### Example Walkthrough
 
-[School Name]
+Input: `"St Andrews Graeme Rugby Festival"`
 
-Date Home Team Home Score Away Score Away Team Festival
-09 Mar Clifton 43 0 KZN Development
-16 Mar Maritzburg College 83 10 Clifton
-...
+| Attempt | Text tried | Match? |
+|---------|-----------|--------|
+| 1 | "St Andrews Graeme Rugby Festival" | No |
+| 2 | "St Andrews Graeme Rugby" | No |
+| 3 | "St Andrews Graeme" | No |
+| 4 | "St Andrews" | Yes -- use this |
 
-[Next School Name]
+The same logic is applied to the home team text (before scores) as well, since festival host names could appear there too, though this is rarer.
 
-Date Home Team Home Score Away Score Away Team Festival
-...
-```
+### Technical Details
 
-**Tips for best results:**
-- Keep the header line with province and year (auto-extracts both)
-- Each school section starts with the school name on its own line
-- The column header row ("Date Home Team Home Score...") can appear once per school or be omitted after the first -- the parser will handle both
-- Scores (two consecutive numbers) act as anchors to split home/away team names
-- Festival column is optional -- leave blank for regular season matches
-- For cancelled matches, use "x x" for scores (will be flagged for review)
+**File changed:** `src/lib/fixtureParser/multiSchoolParser.ts`
 
----
+**What changes (lines 120-131):**
 
-### What Gets Built
+Replace the simple token join with a progressive matching function:
 
-#### 1. New Multi-School Parser (`src/lib/fixtureParser/multiSchoolParser.ts`)
-
-A new parser that:
-- Extracts province and year from the header line (e.g., "KZN Schoolboy Rugby Results 2025" -> province: "KwaZulu-Natal", year: "2025")
-- Splits the text into school sections using school name headers
-- For each fixture row, uses the two consecutive numbers (scores) as anchors to determine: home team name (text before first score), home score, away score, away team name (text after second score, before festival)
-- Auto-determines result: compares home score vs away score relative to the section's school -> won/lost/drew
-- Auto-determines home/away: if section school matches home team -> "home", else -> "away"
-- Fuzzy-matches all school names against the database
-- Fuzzy-matches festival names against tournaments in the database
-- Handles edge cases: "x x" scores (cancelled), festivals with multi-word names
-- Deduplicates fixtures that appear in multiple school sections (e.g., Clifton vs Glenwood appears under both)
-
-**Output type:**
 ```typescript
-interface BulkParseResult {
-  province: string;
-  year: string;
-  schoolSections: {
-    schoolName: string;
-    schoolId: string;  // matched from DB or empty
-    fixtures: FixtureRow[];  // extended with homeTeam/awayTeam info
-  }[];
-  duplicates: number;  // count of deduplicated fixtures
-  unmatched: string[];  // school names not found in DB
+function extractTeamName(
+  tokens: string[],
+  schools: School[]
+): { teamName: string; matched: boolean } {
+  if (tokens.length === 0) return { teamName: '', matched: false };
+
+  // Try progressively shorter prefixes
+  for (let len = tokens.length; len >= 1; len--) {
+    const candidate = tokens.slice(0, len).join(' ');
+    const match = fuzzyMatchSchool(candidate, schools);
+    if (match) {
+      return { teamName: candidate, matched: true };
+    }
+  }
+
+  // No match found -- use full text, let user fix in review
+  return { teamName: tokens.join(' '), matched: false };
 }
 ```
 
-#### 2. Updated HistoricalFixturesUpload Component
+Then use it for the away team tokens (after removing "Cancelled"):
 
-**New UI flow:**
+```typescript
+const cleanedTokens = lastToken.toLowerCase() === 'cancelled'
+  ? afterScoreTokens.slice(0, -1)
+  : afterScoreTokens;
 
-**Step 1 -- Paste & Parse:**
-- Remove the mandatory "Primary School" selector for bulk mode
-- Add a toggle: "Single School" (current) | "Bulk Upload" (new)
-- In Bulk mode, the textarea is larger and the placeholder shows the expected format
-- Province and Year are auto-detected from the header but can be overridden
-- "Parse Data" button processes the paste
-
-**Step 2 -- Review by School:**
-- After parsing, fixtures are displayed grouped by school in collapsible sections
-- Each section header shows: School name, match count, matched/unmatched status
-- Unmatched schools are highlighted with an option to create them or map to existing
-- Each fixture row shows: Date, Home Team, Score, Away Team, Result (auto-filled as won/lost/drew), Festival
-- Result cells are colour-coded (green/red/orange) and auto-filled but editable
-- Cancelled matches ("x x") are flagged in amber for review
-- A summary bar shows: Total fixtures, duplicates removed, schools matched, schools to create
-
-**Step 3 -- Submit:**
-- "Upload All" button submits all fixtures across all schools at once
-- Deduplication: if fixture X appears under both Clifton and Glenwood sections, only one database record is created (matched by home_school + away_school + date)
-- New schools are auto-created with province set from the header
-- New festivals are auto-created with year suffix
-
-#### 3. Province Abbreviation Mapping
-
-A small utility to map province abbreviations from the header:
-- "KZN" -> "KwaZulu-Natal"
-- "WC" -> "Western Cape"
-- "GP" -> "Gauteng"
-- etc.
-
-This ensures new schools created during bulk upload get the correct province set automatically.
-
----
-
-### Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/fixtureParser/multiSchoolParser.ts` | Create | New parser for multi-school bulk format |
-| `src/lib/fixtureParser/provinceMap.ts` | Create | Province abbreviation mapping utility |
-| `src/lib/fixtureParser/types.ts` | Modify | Add BulkParseResult and extended types |
-| `src/lib/fixtureParser/index.ts` | Modify | Export new modules |
-| `src/components/admin/HistoricalFixturesUpload.tsx` | Modify | Add bulk upload mode with school-grouped review UI |
-
-### No Database or Backend Changes Required
-
-All parsing happens client-side. Fixture insertion uses the existing `fixtures` table insert. New schools use the existing school creation logic (already in the component).
-
----
-
-### Technical Details: Parsing Algorithm
-
-The space-separated format is parsed using score-anchoring:
-
-```
-09 Mar Clifton 43 0 KZN Development
+const { teamName: awayTeamName } = extractTeamName(cleanedTokens, schools);
 ```
 
-1. Extract date: first token matching `DD MMM` pattern -> "09 Mar"
-2. Find the two consecutive numeric tokens (scores): `43` and `0`
-3. Everything between the date and first score = Home Team: "Clifton"
-4. Everything after second score until end or festival match = Away Team: "KZN Development"
-5. If remaining text matches a known festival -> assign tournament
-
-For the festival column, the parser checks if trailing text after the away team matches any tournament in the database (fuzzy match).
-
-### Deduplication Logic
-
-Each fixture is fingerprinted as `{homeTeam}|{awayTeam}|{date}`. When the same fixture appears in multiple school sections (which it always will -- every match has two teams), only the first occurrence is kept. The review UI shows the deduplicated count.
+No other files need to change. The review UI, submission logic, and school comboboxes all remain untouched.
 
