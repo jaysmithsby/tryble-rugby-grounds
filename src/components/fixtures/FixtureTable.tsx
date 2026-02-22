@@ -105,15 +105,20 @@ export const FixtureTable = ({ fixtures, searchQuery }: FixtureTableProps) => {
 const SchoolBlock = ({
   school,
   isHome,
+  align,
   onNavigate,
 }: {
   school: FixtureSchool;
   isHome: boolean;
+  align: "left" | "right";
   onNavigate: (e: React.MouseEvent, slug: string) => void;
 }) => (
   <button
     type="button"
-    className="flex flex-col items-center gap-1 min-w-[80px] max-w-[120px] hover:opacity-80 transition-opacity"
+    className={cn(
+      "flex flex-col items-center gap-1 w-full hover:opacity-80 transition-opacity",
+      align === "left" ? "items-end" : "items-start"
+    )}
     onClick={(e) => onNavigate(e, school.slug)}
   >
     <SchoolJerseyImage
@@ -126,7 +131,7 @@ const SchoolBlock = ({
     />
     <span
       className={cn(
-        "text-xs text-center line-clamp-2 leading-tight",
+        "text-xs text-center line-clamp-2 leading-tight max-w-[100px]",
         isHome ? "font-bold" : "font-medium"
       )}
     >
@@ -154,19 +159,19 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
               {format(new Date(fixture.match_date), "EEE d MMM")}
             </TableCell>
             <TableCell>
-              <div className="flex items-center justify-center gap-4">
-                <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
+              <div className="grid grid-cols-[1fr_48px_1fr] items-center">
+                <SchoolBlock school={left} isHome={leftIsHome} align="left" onNavigate={handleSchoolClick} />
 
-                <div className="flex flex-col items-center min-w-[40px]">
+                <div className="flex flex-col items-center justify-center">
                   <span className="text-sm font-semibold text-muted-foreground">vs</span>
                   {fixture.tournament && (
-                    <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[100px]">
+                    <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[80px]">
                       {fixture.tournament.name}
                     </span>
                   )}
                 </div>
 
-                <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
+                <SchoolBlock school={right} isHome={!leftIsHome} align="right" onNavigate={handleSchoolClick} />
               </div>
             </TableCell>
             <TableCell className="align-middle">
@@ -216,10 +221,10 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
               )}
             />
           </div>
-          <div className="flex items-center justify-center gap-3">
-            <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
+          <div className="grid grid-cols-[1fr_48px_1fr] items-center">
+            <SchoolBlock school={left} isHome={leftIsHome} align="left" onNavigate={handleSchoolClick} />
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center">
               <span className="text-sm font-semibold text-muted-foreground">vs</span>
               {fixture.tournament && (
                 <span className="text-[10px] text-muted-foreground leading-tight text-center truncate max-w-[80px]">
@@ -228,7 +233,7 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
               )}
             </div>
 
-            <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
+            <SchoolBlock school={right} isHome={!leftIsHome} align="right" onNavigate={handleSchoolClick} />
           </div>
         </div>
       </CollapsibleTrigger>
