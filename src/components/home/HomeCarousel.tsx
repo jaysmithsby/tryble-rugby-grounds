@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
 
 interface Derby {
   id: string;
-  home_school: { name: string; slug: string; icon_url: string | null };
-  away_school: { name: string; slug: string; icon_url: string | null };
+  school_a: { name: string; slug: string; icon_url: string | null };
+  school_b: { name: string; slug: string; icon_url: string | null };
   match_date: string;
   venue_legacy: string;
 }
@@ -56,7 +56,6 @@ export const HomeCarousel = ({
   
   const { weekendRange } = useEffectiveDate();
   
-  // Store stable primitive timestamps for useCallback dependencies
   const startTimestamp = weekendRange.start.getTime();
   const endTimestamp = weekendRange.end.getTime();
 
@@ -64,21 +63,18 @@ export const HomeCarousel = ({
     setLoading(true);
     
     const now = new Date().toISOString();
-    // Create dates from stable timestamps inside the function
     const start = new Date(startTimestamp);
     const end = new Date(endTimestamp);
     
-    // Fetch all data in parallel
     const [derbiesRes, newsRes, adsRes] = await Promise.all([
-      // Fetch derbies for this weekend
       supabase
         .from("fixtures")
         .select(`
           id,
           match_date,
           venue_legacy,
-          home_school:schools!fixtures_home_school_id_fkey(name, slug, icon_url),
-          away_school:schools!fixtures_away_school_id_fkey(name, slug, icon_url)
+          school_a:schools!fixtures_school_a_id_fkey(name, slug, icon_url),
+          school_b:schools!fixtures_school_b_id_fkey(name, slug, icon_url)
         `)
         .eq("is_derby", true)
         .eq("status", "upcoming")
@@ -87,7 +83,6 @@ export const HomeCarousel = ({
         .order("match_date", { ascending: true })
         .limit(5),
       
-      // Fetch active news articles
       supabase
         .from("news_articles")
         .select("id, title, summary, image_url, link_url")
@@ -97,7 +92,6 @@ export const HomeCarousel = ({
         .order("display_order", { ascending: true })
         .limit(5),
       
-      // Fetch active advertisements
       supabase
         .from("advertisements")
         .select("id, campaign_name, sponsor_name, image_url, link_url")
@@ -119,7 +113,6 @@ export const HomeCarousel = ({
     if (adsRes.data) {
       setAds(adsRes.data as Advertisement[]);
       
-      // Track impressions for visible ads
       adsRes.data.forEach((ad) => {
         supabase.rpc("increment_ad_impression", { ad_id: ad.id });
       });
@@ -143,7 +136,6 @@ export const HomeCarousel = ({
     });
   }, [api]);
 
-  // Auto-advance carousel every 5 seconds
   useEffect(() => {
     if (!api || count <= 1) return;
     
@@ -154,7 +146,6 @@ export const HomeCarousel = ({
     return () => clearInterval(interval);
   }, [api, count]);
 
-  // Calculate total slides
   const hasNudge = unpickedFixturesCount > 0;
   const totalSlides = derbies.length + (hasNudge ? 1 : 0) + news.length + ads.length;
 
@@ -179,14 +170,12 @@ export const HomeCarousel = ({
         className="w-full"
       >
         <CarouselContent>
-          {/* Derby slides */}
           {derbies.map((derby) => (
             <CarouselItem key={`derby-${derby.id}`}>
               <DerbySlide derby={derby} />
             </CarouselItem>
           ))}
           
-          {/* Prediction nudge slide */}
           {hasNudge && (
             <CarouselItem key="nudge">
               <NudgeSlide 
@@ -196,14 +185,12 @@ export const HomeCarousel = ({
             </CarouselItem>
           )}
           
-          {/* News slides */}
           {news.map((article) => (
             <CarouselItem key={`news-${article.id}`}>
               <NewsSlide article={article} />
             </CarouselItem>
           ))}
           
-          {/* Ad slides */}
           {ads.map((ad) => (
             <CarouselItem key={`ad-${ad.id}`}>
               <AdSlide ad={ad} />
@@ -212,7 +199,6 @@ export const HomeCarousel = ({
         </CarouselContent>
       </Carousel>
 
-      {/* Dot indicators */}
       {count > 1 && (
         <div className="flex justify-center gap-1.5">
           {Array.from({ length: count }).map((_, index) => (

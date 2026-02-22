@@ -8,8 +8,8 @@ interface Fixture {
   id: string;
   match_date: string;
   venue_legacy: string;
-  home_school: { name: string; emblem_url: string | null };
-  away_school: { name: string; emblem_url: string | null };
+  school_a: { name: string; emblem_url: string | null };
+  school_b: { name: string; emblem_url: string | null };
 }
 
 interface StepNextMatchProps {
@@ -25,7 +25,6 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
   useEffect(() => {
     const fetchNextFixture = async () => {
       try {
-        // First, find the school ID
         const { data: schoolData } = await supabase
           .from("schools")
           .select("id, name")
@@ -37,7 +36,6 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           return;
         }
 
-        // Find next upcoming fixture for this school
         const now = new Date().toISOString();
         const { data: fixtureData } = await supabase
           .from("fixtures")
@@ -45,10 +43,10 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
             id,
             match_date,
             venue_legacy,
-            home_school:schools!fixtures_home_school_id_fkey(name, emblem_url),
-            away_school:schools!fixtures_away_school_id_fkey(name, emblem_url)
+            school_a:schools!fixtures_school_a_id_fkey(name, emblem_url),
+            school_b:schools!fixtures_school_b_id_fkey(name, emblem_url)
           `)
-          .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+          .or(`school_a_id.eq.${schoolData.id},school_b_id.eq.${schoolData.id}`)
           .gte("match_date", now)
           .eq("status", "upcoming")
           .eq("is_visible", true)
@@ -114,15 +112,13 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
         <p className="text-muted-foreground">Here's what's coming up for {schoolName}</p>
       </div>
 
-      {/* Fixture Card */}
       <div className="bg-card border rounded-xl p-6 space-y-4">
-        {/* Teams */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 text-center">
-            {fixture.home_school.emblem_url ? (
+            {fixture.school_a.emblem_url ? (
               <img
-                src={fixture.home_school.emblem_url}
-                alt={fixture.home_school.name}
+                src={fixture.school_a.emblem_url}
+                alt={fixture.school_a.name}
                 className="w-16 h-16 mx-auto object-contain mb-2"
               />
             ) : (
@@ -130,7 +126,7 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
                 <Trophy className="w-8 h-8 text-muted-foreground" />
               </div>
             )}
-            <p className="font-medium text-sm">{fixture.home_school.name}</p>
+            <p className="font-medium text-sm">{fixture.school_a.name}</p>
             <p className="text-xs text-muted-foreground">Home</p>
           </div>
 
@@ -139,10 +135,10 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           </div>
 
           <div className="flex-1 text-center">
-            {fixture.away_school.emblem_url ? (
+            {fixture.school_b.emblem_url ? (
               <img
-                src={fixture.away_school.emblem_url}
-                alt={fixture.away_school.name}
+                src={fixture.school_b.emblem_url}
+                alt={fixture.school_b.name}
                 className="w-16 h-16 mx-auto object-contain mb-2"
               />
             ) : (
@@ -150,12 +146,11 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
                 <Trophy className="w-8 h-8 text-muted-foreground" />
               </div>
             )}
-            <p className="font-medium text-sm">{fixture.away_school.name}</p>
+            <p className="font-medium text-sm">{fixture.school_b.name}</p>
             <p className="text-xs text-muted-foreground">Away</p>
           </div>
         </div>
 
-        {/* Match Details */}
         <div className="pt-4 border-t space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
@@ -171,14 +166,12 @@ const StepNextMatch = ({ schoolName, onFollowTournament, onCreatePool }: StepNex
           </div>
         </div>
 
-        {/* Countdown */}
         <div className="bg-primary/10 rounded-lg p-3 text-center">
           <p className="text-sm text-muted-foreground">Kick-off in</p>
           <p className="text-xl font-bold text-primary">{countdown}</p>
         </div>
       </div>
 
-      {/* CTAs */}
       <div className="space-y-3">
         <Button onClick={onFollowTournament} className="w-full" size="lg">
           <Trophy className="w-4 h-4 mr-2" />

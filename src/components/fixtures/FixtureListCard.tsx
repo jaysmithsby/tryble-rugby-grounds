@@ -15,8 +15,8 @@ interface FixtureListCardProps {
     venue_type: string | null;
     venue_id: string | null;
     status: string;
-    home_school: FixtureSchool;
-    away_school: FixtureSchool;
+    school_a: FixtureSchool;
+    school_b: FixtureSchool;
     tournament?: { id: string; name: string } | null;
   };
   isPredicted?: boolean;
@@ -32,9 +32,9 @@ const getShortName = (name: string) => {
 
 const getVenue = (fixture: FixtureListCardProps["fixture"]) => {
   if (fixture.venue_type === "school" && fixture.venue_id) {
-    return fixture.venue_id === fixture.home_school.id
-      ? fixture.home_school.name
-      : fixture.away_school.name;
+    return fixture.venue_id === fixture.school_a.id
+      ? fixture.school_a.name
+      : fixture.school_b.name;
   }
   if (fixture.venue_type === "tournament" && fixture.tournament) {
     return fixture.tournament.name;
@@ -52,16 +52,16 @@ export const FixtureListCard = ({
 
   return (
     <FixtureCard
-      homeTeam={fixture.home_school.name}
-      awayTeam={fixture.away_school.name}
-      homeTeamShort={getShortName(fixture.home_school.name)}
-      awayTeamShort={getShortName(fixture.away_school.name)}
-      homeTeamIcon={fixture.home_school.jersey_url}
-      awayTeamIcon={fixture.away_school.jersey_url}
-      homeSchoolId={fixture.home_school.id}
-      awaySchoolId={fixture.away_school.id}
-      homeSchoolSlug={fixture.home_school.slug}
-      awaySchoolSlug={fixture.away_school.slug}
+      homeTeam={fixture.school_a.name}
+      awayTeam={fixture.school_b.name}
+      homeTeamShort={getShortName(fixture.school_a.name)}
+      awayTeamShort={getShortName(fixture.school_b.name)}
+      homeTeamIcon={fixture.school_a.jersey_url}
+      awayTeamIcon={fixture.school_b.jersey_url}
+      homeSchoolId={fixture.school_a.id}
+      awaySchoolId={fixture.school_b.id}
+      homeSchoolSlug={fixture.school_a.slug}
+      awaySchoolSlug={fixture.school_b.slug}
       time=""
       venue={getVenue(fixture)}
       matchDate={fixture.match_date}

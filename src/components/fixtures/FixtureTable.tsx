@@ -3,17 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { MatchHistory } from "./MatchHistory";
@@ -31,10 +24,10 @@ export interface Fixture {
   id: string;
   match_date: string;
   venue_legacy: string;
-  home_school_id: string;
-  away_school_id: string;
-  home_school: FixtureSchool;
-  away_school: FixtureSchool;
+  school_a_id: string;
+  school_b_id: string;
+  school_a: FixtureSchool;
+  school_b: FixtureSchool;
   tournament?: { id: string; name: string } | null;
 }
 
@@ -44,12 +37,12 @@ interface FixtureTableProps {
 }
 
 function sortSchoolsAlpha(fixture: Fixture): [FixtureSchool, FixtureSchool, boolean] {
-  const homeName = fixture.home_school?.name || "";
-  const awayName = fixture.away_school?.name || "";
-  if (homeName.localeCompare(awayName) <= 0) {
-    return [fixture.home_school, fixture.away_school, true];
+  const aName = fixture.school_a?.name || "";
+  const bName = fixture.school_b?.name || "";
+  if (aName.localeCompare(bName) <= 0) {
+    return [fixture.school_a, fixture.school_b, true];
   }
-  return [fixture.away_school, fixture.home_school, false];
+  return [fixture.school_b, fixture.school_a, false];
 }
 
 export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) => {
@@ -58,8 +51,8 @@ export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) 
     const q = searchQuery.toLowerCase();
     return fixtures.filter(
       (f) =>
-        f.home_school?.name?.toLowerCase().includes(q) ||
-        f.away_school?.name?.toLowerCase().includes(q)
+        f.school_a?.name?.toLowerCase().includes(q) ||
+        f.school_b?.name?.toLowerCase().includes(q)
     );
   }, [fixtures, searchQuery]);
 
@@ -73,7 +66,6 @@ export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) 
 
   return (
     <>
-      {/* Desktop table */}
       <div className="hidden sm:block">
         <Table>
           <TableHeader>
@@ -90,8 +82,6 @@ export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) 
           </TableBody>
         </Table>
       </div>
-
-      {/* Mobile stacked cards */}
       <div className="sm:hidden space-y-2">
         {filtered.map((fixture) => (
           <MobileFixtureCard key={fixture.id} fixture={fixture} />
@@ -101,11 +91,8 @@ export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) 
   );
 };
 
-/** Shared school column: jersey on top, name below, centered */
 const SchoolBlock = ({
-  school,
-  isHome,
-  onNavigate,
+  school, isHome, onNavigate,
 }: {
   school: FixtureSchool;
   isHome: boolean;
@@ -133,7 +120,7 @@ const SchoolBlock = ({
 const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const [left, right, leftIsHome] = sortSchoolsAlpha(fixture);
+  const [left, right, leftIsA] = sortSchoolsAlpha(fixture);
 
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
@@ -145,7 +132,7 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
       <>
         <CollapsibleTrigger asChild>
           <TableRow className="cursor-pointer hover:bg-muted/50">
-             <TableCell className="text-sm align-middle">
+            <TableCell className="text-sm align-middle">
               <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
               {fixture.venue_legacy && (
                 <span className="text-muted-foreground ml-2 text-xs">{fixture.venue_legacy}</span>
@@ -158,22 +145,15 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
             </TableCell>
             <TableCell>
               <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
-                <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
-
+                <SchoolBlock school={left} isHome={leftIsA} onNavigate={handleSchoolClick} />
                 <div className="flex items-center justify-center">
                   <span className="text-sm font-semibold text-muted-foreground">vs</span>
                 </div>
-
-                <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
+                <SchoolBlock school={right} isHome={!leftIsA} onNavigate={handleSchoolClick} />
               </div>
             </TableCell>
             <TableCell className="align-middle">
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 text-muted-foreground transition-transform",
-                  open && "rotate-180"
-                )}
-              />
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
             </TableCell>
           </TableRow>
         </CollapsibleTrigger>
@@ -192,7 +172,7 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
 const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const [left, right, leftIsHome] = sortSchoolsAlpha(fixture);
+  const [left, right, leftIsA] = sortSchoolsAlpha(fixture);
 
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
@@ -213,21 +193,14 @@ const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
                 <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
               )}
             </span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform",
-                open && "rotate-180"
-              )}
-            />
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
           </div>
           <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
-            <SchoolBlock school={left} isHome={leftIsHome} onNavigate={handleSchoolClick} />
-
+            <SchoolBlock school={left} isHome={leftIsA} onNavigate={handleSchoolClick} />
             <div className="flex items-center justify-center">
               <span className="text-sm font-semibold text-muted-foreground">vs</span>
             </div>
-
-            <SchoolBlock school={right} isHome={!leftIsHome} onNavigate={handleSchoolClick} />
+            <SchoolBlock school={right} isHome={!leftIsA} onNavigate={handleSchoolClick} />
           </div>
         </div>
       </CollapsibleTrigger>

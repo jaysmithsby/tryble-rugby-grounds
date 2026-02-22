@@ -14,21 +14,21 @@ interface FixtureWithSchools {
   match_date: string;
   venue_legacy: string;
   status: string;
-  home_score: number | null;
-  away_score: number | null;
-  home_school: {
+  score_a: number | null;
+  score_b: number | null;
+  school_a: {
     id: string;
     name: string;
     slug: string;
     jersey_url: string | null;
   };
-  away_school: {
+  school_b: {
     id: string;
     name: string;
     slug: string;
     jersey_url: string | null;
   };
-  isUserHomeTeam: boolean;
+  isUserSchoolA: boolean;
 }
 
 interface SchoolScoreSubmissionProps {
@@ -38,27 +38,24 @@ interface SchoolScoreSubmissionProps {
 export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionProps) => {
   const { toast } = useToast();
   const { effectiveDate, getSASTTime, weekendRange, seasonYear } = useEffectiveDate();
-  const [homeScore, setHomeScore] = useState<string>("");
-  const [awayScore, setAwayScore] = useState<string>("");
+  const [scoreA, setScoreA] = useState<string>("");
+  const [scoreB, setScoreB] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [submittedScores, setSubmittedScores] = useState<{ home: number; away: number } | null>(null);
+  const [submittedScores, setSubmittedScores] = useState<{ scoreA: number; scoreB: number } | null>(null);
   const [fixture, setFixture] = useState<FixtureWithSchools | null>(null);
   const [loading, setLoading] = useState(true);
   const [noSchoolFound, setNoSchoolFound] = useState(false);
 
-  // Determine if within the submission window: 3PM on match day to 10AM next morning
   const isWithinWindow = useMemo(() => {
     if (!fixture) return false;
     const sastNow = getSASTTime();
     const matchDate = new Date(fixture.match_date);
     const matchSAST = getSASTTime(matchDate);
 
-    // Window opens at 3PM (15:00) on match day
     const windowOpen = new Date(matchSAST);
     windowOpen.setHours(15, 0, 0, 0);
 
-    // Window closes at 10AM next morning
     const windowClose = new Date(matchSAST);
     windowClose.setDate(windowClose.getDate() + 1);
     windowClose.setHours(10, 0, 0, 0);
@@ -93,10 +90,10 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
       const { data: fixtureData, error: fixtureError } = await supabase
         .from('fixtures')
         .select(`
-          id, match_date, venue_legacy, status, home_score, away_score,
-          home_school_id, away_school_id
+          id, match_date, venue_legacy, status, score_a, score_b,
+          school_a_id, school_b_id
         `)
-        .or(`home_school_id.eq.${schoolData.id},away_school_id.eq.${schoolData.id}`)
+        .or(`school_a_id.eq.${schoolData.id},school_b_id.eq.${schoolData.id}`)
         .eq('year', seasonYear)
         .gte('match_date', startOfWeekend.toISOString())
         .lte('match_date', endOfWeekend.toISOString())
@@ -115,27 +112,27 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
         return;
       }
 
-      const [{ data: homeSchool }, { data: awaySchool }] = await Promise.all([
-        supabase.from('schools').select('id, name, slug, jersey_url').eq('id', fixtureData.home_school_id).single(),
-        supabase.from('schools').select('id, name, slug, jersey_url').eq('id', fixtureData.away_school_id).single(),
+      const [{ data: schoolA }, { data: schoolB }] = await Promise.all([
+        supabase.from('schools').select('id, name, slug, jersey_url').eq('id', fixtureData.school_a_id).single(),
+        supabase.from('schools').select('id, name, slug, jersey_url').eq('id', fixtureData.school_b_id).single(),
       ]);
 
-      if (homeSchool && awaySchool) {
+      if (schoolA && schoolB) {
         setFixture({
           id: fixtureData.id,
           match_date: fixtureData.match_date,
           venue_legacy: fixtureData.venue_legacy,
           status: fixtureData.status,
-          home_score: fixtureData.home_score,
-          away_score: fixtureData.away_score,
-          home_school: homeSchool,
-          away_school: awaySchool,
-          isUserHomeTeam: fixtureData.home_school_id === schoolData.id,
+          score_a: fixtureData.score_a,
+          score_b: fixtureData.score_b,
+          school_a: schoolA,
+          school_b: schoolB,
+          isUserSchoolA: fixtureData.school_a_id === schoolData.id,
         });
 
-        if (fixtureData.home_score !== null && fixtureData.away_score !== null) {
+        if (fixtureData.score_a !== null && fixtureData.score_b !== null) {
           setHasSubmitted(true);
-          setSubmittedScores({ home: fixtureData.home_score, away: fixtureData.away_score });
+          setSubmittedScores({ scoreA: fixtureData.score_a, scoreB: fixtureData.score_b });
         }
       }
     } catch (error) {
@@ -149,10 +146,10 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
     e.preventDefault();
     if (!fixture) return;
 
-    const homeScoreValue = parseInt(homeScore);
-    const awayScoreValue = parseInt(awayScore);
+    const scoreAValue = parseInt(scoreA);
+    const scoreBValue = parseInt(scoreB);
 
-    if (isNaN(homeScoreValue) || homeScoreValue < 0 || isNaN(awayScoreValue) || awayScoreValue < 0) {
+    if (isNaN(scoreAValue) || scoreAValue < 0 || isNaN(scoreBValue) || scoreBValue < 0) {
       toast({ variant: "destructive", title: "Invalid scores", description: "Please enter valid non-negative numbers for both scores" });
       return;
     }
@@ -166,7 +163,7 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
       }
 
       const response = await supabase.functions.invoke('submit-score', {
-        body: { fixtureId: fixture.id, homeScore: homeScoreValue, awayScore: awayScoreValue },
+        body: { fixtureId: fixture.id, scoreA: scoreAValue, scoreB: scoreBValue },
       });
 
       if (response.error) throw response.error;
@@ -175,11 +172,11 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
         return;
       }
 
-      toast({ title: "Score submitted!", description: `${fixture.home_school.name} ${homeScoreValue} - ${awayScoreValue} ${fixture.away_school.name}` });
+      toast({ title: "Score submitted!", description: `${fixture.school_a.name} ${scoreAValue} - ${scoreBValue} ${fixture.school_b.name}` });
       setHasSubmitted(true);
-      setSubmittedScores({ home: homeScoreValue, away: awayScoreValue });
-      setHomeScore("");
-      setAwayScore("");
+      setSubmittedScores({ scoreA: scoreAValue, scoreB: scoreBValue });
+      setScoreA("");
+      setScoreB("");
     } catch (error: any) {
       console.error('Error submitting score:', error);
       toast({ variant: "destructive", title: "Score Submission Failed", description: error.message || "Could not submit your score. Please try again." });
@@ -200,7 +197,6 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
     );
   }
 
-  // Holding message: no school found
   if (noSchoolFound) {
     return (
       <Card className="border-border/40">
@@ -217,7 +213,6 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
     );
   }
 
-  // Holding message: no fixture this weekend
   if (!fixture) {
     return (
       <Card className="border-border/40">
@@ -240,7 +235,6 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
   return (
     <Card className="border-border/40 overflow-hidden">
       <CardContent className="p-0">
-        {/* Header row: date + venue */}
         <div className={`px-5 pt-4 pb-2 ${isDisabled ? 'opacity-40' : ''}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -252,7 +246,6 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
         </div>
 
         {hasSubmitted && submittedScores ? (
-          /* Submitted state */
           <div className={`px-5 pb-5`}>
             <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
@@ -262,83 +255,78 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
               <div className="flex items-center justify-center gap-6">
                 <div className="flex flex-col items-center gap-2">
                   <SchoolJerseyImage
-                    src={fixture.home_school.jersey_url}
-                    alt={fixture.home_school.name}
-                    fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                    src={fixture.school_a.jersey_url}
+                    alt={fixture.school_a.name}
+                    fallbackText={fixture.school_a.name.substring(0, 2).toUpperCase()}
                     size="lg"
-                    variant={fixture.isUserHomeTeam ? "accent" : "primary"}
+                    variant={fixture.isUserSchoolA ? "accent" : "primary"}
                   />
-                  <span className="text-xs font-medium text-center max-w-[80px] line-clamp-2">{fixture.home_school.name}</span>
-                  <span className="text-2xl font-bold text-primary">{submittedScores.home}</span>
+                  <span className="text-xs font-medium text-center max-w-[80px] line-clamp-2">{fixture.school_a.name}</span>
+                  <span className="text-2xl font-bold text-primary">{submittedScores.scoreA}</span>
                 </div>
                 <span className="text-lg font-bold text-muted-foreground">VS</span>
                 <div className="flex flex-col items-center gap-2">
                   <SchoolJerseyImage
-                    src={fixture.away_school.jersey_url}
-                    alt={fixture.away_school.name}
-                    fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                    src={fixture.school_b.jersey_url}
+                    alt={fixture.school_b.name}
+                    fallbackText={fixture.school_b.name.substring(0, 2).toUpperCase()}
                     size="lg"
-                    variant={!fixture.isUserHomeTeam ? "accent" : "primary"}
+                    variant={!fixture.isUserSchoolA ? "accent" : "primary"}
                   />
-                  <span className="text-xs font-medium text-center max-w-[80px] line-clamp-2">{fixture.away_school.name}</span>
-                  <span className="text-2xl font-bold text-primary">{submittedScores.away}</span>
+                  <span className="text-xs font-medium text-center max-w-[80px] line-clamp-2">{fixture.school_b.name}</span>
+                  <span className="text-2xl font-bold text-primary">{submittedScores.scoreB}</span>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground text-center mt-3">Thank you for submitting the score!</p>
             </div>
           </div>
         ) : (
-          /* Score input form — greyed out when outside window */
           <form onSubmit={handleSubmit} className={`px-5 pb-5 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
-            {/* Teams with score inputs */}
             <div className="flex items-stretch justify-center gap-4 py-3">
-              {/* Home Team */}
               <div className="flex-1 flex flex-col items-center gap-2 max-w-[140px]">
                 <SchoolJerseyImage
-                  src={fixture.home_school.jersey_url}
-                  alt={fixture.home_school.name}
-                  fallbackText={fixture.home_school.name.substring(0, 2).toUpperCase()}
+                  src={fixture.school_a.jersey_url}
+                  alt={fixture.school_a.name}
+                  fallbackText={fixture.school_a.name.substring(0, 2).toUpperCase()}
                   size="lg"
-                  variant={fixture.isUserHomeTeam ? "accent" : "primary"}
+                  variant={fixture.isUserSchoolA ? "accent" : "primary"}
                 />
-                <span className={`text-xs font-semibold text-center line-clamp-2 ${fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
-                  {fixture.home_school.name}
+                <span className={`text-xs font-semibold text-center line-clamp-2 ${fixture.isUserSchoolA ? 'text-accent' : 'text-foreground'}`}>
+                  {fixture.school_a.name}
                 </span>
                 <Input
                   type="number"
                   min="0"
                   step="1"
-                  value={homeScore}
-                  onChange={(e) => setHomeScore(e.target.value)}
+                  value={scoreA}
+                  onChange={(e) => setScoreA(e.target.value)}
                   placeholder="0"
                   required
                   className="text-center text-2xl font-bold h-14 w-20 bg-background/80"
                 />
               </div>
 
-              {/* VS */}
               <div className="flex flex-col items-center justify-center">
                 <span className="text-lg font-bold text-muted-foreground">VS</span>
               </div>
 
-              {/* Away Team */}
               <div className="flex-1 flex flex-col items-center gap-2 max-w-[140px]">
                 <SchoolJerseyImage
-                  src={fixture.away_school.jersey_url}
-                  alt={fixture.away_school.name}
-                  fallbackText={fixture.away_school.name.substring(0, 2).toUpperCase()}
+                  src={fixture.school_b.jersey_url}
+                  alt={fixture.school_b.name}
+                  fallbackText={fixture.school_b.name.substring(0, 2).toUpperCase()}
                   size="lg"
-                  variant={!fixture.isUserHomeTeam ? "accent" : "primary"}
+                  variant={!fixture.isUserSchoolA ? "accent" : "primary"}
                 />
-                <span className={`text-xs font-semibold text-center line-clamp-2 ${!fixture.isUserHomeTeam ? 'text-accent' : 'text-foreground'}`}>
-                  {fixture.away_school.name}
+                <span className={`text-xs font-semibold text-center line-clamp-2 ${!fixture.isUserSchoolA ? 'text-accent' : 'text-foreground'}`}>
+                  {fixture.school_b.name}
                 </span>
                 <Input
                   type="number"
                   min="0"
                   step="1"
-                  value={awayScore}
-                  onChange={(e) => setAwayScore(e.target.value)}
+                  value={scoreB}
+                  onChange={(e) => setScoreB(e.target.value)}
                   placeholder="0"
                   required
                   className="text-center text-2xl font-bold h-14 w-20 bg-background/80"
@@ -348,7 +336,7 @@ export const SchoolScoreSubmission = ({ userSchoolName }: SchoolScoreSubmissionP
 
             <Button
               type="submit"
-              disabled={isSubmitting || !homeScore || !awayScore}
+              disabled={isSubmitting || !scoreA || !scoreB}
               className="w-full mt-2"
               size="lg"
             >

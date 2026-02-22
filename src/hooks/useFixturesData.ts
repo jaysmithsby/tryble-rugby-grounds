@@ -18,10 +18,10 @@ interface FixtureWithSchools {
   venue_type: string | null;
   venue_id: string | null;
   status: string;
-  home_school_id: string;
-  away_school_id: string;
-  home_school: FixtureSchool;
-  away_school: FixtureSchool;
+  school_a_id: string;
+  school_b_id: string;
+  school_a: FixtureSchool;
+  school_b: FixtureSchool;
   tournament: { id: string; name: string } | null;
 }
 
@@ -49,7 +49,6 @@ export const useFixturesData = ({
 }: UseFixturesDataOptions) => {
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Get current user
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -58,17 +57,14 @@ export const useFixturesData = ({
     getUser();
   }, []);
 
-  // Fetch user's followed school IDs from user_school_follows
   const { data: userSchoolIds = [] } = useQuery({
     queryKey: ["user-followed-schools", userId],
     queryFn: async () => {
       if (!userId) return [];
-
       const { data, error } = await supabase
         .from("user_school_follows")
         .select("school_id")
         .eq("user_id", userId);
-
       if (error) throw error;
       return data?.map((f) => f.school_id) || [];
     },
@@ -76,7 +72,6 @@ export const useFixturesData = ({
     staleTime: CACHE_TIMES.USER_PROFILE,
   });
 
-  // Fetch fixtures for the selected month
   const { data: fixtures = [], isLoading: isLoadingFixtures } = useQuery({
     queryKey: ["fixtures", year, month, viewMode, selectedSchoolId, selectedProvince, userSchoolIds],
     queryFn: async () => {
@@ -92,10 +87,10 @@ export const useFixturesData = ({
           venue_type,
           venue_id,
           status,
-          home_school_id,
-          away_school_id,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, jersey_url, province),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, jersey_url, province),
+          school_a_id,
+          school_b_id,
+          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
+          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
           tournament:tournaments(id, name)
         `)
         .eq("is_visible", true)
@@ -103,61 +98,53 @@ export const useFixturesData = ({
         .lte("match_date", endOfMonth)
         .order("match_date", { ascending: true });
 
-      // Apply "My Schools" filter
       if (viewMode === "my-schools" && userSchoolIds.length > 0) {
         const schoolFilter = userSchoolIds
-          .map((id) => `home_school_id.eq.${id},away_school_id.eq.${id}`)
+          .map((id) => `school_a_id.eq.${id},school_b_id.eq.${id}`)
           .join(",");
         query = query.or(schoolFilter);
       }
 
-      // Apply specific school filter
       if (viewMode === "all-schools" && selectedSchoolId) {
-        query = query.or(`home_school_id.eq.${selectedSchoolId},away_school_id.eq.${selectedSchoolId}`);
+        query = query.or(`school_a_id.eq.${selectedSchoolId},school_b_id.eq.${selectedSchoolId}`);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
-      // Filter by province if selected (post-query filtering since we can't filter nested)
       let result = (data || []) as unknown as FixtureWithSchools[];
       
       if (selectedProvince) {
         result = result.filter(
           (f) =>
-            f.home_school?.province === selectedProvince ||
-            f.away_school?.province === selectedProvince
+            f.school_a?.province === selectedProvince ||
+            f.school_b?.province === selectedProvince
         );
       }
 
       return result;
     },
-    staleTime: CACHE_TIMES.DYNAMIC, // Fixtures data is moderately dynamic
+    staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  // Fetch user's predictions for these fixtures
   const fixtureIds = fixtures.map((f) => f.id);
   
   const { data: predictions = [] } = useQuery({
     queryKey: ["fixture-predictions", fixtureIds, userId],
     queryFn: async () => {
       if (!userId || fixtureIds.length === 0) return [];
-
       const { data, error } = await supabase
         .from("predictions")
         .select("fixture_id, predicted_team, predicted_margin, predicted_school_id")
         .eq("user_id", userId)
         .in("fixture_id", fixtureIds);
-
       if (error) throw error;
       return data as UserPrediction[];
     },
     enabled: !!userId && fixtureIds.length > 0,
-    staleTime: CACHE_TIMES.DYNAMIC, // Predictions may update during match weekends
+    staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  // Create predictions map
   const predictionsMap = useMemo(() => {
     const map: Record<string, { schoolId: string; margin: number }> = {};
     for (const pred of predictions) {
@@ -169,10 +156,8 @@ export const useFixturesData = ({
     return map;
   }, [predictions]);
 
-  // Group fixtures by date
   const groupedFixtures = useMemo(() => {
     const groups: Record<string, FixtureWithSchools[]> = {};
-    
     for (const fixture of fixtures) {
       const dateKey = new Date(fixture.match_date).toDateString();
       if (!groups[dateKey]) {
@@ -180,8 +165,6 @@ export const useFixturesData = ({
       }
       groups[dateKey].push(fixture);
     }
-
-    // Convert to sorted array of groups
     return Object.entries(groups)
       .map(([dateKey, fixtures]) => ({
         date: new Date(dateKey),
@@ -200,7 +183,6 @@ export const useFixturesData = ({
   };
 };
 
-// Fetch all schools for the filter dropdown
 export const useAllSchools = () => {
   return useQuery({
     queryKey: ["all-schools-list"],
@@ -212,10 +194,9 @@ export const useAllSchools = () => {
         .eq("is_archived", false)
         .eq("status", "verified")
         .order("name");
-
       if (error) throw error;
       return data;
     },
-    staleTime: CACHE_TIMES.STATIC, // Schools list is static reference data
+    staleTime: CACHE_TIMES.STATIC,
   });
 };

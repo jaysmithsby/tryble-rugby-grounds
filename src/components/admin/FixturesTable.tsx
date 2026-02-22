@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Search, Loader2, Eye, EyeOff, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Calendar } from "lucide-react";
+import { Edit, Search, Loader2, Eye, EyeOff, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import {
   Select,
@@ -28,7 +28,7 @@ import { BulkYearCorrectionDialog } from "./BulkYearCorrectionDialog";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "./PaginationControls";
 
-type SortField = 'date' | 'home' | 'away' | 'venue' | 'tournament' | 'status' | 'visible';
+type SortField = 'date' | 'school_a' | 'school_b' | 'venue' | 'tournament' | 'status' | 'visible';
 type SortDirection = 'asc' | 'desc';
 
 interface FixturesTableProps {
@@ -53,7 +53,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   const pagination = usePagination(1, 25);
 
-  // Fetch schools and tournaments once
   useEffect(() => {
     fetchSchools();
     fetchTournaments();
@@ -89,7 +88,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   };
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     pagination.goToPage(1);
   }, [debouncedSearch, statusFilter, yearFilter]);
@@ -102,7 +100,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         setLoading(true);
       }
 
-      // Build count query
       let countQuery = supabase
         .from('fixtures')
         .select('*', { count: 'exact', head: true });
@@ -119,7 +116,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       
       pagination.setTotalCount(count || 0);
 
-      // Build data query with pagination
       let dataQuery = supabase
         .from('fixtures')
         .select('*');
@@ -131,10 +127,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         dataQuery = dataQuery.eq('year', parseInt(yearFilter));
       }
 
-      // Apply sorting
       const sortColumn = sortField === 'date' ? 'match_date'
-        : sortField === 'home' ? 'home_school_id'
-        : sortField === 'away' ? 'away_school_id'
+        : sortField === 'school_a' ? 'school_a_id'
+        : sortField === 'school_b' ? 'school_b_id'
         : sortField === 'visible' ? 'is_visible'
         : sortField;
       
@@ -145,19 +140,18 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
       if (error) throw error;
       
-      // Client-side filter for search (since we need school names which are looked up)
       let filteredData = data || [];
       if (debouncedSearch) {
         const query = debouncedSearch.toLowerCase();
         filteredData = filteredData.filter(fixture => {
-          const homeSchool = schools.get(fixture.home_school_id) || '';
-          const awaySchool = schools.get(fixture.away_school_id) || '';
+          const schoolA = schools.get(fixture.school_a_id) || '';
+          const schoolB = schools.get(fixture.school_b_id) || '';
           const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
           const matchDate = format(new Date(fixture.match_date), 'MMM dd yyyy').toLowerCase();
           
           return (fixture.venue_legacy || '').toLowerCase().includes(query) ||
-            homeSchool.toLowerCase().includes(query) ||
-            awaySchool.toLowerCase().includes(query) ||
+            schoolA.toLowerCase().includes(query) ||
+            schoolB.toLowerCase().includes(query) ||
             tournamentName.toLowerCase().includes(query) ||
             matchDate.includes(query);
         });
@@ -184,7 +178,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     }
   }, [pagination.from, pagination.to, debouncedSearch, statusFilter, yearFilter, sortField, sortDirection, schools, tournaments, toast]);
 
-  // Fetch fixtures when dependencies change
   useEffect(() => {
     if (schools.size > 0) {
       fetchFixtures();
@@ -269,8 +262,8 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       .filter((f) => selectedIds.has(f.id))
       .map((f) => ({
         ...f,
-        homeName: schools.get(f.home_school_id) || "Unknown",
-        awayName: schools.get(f.away_school_id) || "Unknown",
+        schoolAName: schools.get(f.school_a_id) || "Unknown",
+        schoolBName: schools.get(f.school_b_id) || "Unknown",
       }));
   };
 
@@ -281,16 +274,11 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'upcoming':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
-      case 'in_progress':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-      case 'final':
-        return 'bg-green-500/20 text-green-400 border-green-500/50';
-      case 'holding':
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
-      default:
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
+      case 'upcoming': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
+      case 'in_progress': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
+      case 'final': return 'bg-green-500/20 text-green-400 border-green-500/50';
+      case 'holding': return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
     }
   };
 
@@ -304,7 +292,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   return (
     <div className="space-y-4">
-      {/* Refresh Button */}
       <div className="flex justify-end">
         <Button
           variant="outline"
@@ -351,7 +338,6 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         </Select>
       </div>
 
-      {/* Results count and bulk actions */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {selectedIds.size > 0 && (
@@ -379,77 +365,32 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-[40px]">
                 <Checkbox
-                  checked={
-                    fixtures.length > 0 &&
-                    selectedIds.size === fixtures.length
-                  }
+                  checked={fixtures.length > 0 && selectedIds.size === fixtures.length}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('date')}
-              >
-                <div className="flex items-center">
-                  Date
-                  {getSortIcon('date')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center">Date {getSortIcon('date')}</div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('home')}
-              >
-                <div className="flex items-center">
-                  Home
-                  {getSortIcon('home')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('school_a')}>
+                <div className="flex items-center">School A {getSortIcon('school_a')}</div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('away')}
-              >
-                <div className="flex items-center">
-                  Away
-                  {getSortIcon('away')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('school_b')}>
+                <div className="flex items-center">School B {getSortIcon('school_b')}</div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('venue')}
-              >
-                <div className="flex items-center">
-                  Venue
-                  {getSortIcon('venue')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('venue')}>
+                <div className="flex items-center">Venue {getSortIcon('venue')}</div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('tournament')}
-              >
-                <div className="flex items-center">
-                  Tournament
-                  {getSortIcon('tournament')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('tournament')}>
+                <div className="flex items-center">Tournament {getSortIcon('tournament')}</div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('status')}
-              >
-                <div className="flex items-center">
-                  Status
-                  {getSortIcon('status')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('status')}>
+                <div className="flex items-center">Status {getSortIcon('status')}</div>
               </TableHead>
               <TableHead>Score</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead 
-                className="cursor-pointer select-none hover:bg-muted/50"
-                onClick={() => handleSort('visible')}
-              >
-                <div className="flex items-center">
-                  Visible
-                  {getSortIcon('visible')}
-                </div>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('visible')}>
+                <div className="flex items-center">Visible {getSortIcon('visible')}</div>
               </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -465,12 +406,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                         : "No matches found for your search"}
                     </p>
                     {(searchQuery || statusFilter !== "all" || yearFilter !== "all") && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="gap-2"
-                      >
+                      <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
                         <RefreshCcw className="h-4 w-4" />
                         Clear filters
                       </Button>
@@ -480,11 +416,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
               </TableRow>
             ) : (
               fixtures.map((fixture) => {
-                const homeSchool = schools.get(fixture.home_school_id) || 'Unknown School';
-                const awaySchool = schools.get(fixture.away_school_id) || 'Unknown School';
-                const tournamentName = fixture.tournament_id 
-                  ? tournaments.get(fixture.tournament_id) 
-                  : null;
+                const schoolAName = schools.get(fixture.school_a_id) || 'Unknown School';
+                const schoolBName = schools.get(fixture.school_b_id) || 'Unknown School';
+                const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) : null;
                 
                 return (
                 <TableRow key={fixture.id} className={selectedIds.has(fixture.id) ? "bg-muted/30" : ""}>
@@ -497,69 +431,53 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                   <TableCell className="font-medium">
                     {format(new Date(fixture.match_date), 'MMM dd, yyyy')}
                   </TableCell>
-                  <TableCell className="text-sm">{homeSchool}</TableCell>
-                  <TableCell className="text-sm">{awaySchool}</TableCell>
-                  <TableCell className="text-sm">
-                    {fixture.venue_type === "school" && fixture.venue_id
-                      ? (schools.get(fixture.venue_id) || fixture.venue_legacy || "School")
-                      : fixture.venue_type === "tournament" && fixture.venue_id
-                      ? (tournaments.get(fixture.venue_id) || fixture.venue_legacy || "Tournament")
-                      : fixture.venue_legacy || "TBD"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {tournamentName ? (
-                      <Badge variant="outline" className="text-xs">
-                        {tournamentName}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
+                  <TableCell className="text-sm">{schoolAName}</TableCell>
+                  <TableCell className="text-sm">{schoolBName}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fixture.venue_legacy || 'TBD'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{tournamentName || '-'}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={getStatusColor(fixture.status)}>
                       {fixture.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {fixture.home_score !== null && fixture.away_score !== null
-                      ? `${fixture.home_score} - ${fixture.away_score}`
+                  <TableCell className="font-mono text-sm">
+                    {(fixture.score_a !== null && fixture.score_b !== null) 
+                      ? `${fixture.score_a} - ${fixture.score_b}` 
                       : '-'}
                   </TableCell>
                   <TableCell>
                     {fixture.source_url ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
+                      <a 
+                        href={fixture.source_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1"
                       >
-                        <a href={fixture.source_url} target="_blank" rel="noopener noreferrer" title={fixture.source_url}>
-                          <ExternalLink className="h-4 w-4 text-primary" />
-                        </a>
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                        Link
+                      </a>
+                    ) : '-'}
                   </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => toggleVisibility(fixture)}
+                      title={fixture.is_visible ? "Hide fixture" : "Show fixture"}
                     >
                       {fixture.is_visible ? (
-                        <Eye className="h-4 w-4 text-green-500" />
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
+                        <EyeOff className="h-4 w-4 text-muted-foreground opacity-50" />
                       )}
                     </Button>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => onEdit(fixture)}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -570,10 +488,14 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         </Table>
       </div>
 
-      {/* Pagination Controls */}
-      <PaginationControls pagination={pagination} loading={loading} />
+      <PaginationControls
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        onPageChange={pagination.goToPage}
+        totalItems={pagination.totalCount}
+      />
 
-      <BulkYearCorrectionDialog
+      <BulkYearCorrectionDialog 
         open={bulkYearDialogOpen}
         onOpenChange={setBulkYearDialogOpen}
         selectedFixtures={getSelectedFixturesWithNames()}

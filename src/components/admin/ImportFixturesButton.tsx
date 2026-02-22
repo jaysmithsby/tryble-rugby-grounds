@@ -23,27 +23,23 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
       header: true,
       complete: async (results) => {
         try {
-          // Fetch all schools to create name-to-ID mapping
           const { data: schools, error: schoolsError } = await supabase
             .from('schools')
             .select('id, name');
 
           if (schoolsError) throw schoolsError;
 
-          // Fetch all tournaments to create name-to-ID mapping
           const { data: tournaments, error: tournamentsError } = await supabase
             .from('tournaments')
             .select('id, name');
 
           if (tournamentsError) throw tournamentsError;
 
-          // Create a case-insensitive mapping of school names to IDs
           const schoolNameToId = new Map<string, string>();
           schools?.forEach(school => {
             schoolNameToId.set(school.name.toLowerCase().trim(), school.id);
           });
 
-          // Create a case-insensitive mapping of tournament names to IDs
           const tournamentNameToId = new Map<string, string>();
           tournaments?.forEach(tournament => {
             tournamentNameToId.set(tournament.name.toLowerCase().trim(), tournament.id);
@@ -52,25 +48,22 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
           const fixtures = results.data
             .filter((row: any) => row.home_school_id && row.away_school_id)
             .map((row: any) => {
-              // Check if home_school_id and away_school_id are UUIDs or names
               const isHomeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.home_school_id);
               const isAwayUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.away_school_id);
 
-              // Map school names to IDs if they're not already UUIDs
-              const homeSchoolId = isHomeUuid 
+              const schoolAId = isHomeUuid 
                 ? row.home_school_id 
                 : schoolNameToId.get(row.home_school_id.toLowerCase().trim());
               
-              const awaySchoolId = isAwayUuid 
+              const schoolBId = isAwayUuid 
                 ? row.away_school_id 
                 : schoolNameToId.get(row.away_school_id.toLowerCase().trim());
 
-              if (!homeSchoolId || !awaySchoolId) {
+              if (!schoolAId || !schoolBId) {
                 console.warn(`Skipping fixture: Could not find school IDs for ${row.home_school_id} vs ${row.away_school_id}`);
                 return null;
               }
 
-              // Map tournament/festival name to ID if provided
               let tournamentId = null;
               if (row.festival_id || row.tournament_id) {
                 const tournamentValue = row.tournament_id || row.festival_id;
@@ -79,7 +72,6 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
                 if (isTournamentUuid) {
                   tournamentId = tournamentValue;
                 } else {
-                  // Try to map tournament name to ID
                   tournamentId = tournamentNameToId.get(tournamentValue.toLowerCase().trim());
                   if (!tournamentId) {
                     console.warn(`Tournament not found: ${tournamentValue}`);
@@ -87,25 +79,22 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
                 }
               }
 
-              // Normalize date format (handle unicode minus signs)
               let matchDate = row.match_date;
               if (matchDate) {
-                // Replace unicode minus (−) with regular hyphen (-)
                 matchDate = matchDate.replace(/−/g, '-');
               }
 
-              // Build fixture object - only include id if provided in CSV
               const fixture: any = {
-                home_school_id: homeSchoolId,
-                away_school_id: awaySchoolId,
+                school_a_id: schoolAId,
+                school_b_id: schoolBId,
                 sport: row.sport || 'Rugby',
                 match_date: matchDate,
                 venue_legacy: row.venue || 'TBD',
-                venue_type: 'home',
-                venue_id: homeSchoolId,
+                venue_type: 'school', // defaulting to school, should be inferred properly if possible
+                venue_id: schoolAId, // default to school A home
                 status: row.status || 'upcoming',
-                home_score: row.home_score ? parseInt(row.home_score) : null,
-                away_score: row.away_score ? parseInt(row.away_score) : null,
+                score_a: row.home_score ? parseInt(row.home_score) : null,
+                score_b: row.away_score ? parseInt(row.away_score) : null,
                 season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
                 year: row.year ? parseInt(row.year) : new Date().getFullYear(),
                 tournament_id: tournamentId,
@@ -115,7 +104,6 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
                 is_visible: true,
               };
 
-              // Only include id if explicitly provided in CSV
               if (row.id) {
                 fixture.id = row.id;
               }
@@ -136,7 +124,6 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
             return;
           }
 
-          // Only check for duplicates if fixtures have explicit IDs
           const fixturesWithIds = fixtures.filter((f: any) => f.id);
           let newFixtures = fixtures;
           let duplicateCount = 0;
@@ -150,10 +137,8 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
 
             if (fetchError) throw fetchError;
 
-            // Create a set of existing IDs for quick lookup
             const existingIds = new Set(existingFixtures?.map(f => f.id) || []);
             
-            // Filter out duplicates (only for fixtures with explicit IDs)
             newFixtures = fixtures.filter((fixture: any) => !fixture.id || !existingIds.has(fixture.id));
             duplicateCount = fixtures.length - newFixtures.length;
           }
@@ -170,7 +155,6 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
 
           console.log(`Importing ${newFixtures.length} new fixtures (${duplicateCount} duplicates skipped)...`);
 
-          // Insert in batches of 50 to avoid overwhelming the database
           const batchSize = 50;
           for (let i = 0; i < newFixtures.length; i += batchSize) {
             const batch = newFixtures.slice(i, i + batchSize);

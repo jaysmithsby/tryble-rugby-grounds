@@ -67,8 +67,8 @@ export default function Tournament() {
         .from("fixtures")
         .select(`
           *,
-          home_school:schools!fixtures_home_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url),
-          away_school:schools!fixtures_away_school_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url)
+          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url),
+          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, icon_url, emblem_url, jersey_url)
         `)
         .eq("tournament_id", tournamentId)
         .order("match_date", { ascending: true });
@@ -80,7 +80,6 @@ export default function Tournament() {
     }
   };
 
-  // Helper to get school display image (emblem > jersey > icon)
   const getSchoolImage = (school: any) => {
     return school?.emblem_url || school?.jersey_url || school?.icon_url;
   };
@@ -100,7 +99,6 @@ export default function Tournament() {
   return (
     <>
       <div className="min-h-screen bg-background pb-20">
-        {/* Header */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
           <div className="container mx-auto px-4 py-4">
             <Button
@@ -116,7 +114,6 @@ export default function Tournament() {
         </div>
 
         <div className="container mx-auto px-4 py-6 space-y-6">
-          {/* Sponsor Banner - Top Position */}
           {tournament.sponsor_logo_url && (
             <div className="bg-card border border-border rounded-lg p-6 flex flex-col items-center justify-center gap-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -133,7 +130,6 @@ export default function Tournament() {
             </div>
           )}
 
-          {/* Tournament Hero */}
           <div className="bg-gradient-to-br from-primary/10 via-background to-background rounded-lg border border-border p-8 text-center space-y-4">
             <Trophy className="h-12 w-12 mx-auto text-primary" />
             <h1 className="text-3xl md:text-4xl font-bold text-foreground">
@@ -144,7 +140,6 @@ export default function Tournament() {
             </p>
           </div>
 
-          {/* Quick Facts */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card border border-border rounded-lg p-4 flex items-center gap-3">
               <Calendar className="h-5 w-5 text-primary" />
@@ -179,7 +174,6 @@ export default function Tournament() {
             </div>
           </div>
 
-          {/* Format Notes */}
           {tournament.format_notes && (
             <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -190,7 +184,6 @@ export default function Tournament() {
             </div>
           )}
 
-          {/* Participating Schools */}
           <div className="bg-card border border-border rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
@@ -208,7 +201,6 @@ export default function Tournament() {
             </div>
           </div>
 
-          {/* Tournament Fixtures */}
           {fixtures.length > 0 && (
             <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -219,25 +211,26 @@ export default function Tournament() {
                 {fixtures.map((fixture, index) => (
                   <FixtureCard
                     key={fixture.id}
-                    homeTeam={fixture.home_school?.name || "TBD"}
-                    awayTeam={fixture.away_school?.name || "TBD"}
-                    homeTeamShort={fixture.home_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
-                    awayTeamShort={fixture.away_school?.name?.slice(0, 3).toUpperCase() || "TBD"}
-                    homeTeamIcon={getSchoolImage(fixture.home_school)}
-                    awayTeamIcon={getSchoolImage(fixture.away_school)}
-                    homeSchoolSlug={fixture.home_school?.slug}
-                    awaySchoolSlug={fixture.away_school?.slug}
+                    homeTeam={fixture.school_a?.name || "TBD"}
+                    awayTeam={fixture.school_b?.name || "TBD"}
+                    homeTeamShort={fixture.school_a?.name?.slice(0, 3).toUpperCase() || "TBD"}
+                    awayTeamShort={fixture.school_b?.name?.slice(0, 3).toUpperCase() || "TBD"}
+                    homeTeamIcon={getSchoolImage(fixture.school_a)}
+                    awayTeamIcon={getSchoolImage(fixture.school_b)}
+                    homeSchoolSlug={fixture.school_a?.slug}
+                    awaySchoolSlug={fixture.school_b?.slug}
                     time={format(new Date(fixture.match_date), "MMM d, h:mm a")}
                     venue={fixture.venue_legacy || "TBD"}
                     matchId={fixture.id}
                     priority={index < 3}
+                    homeSchoolId={fixture.school_a?.id}
+                    awaySchoolId={fixture.school_b?.id}
                   />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Bottom Sponsor Banner */}
           {tournament.sponsor_logo_url && (
             <div className="bg-card border border-border rounded-lg p-6 flex flex-col items-center justify-center gap-4">
               <img
