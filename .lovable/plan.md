@@ -1,34 +1,79 @@
 
-## Make FixtureTable a Global Component and Reuse on School Profile
+
+## Rename `home_school_id` / `away_school_id` to `school_a_id` / `school_b_id`
 
 ### Overview
-The `FixtureTable` component (with its collapsible match history) will be made into a reusable global component. The School Profile page will then use this same component for both "Upcoming Fixtures" and "Recent Results" sections, replacing the current custom inline markup.
+Rename the database columns and all code references so that the two schools in a fixture are simply "School A" and "School B" -- removing any implication that column order determines venue or home advantage. The venue continues to be driven solely by `venue_type` and `venue_id`.
 
-### Changes
+This also means renaming `home_score` / `away_score` to `score_a` / `score_b` for consistency, and updating the `predicted_team` values from `"home"` / `"away"` to `"school_a"` / `"school_b"`.
 
-**1. Update `FixtureTable` props to support optional search**
+---
 
-- Make `searchQuery` optional (default to `""`) so the component can be used without a search input (e.g., on the School Profile page).
+### Step 1: Database Migration
 
-**2. Replace School Profile fixture sections with `FixtureTable`**
+A single migration to:
 
-- **Upcoming Fixtures card** (lines 373-459): Replace the custom fixture rendering with `<FixtureTable fixtures={upcomingFixtures} />`. Remove the inline home/away school buttons, VS label, venue text, status badges, and derby badges -- the `FixtureTable` component already handles date, venue, tournament, jerseys, school navigation, and collapsible match history.
+1. Rename columns on `fixtures`:
+   - `home_school_id` -> `school_a_id`
+   - `away_school_id` -> `school_b_id`
+   - `home_score` -> `score_a`
+   - `away_score` -> `score_b`
 
-- **Recent Results card** (lines 461-538): Replace with `<FixtureTable fixtures={recentResults} />`. The recent results already have `home_score`/`away_score` but the current `FixtureTable` treats all rows identically (upcoming style with "vs"). This is acceptable since match history is accessible via the collapsible expand, and keeping one unified component is the goal.
+2. Rename foreign key constraints:
+   - Drop `fixtures_home_school_id_fkey` and `fixtures_away_school_id_fkey`
+   - Create `fixtures_school_a_id_fkey` and `fixtures_school_b_id_fkey`
 
-**3. Ensure data shape compatibility**
+3. Recreate the mirror-pair index using the new column names.
 
-The School Profile currently fetches fixture data with `select("*")` and manually joins schools via a `schoolsMap`. The `FixtureTable` expects each fixture to have `home_school` and `away_school` objects with `{ id, name, slug, jersey_url, province }`. The current join in `SchoolProfile` already attaches full school objects, so these fields are present. We just need to ensure `tournament` is also fetched -- add `tournament_id` to the fixture query and join tournament data, or simply leave it as `null` (tournaments will just not show if not fetched). For completeness, we'll update the fixture query to also fetch the linked tournament name.
+4. Update `predictions` data: change `predicted_team` values from `'home'` -> `'school_a'` and `'away'` -> `'school_b'`.
 
-### Technical Details
+---
 
-**`src/components/fixtures/FixtureTable.tsx`**
-- Change interface: `searchQuery` becomes optional with default `""`
-- Export the `Fixture` and `FixtureSchool` interfaces so they can be imported elsewhere
+### Step 2: Update All Source Files (~20 files)
 
-**`src/pages/SchoolProfile.tsx`**
-- Import `FixtureTable` from `@/components/fixtures/FixtureTable`
-- Replace the Upcoming Fixtures card content (lines 383-456) with: `<FixtureTable fixtures={upcomingFixtures} />`
-- Replace the Recent Results card content (lines 471-535) with: `<FixtureTable fixtures={recentResults} />`
-- Update the fixture queries to also select tournament data (join `tournaments` table via `tournament_id`) so tournament names appear in brackets after the date
-- Remove unused imports that were only needed for the old inline fixture rendering (e.g., `Flame` if no longer used elsewhere, inline school button markup)
+Every reference to `home_school_id`, `away_school_id`, `home_school`, `away_school`, `home_score`, `away_score` in the context of fixtures needs to be renamed to `school_a_id`, `school_b_id`, `school_a`, `school_b`, `score_a`, `score_b`.
+
+**Files to update:**
+
+| File | Changes |
+|------|---------|
+| `src/components/fixtures/FixtureTable.tsx` | Rename `Fixture` interface fields, `sortSchoolsAlpha` references, search filter |
+| `src/components/fixtures/FixtureListCard.tsx` | Rename interface fields, `getVenue` logic, `FixtureCard` props |
+| `src/components/fixtures/MatchHistory.tsx` | Rename `HistoricalFixture` fields, query columns, score resolution logic |
+| `src/hooks/useFixturesData.ts` | Rename interface, query select columns, foreign key aliases, filter logic |
+| `src/hooks/useHomeFixtures.ts` | Rename `FixtureWithSchools` interface, query, transform function, filters |
+| `src/hooks/usePrefetch.ts` | Rename query select columns and foreign key aliases |
+| `src/pages/Fixtures.tsx` | Rename `predicted_team` derivation (`"home"`/`"away"` -> `"school_a"`/`"school_b"`) |
+| `src/pages/Home.tsx` | Same `predicted_team` derivation rename |
+| `src/pages/SchoolProfile.tsx` | Rename query columns, foreign key aliases, filter logic |
+| `src/pages/Tournament.tsx` | Rename query columns and foreign key aliases |
+| `src/pages/PoolLeaderboard.tsx` | Rename filter references |
+| `src/components/admin/FixturesTable.tsx` | Rename column headers, sort mapping, search filter, display references |
+| `src/components/admin/CreateFixtureDialog.tsx` | Rename fixture data fields, duplicate check query |
+| `src/components/admin/EditFixtureDialog.tsx` | Rename all `home_school_id`/`away_school_id` references, venue logic |
+| `src/components/admin/ImportFixturesButton.tsx` | Rename CSV column mapping and fixture object fields |
+| `src/components/admin/BulkYearCorrectionDialog.tsx` | Rename `homeName`/`awayName` display fields |
+| `src/components/scores/MatchScoreSubmission.tsx` | Rename interface, query, `isUserHomeTeam` -> `isUserSchoolA`, display |
+| `src/components/scores/SchoolScoreSubmission.tsx` | Same as above |
+| `src/components/home/HomeCarousel.tsx` | Rename derby query foreign key aliases |
+| `src/components/home/DerbySlide.tsx` | Rename `home_school`/`away_school` prop references |
+| `src/components/home/SchoolFixtureCard.tsx` | Rename fixture prop references |
+| `src/components/auth/signup-steps/StepNextMatch.tsx` | Rename query and display references |
+
+---
+
+### Step 3: Update Admin Table Headers
+
+In `FixturesTable.tsx`, rename the column headers:
+- "Home" -> "School A"
+- "Away" -> "School B"
+
+The sort field type values `'home'` / `'away'` become `'school_a'` / `'school_b'` and map to `school_a_id` / `school_b_id`.
+
+---
+
+### Key Principle
+- The venue is always determined by `venue_id` + `venue_type` -- never by which column a school is in
+- `school_a` and `school_b` are interchangeable positions with no semantic meaning beyond "the two teams playing"
+- Scores `score_a` and `score_b` correspond to the school in the respective column
+
