@@ -20,8 +20,8 @@ interface FixtureListCardProps {
     tournament?: { id: string; name: string } | null;
   };
   isPredicted?: boolean;
-  userPrediction?: { team: "home" | "away"; margin: number } | null;
-  onPredictionSubmit?: (fixtureId: string, team: "home" | "away", margin: number) => void;
+  userPrediction?: { team: "home" | "away"; margin: number; schoolId: string } | null;
+  onPredictionSubmit?: (fixtureId: string, team: "home" | "away", margin: number, schoolId: string) => void;
 }
 
 const getShortName = (name: string) => {
@@ -58,6 +58,8 @@ export const FixtureListCard = ({
       awayTeamShort={getShortName(fixture.away_school.name)}
       homeTeamIcon={fixture.home_school.jersey_url}
       awayTeamIcon={fixture.away_school.jersey_url}
+      homeSchoolId={fixture.home_school.id}
+      awaySchoolId={fixture.away_school.id}
       homeSchoolSlug={fixture.home_school.slug}
       awaySchoolSlug={fixture.away_school.slug}
       time=""
@@ -70,7 +72,7 @@ export const FixtureListCard = ({
       predictedMargin={userPrediction?.margin}
       onPredictionMade={
         isUpcoming && onPredictionSubmit
-          ? (team, margin) => onPredictionSubmit(fixture.id, team, margin)
+          ? (team, margin, schoolId) => onPredictionSubmit(fixture.id, team, margin, schoolId)
           : undefined
       }
     />

@@ -22,7 +22,7 @@ import { buildWhatsAppUrl } from "@/lib/constants";
 const Home = () => {
   const navigate = useNavigate();
   const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
-  const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number }>>({});
+  const [predictions, setPredictions] = useState<Record<string, { team: "home" | "away", margin: number, schoolId: string }>>({});
   
   // Auth and profile data
   const {
@@ -54,10 +54,10 @@ const Home = () => {
   });
 
   // Handle prediction submission
-  const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number) => {
+  const handlePredictionMade = (matchId: string, team: "home" | "away", margin: number, schoolId: string) => {
     setPredictions(prev => ({
       ...prev,
-      [matchId]: { team, margin }
+      [matchId]: { team, margin, schoolId }
     }));
   };
 
@@ -210,6 +210,8 @@ const Home = () => {
                   awayTeamShort={getShortName(fixture.away_school.name)}
                   homeTeamIcon={fixture.home_school.jersey_url}
                   awayTeamIcon={fixture.away_school.jersey_url}
+                  homeSchoolId={fixture.home_school.id}
+                  awaySchoolId={fixture.away_school.id}
                   homeSchoolSlug={fixture.home_school.slug}
                   awaySchoolSlug={fixture.away_school.slug}
                   time={formatMatchTime(fixture.match_date, fixture.status)}
@@ -221,7 +223,7 @@ const Home = () => {
                   isPredicted={!!predictions[fixture.id]}
                   predictedTeam={predictions[fixture.id]?.team}
                   predictedMargin={predictions[fixture.id]?.margin}
-                  onPredictionMade={(team, margin) => handlePredictionMade(fixture.id, team, margin)}
+                  onPredictionMade={(team, margin, schoolId) => handlePredictionMade(fixture.id, team, margin, schoolId)}
                 />
               ))}
             </div>
