@@ -13,18 +13,19 @@ import {
   Flame,
   Settings,
   LogOut,
-  Shield,
   Flag,
   Users,
   Bell,
   School,
-  CheckCircle2,
   ChevronRight,
   AlertCircle,
   Globe,
-  MapPin
+  MapPin,
+  Heart,
+  HeartOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/constants";
 import { BottomNav } from "@/components/BottomNav";
 import { MatchScoreSubmission } from "@/components/scores/MatchScoreSubmission";
@@ -38,11 +39,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface ProfileData {
   firstName: string;
   schoolName: string;
+  schoolId: string | null;
   contactMethod: string;
   userType: string;
   province: string | null;
   schoolChangedAt: string | null;
   displayName: string | null;
+}
+
+interface FollowedSchool {
+  id: string;
+  school_id: string;
+  school: {
+    name: string;
+    slug: string;
+    emblem_url: string | null;
+  };
 }
 
 interface UserPool {
@@ -65,6 +77,8 @@ const Profile = () => {
   const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
   const [iconConfig, setIconConfig] = useState<ProfileIconConfig>({ iconId: "shield", colorId: "green" });
   const [userId, setUserId] = useState<string | undefined>();
+  const [followedSchools, setFollowedSchools] = useState<FollowedSchool[]>([]);
+  const [followsLoading, setFollowsLoading] = useState(true);
 
   // Real user stats from database
   const { seasonPoints, accuracy, currentStreak, isLoading: statsLoading, hasData: hasStats } = useUserStats(userId);
@@ -72,6 +86,7 @@ const Profile = () => {
   useEffect(() => {
     fetchProfile();
     fetchUserPools();
+    fetchFollowedSchools();
   }, []);
 
   const fetchUserPools = async () => {
@@ -111,6 +126,40 @@ const Profile = () => {
     }
   };
 
+  const fetchFollowedSchools = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("user_school_follows")
+        .select("id, school_id, school:schools(name, slug, emblem_url)")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setFollowedSchools((data || []) as unknown as FollowedSchool[]);
+    } catch (error) {
+      console.error("Error fetching followed schools:", error);
+    } finally {
+      setFollowsLoading(false);
+    }
+  };
+
+  const handleUnfollowSchool = async (schoolId: string, schoolName: string) => {
+    if (!userId) return;
+    try {
+      await supabase
+        .from("user_school_follows")
+        .delete()
+        .eq("user_id", userId)
+        .eq("school_id", schoolId);
+      setFollowedSchools(prev => prev.filter(f => f.school_id !== schoolId));
+      sonnerToast(`Unfollowed ${schoolName}`);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -133,6 +182,7 @@ const Profile = () => {
       setProfile({
         firstName: data.first_name,
         schoolName: (data.schools as any)?.name || data.school_name_legacy || "",
+        schoolId: data.school_id || null,
         contactMethod: data.contact_method,
         userType: data.user_type,
         province: data.province,
@@ -446,7 +496,58 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        {/* Settings & Account Controls */}
+        {/* Schools Following */}
+        <Card className="mb-6 bg-gradient-card border-border/40">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-primary" />
+              Schools You Follow
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {followsLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading...</div>
+            ) : followedSchools.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                You're not following any schools yet. Visit a school profile to follow them!
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {followedSchools.map((follow) => (
+                  <div
+                    key={follow.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+                  >
+                    <button
+                      onClick={() => navigate(`/school/${follow.school.slug}`)}
+                      className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                    >
+                      {follow.school.emblem_url ? (
+                        <img src={follow.school.emblem_url} alt="" className="w-8 h-8 object-contain rounded" />
+                      ) : (
+                        <School className="w-5 h-5 text-muted-foreground" />
+                      )}
+                      <span className="font-medium">{follow.school.name}</span>
+                      {profile?.schoolId === follow.school_id && (
+                        <Badge variant="outline" className="text-xs">Primary</Badge>
+                      )}
+                    </button>
+                    {profile?.schoolId !== follow.school_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleUnfollowSchool(follow.school_id, follow.school.name)}
+                      >
+                        <HeartOff className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="mb-6 bg-gradient-card border-border/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

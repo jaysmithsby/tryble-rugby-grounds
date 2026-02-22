@@ -57,86 +57,22 @@ export const useFixturesData = ({
     getUser();
   }, []);
 
-  // Fetch user profile and followed schools
+  // Fetch user's followed school IDs from user_school_follows
   const { data: userSchoolIds = [] } = useQuery({
     queryKey: ["user-followed-schools", userId],
     queryFn: async () => {
       if (!userId) return [];
 
-      const schoolIds: string[] = [];
-
-      // 1. Get user's school from profile
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data, error } = await supabase
+        .from("user_school_follows")
         .select("school_id")
-        .eq("id", userId)
-        .single();
-
-      if (profile?.school_id) {
-        schoolIds.push(profile.school_id);
-      }
-
-      // 2. Get schools from user's pools
-      const { data: poolMembers } = await supabase
-        .from("pool_members")
-        .select("pool_id")
         .eq("user_id", userId);
 
-      if (poolMembers?.length) {
-        const poolIds = poolMembers.map((pm) => pm.pool_id);
-        const { data: pools } = await supabase
-          .from("pools")
-          .select("schools")
-          .in("id", poolIds);
-
-        if (pools) {
-          for (const pool of pools) {
-            if (pool.schools) {
-              // Get school IDs by name
-              const { data: poolSchools } = await supabase
-                .from("schools")
-                .select("id")
-                .in("name", pool.schools);
-              if (poolSchools) {
-                schoolIds.push(...poolSchools.map((s) => s.id));
-              }
-            }
-          }
-        }
-      }
-
-      // 3. Get schools from followed tournaments
-      const { data: tournamentFollows } = await supabase
-        .from("user_tournament_follows")
-        .select("tournament_id")
-        .eq("user_id", userId);
-
-      if (tournamentFollows?.length) {
-        const tournamentIds = tournamentFollows.map((tf) => tf.tournament_id);
-        const { data: tournaments } = await supabase
-          .from("tournaments")
-          .select("participating_schools")
-          .in("id", tournamentIds);
-
-        if (tournaments) {
-          for (const tournament of tournaments) {
-            if (tournament.participating_schools) {
-              const { data: tournamentSchools } = await supabase
-                .from("schools")
-                .select("id")
-                .in("name", tournament.participating_schools);
-              if (tournamentSchools) {
-                schoolIds.push(...tournamentSchools.map((s) => s.id));
-              }
-            }
-          }
-        }
-      }
-
-      return [...new Set(schoolIds)]; // Remove duplicates
+      if (error) throw error;
+      return data?.map((f) => f.school_id) || [];
     },
     enabled: viewMode === "my-schools" && !!userId,
-    staleTime: CACHE_TIMES.USER_PROFILE, // User's followed schools don't change often
+    staleTime: CACHE_TIMES.USER_PROFILE,
   });
 
   // Fetch fixtures for the selected month
