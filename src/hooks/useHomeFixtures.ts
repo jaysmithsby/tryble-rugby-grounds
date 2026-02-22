@@ -350,7 +350,7 @@ export function useHomeFixtures({
       // else: both schools already represented and not a qualifying tournament fixture — skip
     }
 
-    return result.slice(0, 10);
+    return result.slice(0, 5);
   }, [upcomingFixtures, rawTournamentFixtures]);
 
   const fixturesLoading = upcomingLoading || recentLoading || tournamentLoading;
