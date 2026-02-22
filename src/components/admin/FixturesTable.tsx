@@ -500,10 +500,11 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                   <TableCell className="text-sm">{homeSchool}</TableCell>
                   <TableCell className="text-sm">{awaySchool}</TableCell>
                   <TableCell className="text-sm">
-                    {fixture.venue_type === "home" ? schools.get(fixture.home_school_id) || "Home" :
-                     fixture.venue_type === "away" ? schools.get(fixture.away_school_id) || "Away" :
-                     fixture.venue_type === "tournament" && fixture.venue_id ? tournaments.get(fixture.venue_id) || fixture.venue_legacy || "Tournament" :
-                     fixture.venue_legacy || "TBD"}
+                    {fixture.venue_type === "school" && fixture.venue_id
+                      ? (schools.get(fixture.venue_id) || fixture.venue_legacy || "School")
+                      : fixture.venue_type === "tournament" && fixture.venue_id
+                      ? (tournaments.get(fixture.venue_id) || fixture.venue_legacy || "Tournament")
+                      : fixture.venue_legacy || "TBD"}
                   </TableCell>
                   <TableCell className="text-sm">
                     {tournamentName ? (
