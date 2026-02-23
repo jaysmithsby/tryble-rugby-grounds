@@ -4,10 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings, Loader2, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Settings, Loader2, CheckCircle2, X, Search } from "lucide-react";
 import { toast } from "sonner";
 import { sanitizePoolName } from "@/lib/profanityFilter";
 import { type PoolIconConfig, getPoolIconComponent, getPoolColorValue } from "./PoolIconSelector";
+import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 import { cn } from "@/lib/utils";
 
 import {
@@ -44,12 +47,19 @@ const COLOR_OPTIONS = [
   { id: "white", value: "#FFFFFF" },
 ];
 
+interface School {
+  id: string;
+  name: string;
+  icon_url: string | null;
+}
+
 interface EditPoolDialogProps {
   pool: {
     id: string;
     name: string;
     icon_id?: string | null;
     color_id?: string | null;
+    schools?: string[] | null;
   };
   isEditable: boolean;
   lockReason?: string;
@@ -68,7 +78,23 @@ export const EditPoolDialog = ({
     iconId: pool.icon_id || "trophy",
     colorId: pool.color_id || "green",
   });
+  const [selectedSchools, setSelectedSchools] = useState<string[]>(pool.schools || []);
+  const [schoolSearch, setSchoolSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const { schools: availableSchools } = useSchoolsQuery<School>({ select: "id, name, icon_url" });
+
+  const toggleSchool = (schoolName: string) => {
+    if (selectedSchools.includes(schoolName)) {
+      setSelectedSchools(selectedSchools.filter(s => s !== schoolName));
+    } else if (selectedSchools.length < 10) {
+      setSelectedSchools([...selectedSchools, schoolName]);
+    }
+  };
+
+  const filteredSchools = availableSchools.filter(s =>
+    s.name.toLowerCase().includes(schoolSearch.toLowerCase())
+  );
 
   const handleSave = async () => {
     const validation = sanitizePoolName(poolName);
@@ -82,6 +108,11 @@ export const EditPoolDialog = ({
       return;
     }
 
+    if (selectedSchools.length < 5) {
+      toast.error("Please select at least 5 schools.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -90,6 +121,7 @@ export const EditPoolDialog = ({
           name: poolName.trim(),
           icon_id: iconConfig.iconId,
           color_id: iconConfig.colorId,
+          schools: selectedSchools,
         })
         .eq("id", pool.id);
 
@@ -116,6 +148,7 @@ export const EditPoolDialog = ({
 
   const SelectedIcon = getPoolIconComponent(iconConfig.iconId);
   const selectedColor = getPoolColorValue(iconConfig.colorId);
+  const isValid = poolName.trim().length >= 3 && selectedSchools.length >= 5 && selectedSchools.length <= 10;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -125,6 +158,8 @@ export const EditPoolDialog = ({
           iconId: pool.icon_id || "trophy",
           colorId: pool.color_id || "green",
         });
+        setSelectedSchools(pool.schools || []);
+        setSchoolSearch("");
       }
       setOpen(isOpen);
     }}>
@@ -147,7 +182,7 @@ export const EditPoolDialog = ({
               </p>
             )}
 
-            {/* Icon + Name row — same as PoolActionDialog */}
+            {/* Icon + Name row */}
             <div className="flex items-center gap-3">
               <Popover>
                 <PopoverTrigger asChild>
@@ -211,14 +246,59 @@ export const EditPoolDialog = ({
               />
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Choose a respectful, school-appropriate name
-            </p>
+            {/* School selection — same as PoolActionDialog */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {selectedSchools.length}/10 schools
+                  {selectedSchools.length < 5 && <span className="text-destructive ml-1">(min 5)</span>}
+                </p>
+                {selectedSchools.length >= 10 && (
+                  <p className="text-xs text-destructive font-medium">Max reached</p>
+                )}
+              </div>
+            </div>
+
+            {selectedSchools.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg bg-muted/30">
+                {selectedSchools.map((s) => (
+                  <Badge key={s} variant="default" className="cursor-pointer h-6 px-2 text-xs" onClick={() => toggleSchool(s)}>
+                    {s}<X className="w-3 h-3 ml-1" />
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Search schools..." value={schoolSearch} onChange={(e) => setSchoolSearch(e.target.value)} className="pl-9 h-9" />
+              </div>
+              <ScrollArea className="h-44 border rounded-lg bg-background">
+                <div className="p-2 space-y-1">
+                  {filteredSchools.length > 0 ? filteredSchools.map((school) => (
+                    <Button
+                      key={school.name}
+                      variant={selectedSchools.includes(school.name) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleSchool(school.name)}
+                      disabled={selectedSchools.length >= 10 && !selectedSchools.includes(school.name)}
+                      className="w-full justify-start h-9 gap-2"
+                    >
+                      {school.icon_url && <img src={school.icon_url} alt="" className="w-5 h-5 object-contain shrink-0" />}
+                      <span className="truncate">{school.name}</span>
+                    </Button>
+                  )) : (
+                    <p className="text-sm text-muted-foreground text-center py-6">No schools found</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
 
             <Button
               onClick={handleSave}
               className="w-full h-9"
-              disabled={isSaving || poolName.trim().length < 3}
+              disabled={isSaving || !isValid}
             >
               {isSaving ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
