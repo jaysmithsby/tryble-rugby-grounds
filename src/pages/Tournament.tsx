@@ -293,8 +293,10 @@ export default function Tournament() {
 
         {/* Row 2: Venue + Host */}
         <p className="text-xs italic text-muted-foreground pl-11">
-          {tournament.venue} · Hosted by {tournament.host_school}
-          {tournament.province && ` · ${tournament.province}`}
+          {tournament.venue}{tournament.province && ` · ${tournament.province}`}
+        </p>
+        <p className="text-xs italic text-muted-foreground pl-11">
+          Hosted by {tournament.host_school}
         </p>
 
         {/* Row 3: Metadata */}
@@ -488,24 +490,6 @@ export default function Tournament() {
           )}
         </section>
 
-        {/* Participating Schools grid */}
-        {participatingSchools.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-              Participating Schools ({participatingSchools.length})
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {participatingSchools.map((school, index) => (
-                <div
-                  key={index}
-                  className="bg-card border border-border rounded-md px-3 py-2 text-xs font-medium truncate"
-                >
-                  {school}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Sponsor footer (compact) */}
         {tournament.sponsor_logo_url && (
