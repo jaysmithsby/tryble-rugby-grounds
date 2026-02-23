@@ -1,147 +1,135 @@
 
-
-# Tournament Page Refactor: High-Density Professional Style
+# Leaderboard Rows on Pools Page
 
 ## Overview
-Refactor `src/pages/Tournament.tsx` to match the compact, high-density style of `SchoolProfile.tsx`, replacing the current spacious card-based layout with an inline header, school filtering, paginated fixtures using `FixtureRow`, and follow-to-predict logic.
+Add a "Leaderboards" section below the "Your Pools" list on the Pools page, using rows that visually match `PoolListRow`. Each row links to a specific leaderboard view, showing participant count and the user's rank.
 
 ## Changes
 
-### 1. Modify `src/pages/Tournament.tsx`
+### 1. Create `src/components/pools/LeaderboardRow.tsx`
 
-**Compact Header (matching SchoolProfile pattern):**
-- Row 1: Trophy icon (or `logo_url` if set) + Tournament Name + Follow Star (using `user_tournament_follows` table)
-- Row 2: Venue + "Hosted by {host_school}" in `text-xs italic text-muted-foreground`
-- Row 3: Date range formatted as "Mar 15 - Mar 18, 2026" + bullet + "{N} Schools" with Users icon
-- Sponsor banner (if present) rendered compactly below the header, not as a full-width card
+A new component mirroring `PoolListRow` layout:
+- **Left**: 32px circular icon area (Lucide icon or school emblem image) + leaderboard name
+- **Middle**: Participant count with Users icon (e.g., "1,240")
+- **Right**: User rank with Trophy icon (e.g., "#14" or "--")
+- **Click**: Navigates to `/leaderboard` (for global) or `/school/:slug` (for school leaderboards)
+- Uses the same `-mx-4 px-4 flex items-center justify-between py-3 hover:bg-muted/50 cursor-pointer` classes
 
-**New state variables:**
-- `isFollowing` / `followLoading` for tournament follow state (querying `user_tournament_follows`)
-- `currentUserId` for the logged-in user
-- `selectedSchools` (string array) for the multi-school filter
-- `searchQuery` (string) for opponent/school search
-- `dateRange` (from/to) defaulting to full year 2026
-- `fixturesPage` (number) for pagination
-- `userPredictions` (map) and `hasHistoryMap` (map) for prediction/history state
+Props: `icon` (ReactNode for the 32px circle), `name` (string), `memberCount` (number), `userRank` (number | null), `onClick` (function)
 
-**Data fetching updates:**
-- Tournament query: `select("*")` stays the same (host_school is already a text field)
-- Fixtures query: same join pattern as SchoolProfile, fetching `school_a`, `school_b` with `id, name, slug, jersey_url, province`
+### 2. Update `src/pages/Pools.tsx`
 
-**Multi-school filter:**
-- A `Popover` containing checkboxes for each school in `tournament.participating_schools`
-- Button label shows count: "Filter Schools (3/16)" or "All Schools"
-- When schools are selected, filter fixtures where `school_a.name` or `school_b.name` is in the selected set
+**New data fetching** (inside `loadData`, after pools are loaded):
+- Get `currentUserId` from the auth call (already available as `user.id`)
+- **Profile query**: Fetch the user's `school_id` from `profiles`
+- **Primary school query**: If `school_id` exists, fetch the school's `name`, `slug`, `emblem_url`, `jersey_url` from `schools`
+- **Followed schools query**: Fetch from `user_school_follows` joined with `schools` (name, slug, emblem_url, jersey_url), excluding the primary school
+- **Global rank**: Query `user_scores` for the current user, current week/year, to get `rank_global`
+- **Global user count**: Query `profiles` with `select("*", { count: "exact", head: true })`
+- **Primary school rank**: Query `user_scores` for the user to get `rank_school`; count profiles with matching `school_id`
+- **Followed school ranks**: For each followed school, count followers from `user_school_follows`; rank is not directly stored, so display "--" initially (or derive from `user_scores` if available)
 
-**Search + Date + Pagination (reusing existing components):**
-- Inline search bar (same pattern as SchoolProfile) to search by school name within tournament fixtures
-- `FixturesDateSelector` for date filtering (hidden when searching)
-- Pagination at 8 fixtures per page with Prev/Next controls
+**New state**:
+- `currentUserId: string | null`
+- `primarySchool: { name, slug, emblem_url, jersey_url } | null`
+- `followedSchools: Array<{ id, name, slug, emblem_url, jersey_url, followerCount }>`
+- `globalRank: number | null`
+- `globalUserCount: number`
+- `schoolRank: number | null`
+- `primarySchoolMemberCount: number`
 
-**Follow-to-Predict Logic:**
-- Query `user_tournament_follows` to check if user follows this tournament
-- If following: pass prediction props (`isPredicted`, `predictedSchoolId`, `predictedMargin`, `onPredictionMade`) to `FixtureCard`
-- If not following: render standard "VS" cards without prediction interactivity
-- Follow/unfollow via Star button in header (insert/delete from `user_tournament_follows`)
-
-**Fixture rendering:**
-- Use `FixtureCard` component (which wraps `FixtureRow` with `variant="card"`)
-- Same pattern as SchoolProfile for rendering interactive vs non-interactive cards
-
-### 2. Section Layout Order
-
+**New section in JSX** (after the pool list div, before `PoolActionDialog`):
 ```
-GlobalHeader
-  Header block (trophy/logo + name + star)
-  Venue / host line
-  Metadata line (dates, school count)
-  Sponsor banner (compact, if present)
-
-  Format Notes (collapsible, if present)
-
-  Fixtures section:
-    School filter dropdown + Search bar + Date selector (inline row)
-    Fixture cards (paginated, 8 per page)
-    Pagination controls
-
-  Participating Schools grid (compact)
-  
-  Sponsor footer (compact, if present)
-BottomNav
+<section>
+  <h2 className="text-sm font-semibold text-muted-foreground mb-3">Leaderboards</h2>
+  <div className="divide-y divide-border/40">
+    <LeaderboardRow ... /> {/* Global */}
+    <LeaderboardRow ... /> {/* Primary School */}
+    {followedSchools.map(school => <LeaderboardRow ... />)}
+  </div>
+</section>
 ```
 
-### 3. Filtering Logic (useMemo)
+The leaderboard rows use the same `divide-y` styling as the pool list for visual continuity.
 
-```text
-const filteredFixtures = useMemo(() => {
-  let list = allFixtures;
+### 3. Navigation Targets
 
-  // Multi-school filter
-  if (selectedSchools.length > 0) {
-    list = list.filter(f =>
-      selectedSchools.includes(f.school_a?.name) ||
-      selectedSchools.includes(f.school_b?.name)
-    );
-  }
+- **Global**: `navigate("/leaderboard")` -- existing page
+- **School rows**: `navigate(`/school/${slug}`)` -- existing school profile page
 
-  // Search filter (overrides date)
-  if (debouncedSearch) {
-    return list.filter(f =>
-      f.school_a?.name?.toLowerCase().includes(q) ||
-      f.school_b?.name?.toLowerCase().includes(q)
-    );
-  }
-
-  // Date range filter
-  return list.filter(f => {
-    const d = new Date(f.match_date);
-    return d >= dateRange.from && d <= dateRange.to;
-  });
-}, [allFixtures, selectedSchools, debouncedSearch, dateRange]);
-```
+No new routes needed.
 
 ## Technical Details
 
-### Imports to add
-- `Star, Search, X, ChevronLeft, ChevronRight` from `lucide-react`
-- `Input` from `@/components/ui/input`
-- `Popover, PopoverContent, PopoverTrigger` from `@/components/ui/popover`
-- `Checkbox` from `@/components/ui/checkbox`
-- `FixturesDateSelector` from `@/components/fixtures/FixturesDateSelector`
-- `FixtureCard` from `@/components/fixtures/FixtureCard` (already imported)
-- `useDebounce` from `@/hooks/use-debounce`
-- `resolveVenueName` from `@/lib/venueUtils`
-- `startOfYear, endOfYear` from `date-fns`
-- `Tooltip, TooltipProvider, TooltipContent, TooltipTrigger` from `@/components/ui/tooltip`
-
-### Follow toggle handler
+### LeaderboardRow component structure
 ```text
-const handleToggleFollow = async () => {
-  if (!currentUserId || !tournament) return;
-  if (isFollowing) {
-    await supabase.from("user_tournament_follows")
-      .delete().eq("user_id", currentUserId).eq("tournament_id", tournament.id);
-    setIsFollowing(false);
-  } else {
-    await supabase.from("user_tournament_follows")
-      .insert({ user_id: currentUserId, tournament_id: tournament.id });
-    setIsFollowing(true);
-  }
-};
+<div className="-mx-4 px-4 flex items-center justify-between py-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={onClick}>
+  <div className="flex items-center gap-3 min-w-0 flex-1">
+    {/* 32px icon circle */}
+    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
+      {icon}  {/* Either <Trophy /> or <img src={emblem} /> */}
+    </div>
+    <span className="text-sm font-medium truncate">{name}</span>
+  </div>
+  <div className="flex items-center gap-5 shrink-0">
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Users className="w-3 h-3" />
+      <span>{memberCount.toLocaleString()}</span>
+    </div>
+    <div className="flex items-center gap-1 text-xs text-muted-foreground w-8 justify-end">
+      <Trophy className="w-3 h-3" />
+      <span>{userRank ? `#${userRank}` : "--"}</span>
+    </div>
+  </div>
+</div>
 ```
 
-### Prediction loading (same pattern as SchoolProfile)
+### Data queries in Pools.tsx loadData
 ```text
-const loadPredictions = async (fixtureIds: string[], userId: string) => {
-  const { data } = await supabase.from("predictions")
-    .select("fixture_id, predicted_school_id, predicted_margin")
-    .eq("user_id", userId).in("fixture_id", fixtureIds);
-  // Map to userPredictions state
-};
+// Profile + school
+const { data: profile } = await supabase
+  .from("profiles").select("school_id").eq("id", user.id).single();
+
+// Primary school details
+if (profile?.school_id) {
+  const { data: school } = await supabase
+    .from("schools").select("id, name, slug, emblem_url, jersey_url")
+    .eq("id", profile.school_id).single();
+}
+
+// Followed schools (excluding primary)
+const { data: follows } = await supabase
+  .from("user_school_follows")
+  .select("school_id, schools(id, name, slug, emblem_url, jersey_url)")
+  .eq("user_id", user.id);
+// Filter out primary school_id
+
+// User scores for ranks
+const { data: scores } = await supabase
+  .from("user_scores").select("rank_global, rank_school")
+  .eq("user_id", user.id).eq("season_year", currentYear)
+  .order("week_number", { ascending: false }).limit(1);
+
+// Global user count
+const { count: globalCount } = await supabase
+  .from("profiles").select("*", { count: "exact", head: true });
+
+// Primary school member count
+const { count: schoolCount } = await supabase
+  .from("profiles").select("*", { count: "exact", head: true })
+  .eq("school_id", profile.school_id);
+
+// Followed school follower counts
+for (const school of followedSchools) {
+  const { count } = await supabase
+    .from("user_school_follows").select("*", { count: "exact", head: true })
+    .eq("school_id", school.id);
+}
 ```
+
+### School emblem in icon circle
+For school rows, use `getSchoolDisplayImage()` from `@/lib/schoolImageUtils` to resolve the emblem URL. If an image exists, render `<img>` inside the circle; otherwise fall back to school initials.
 
 ### Files modified
-- `src/pages/Tournament.tsx` -- complete refactor (single file)
-
-No new files or database changes needed. All required tables (`user_tournament_follows`, `predictions`, `fixtures`, `tournaments`) already exist with correct RLS policies.
-
+- `src/components/pools/LeaderboardRow.tsx` -- new file
+- `src/pages/Pools.tsx` -- add leaderboard section with data fetching
