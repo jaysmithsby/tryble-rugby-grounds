@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getISOWeek } from "date-fns";
 
 export interface UserStats {
   weeklyPoints: number | null;
@@ -17,71 +16,26 @@ export interface UserStats {
 }
 
 export const useUserStats = (userId: string | undefined): UserStats => {
-  const currentWeek = getISOWeek(new Date());
   const currentYear = new Date().getFullYear();
 
-  // Fetch user scores for current week
-  const { data: scores, isLoading: scoresLoading } = useQuery({
-    queryKey: ["user-stats", userId, currentWeek, currentYear],
+  // Fetch user stats from get_user_season_stats RPC
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["user-season-stats", userId, currentYear],
     queryFn: async () => {
       if (!userId) return null;
 
       const { data, error } = await supabase
-        .from("user_scores")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("season_year", currentYear)
-        .order("week_number", { ascending: false })
-        .limit(1);
+        .rpc("get_user_season_stats", {
+          p_user_id: userId,
+          p_season_year: currentYear,
+        });
 
       if (error) {
-        console.error("Error fetching user scores:", error);
+        console.error("Error fetching user season stats:", error);
         return null;
       }
 
       return data?.[0] || null;
-    },
-    enabled: !!userId,
-  });
-
-  // Calculate current win streak from predictions
-  const { data: streakData, isLoading: streakLoading } = useQuery({
-    queryKey: ["user-streak", userId],
-    queryFn: async () => {
-      if (!userId) return { streak: 0 };
-
-      // Get recent scored predictions ordered by fixture date
-      const { data: predictions, error } = await supabase
-        .from("predictions")
-        .select(`
-          id,
-          points_earned,
-          fixture_id,
-          fixtures!inner(match_date, status)
-        `)
-        .eq("user_id", userId)
-        .not("points_earned", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error("Error fetching predictions for streak:", error);
-        return { streak: 0 };
-      }
-
-      if (!predictions || predictions.length === 0) return { streak: 0 };
-
-      // Count consecutive wins (points_earned > 0 means correct winner prediction)
-      let streak = 0;
-      for (const pred of predictions) {
-        if (pred.points_earned && pred.points_earned > 0) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-
-      return { streak };
     },
     enabled: !!userId,
   });
@@ -107,18 +61,18 @@ export const useUserStats = (userId: string | undefined): UserStats => {
     enabled: !!userId,
   });
 
-  const isLoading = scoresLoading || streakLoading || badgesLoading;
-  const hasData = !!scores;
+  const isLoading = statsLoading || badgesLoading;
+  const hasData = !!stats && Number(stats.picks_made) > 0;
 
   return {
-    weeklyPoints: scores?.weekly_points ?? null,
-    seasonPoints: scores?.season_points ?? null,
-    accuracy: scores?.accuracy_percentage ? Number(scores.accuracy_percentage) : null,
-    schoolRank: scores?.rank_school ?? null,
-    globalRank: scores?.rank_global ?? null,
-    currentStreak: streakData?.streak ?? 0,
-    predictionsCorrect: scores?.predictions_correct ?? null,
-    predictionsMade: scores?.predictions_made ?? null,
+    weeklyPoints: null, // No longer tracked per-week; use seasonPoints
+    seasonPoints: stats ? Number(stats.total_brags) : null,
+    accuracy: stats ? Number(stats.accuracy_pct) : null,
+    schoolRank: stats ? Number(stats.school_rank) || null : null,
+    globalRank: stats ? Number(stats.global_rank) || null : null,
+    currentStreak: stats ? Number(stats.current_streak) : 0,
+    predictionsCorrect: stats ? Number(stats.picks_correct) : null,
+    predictionsMade: stats ? Number(stats.picks_made) : null,
     badgeCount: badgeData?.count ?? 0,
     isLoading,
     hasData,

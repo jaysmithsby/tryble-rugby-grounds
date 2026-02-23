@@ -32,13 +32,25 @@ export function UserActivityDialog({ open, onOpenChange, user }: UserActivityDia
     try {
       setLoading(true);
 
-      // Fetch user scores
-      const { data: scores } = await supabase
-        .from('user_scores')
-        .select('*')
+      // Fetch predictions with fixture info (replaces user_scores)
+      const { data: predictions } = await supabase
+        .from('predictions')
+        .select(`
+          id,
+          points_earned,
+          predicted_margin,
+          created_at,
+          fixtures!inner(match_date, year, school_a_id, school_b_id, score_a, score_b, status)
+        `)
         .eq('user_id', user.id)
-        .order('week_number', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Aggregate predictions stats
+      const totalPredictions = predictions?.length || 0;
+      const correctPredictions = predictions?.filter(p => (p.points_earned || 0) >= 4).length || 0;
+      const totalBrags = predictions?.reduce((sum, p) => sum + (p.points_earned || 0), 0) || 0;
+      const accuracy = totalPredictions > 0 ? Math.round((correctPredictions / totalPredictions) * 100) : 0;
 
       // Fetch pools
       const { data: pools } = await supabase
@@ -75,7 +87,11 @@ export function UserActivityDialog({ open, onOpenChange, user }: UserActivityDia
         .order('created_at', { ascending: false });
 
       setActivityData({
-        scores,
+        predictions,
+        totalPredictions,
+        correctPredictions,
+        totalBrags,
+        accuracy,
         pools: pools?.map(p => p.pools).filter(Boolean),
         badges,
         sanctions,
@@ -124,39 +140,46 @@ export function UserActivityDialog({ open, onOpenChange, user }: UserActivityDia
             </TabsList>
 
             <TabsContent value="gameplay" className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="rounded-lg border p-4">
                   <div className="text-2xl font-bold">
-                    {activityData.scores?.[0]?.predictions_made || 0}
+                    {activityData.totalPredictions}
                   </div>
-                  <div className="text-sm text-muted-foreground">Total Predictions</div>
+                  <div className="text-sm text-muted-foreground">Total Picks</div>
                 </div>
                 <div className="rounded-lg border p-4">
                   <div className="text-2xl font-bold text-green-600">
-                    {activityData.scores?.[0]?.predictions_correct || 0}
+                    {activityData.correctPredictions}
                   </div>
-                  <div className="text-sm text-muted-foreground">Correct Predictions</div>
+                  <div className="text-sm text-muted-foreground">Correct</div>
                 </div>
                 <div className="rounded-lg border p-4">
                   <div className="text-2xl font-bold">
-                    {activityData.scores?.[0]?.accuracy_percentage || 0}%
+                    {activityData.accuracy}%
                   </div>
                   <div className="text-sm text-muted-foreground">Accuracy</div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="text-2xl font-bold text-primary">
+                    {activityData.totalBrags}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total Brags</div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-semibold">Recent Weeks</h4>
+                <h4 className="font-semibold">Recent Predictions</h4>
                 <div className="space-y-2">
-                  {activityData.scores?.slice(0, 5).map((score: any) => (
-                    <div key={score.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  {activityData.predictions?.slice(0, 10).map((pred: any) => (
+                    <div key={pred.id} className="flex items-center justify-between p-3 rounded-lg border">
                       <div>
-                        <div className="font-medium">Week {score.week_number} - {score.season_year}</div>
                         <div className="text-sm text-muted-foreground">
-                          {score.predictions_made} predictions • {score.weekly_points} points
+                          {format(new Date(pred.created_at), 'MMM dd, yyyy')}
                         </div>
                       </div>
-                      <Badge>{score.rank_global ? `#${score.rank_global}` : 'N/A'}</Badge>
+                      <Badge variant={pred.points_earned >= 4 ? "default" : "secondary"}>
+                        {pred.points_earned ?? '—'} brags
+                      </Badge>
                     </div>
                   ))}
                 </div>

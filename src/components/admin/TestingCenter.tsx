@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { 
   FlaskConical, 
@@ -17,14 +16,14 @@ import {
   ChevronRight,
   Play,
   SkipForward,
-  RotateCcw,
   Trash2,
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Target
+  Target,
+  Info
 } from "lucide-react";
-import { format, getWeek, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { format } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,7 +64,7 @@ export function TestingCenter() {
     usersWithPredictions: 0,
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const [_isResetting, setIsResetting] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const weekNumber = effectiveWeek;
@@ -150,16 +149,9 @@ export function TestingCenter() {
         }
       }
 
-      const { error: rollupError } = await supabase.rpc("rollup_week_scores", {
-        p_week: weekNumber,
-        p_year: year,
-      });
-
-      if (rollupError) throw rollupError;
-
       toast({
         title: "Week processed successfully!",
-        description: `Calculated points for ${totalPredictionsProcessed} predictions across ${fixtures?.length || 0} fixtures.`,
+        description: `Calculated brags for ${totalPredictionsProcessed} predictions across ${fixtures?.length || 0} fixtures.`,
       });
 
       loadWeekStats();
@@ -175,40 +167,26 @@ export function TestingCenter() {
     }
   };
 
-  const resetTestData = async (type: "predictions" | "scores" | "all") => {
+  const resetTestData = async () => {
     setIsResetting(true);
     try {
-      if (type === "predictions" || type === "all") {
-        const { data: fixtures2025 } = await supabase
-          .from("fixtures")
-          .select("id")
-          .eq("year", 2025);
+      const { data: fixtures2025 } = await supabase
+        .from("fixtures")
+        .select("id")
+        .eq("year", 2025);
 
-        if (fixtures2025 && fixtures2025.length > 0) {
-          const fixtureIds = fixtures2025.map(f => f.id);
-          const { error } = await supabase
-            .from("predictions")
-            .delete()
-            .in("fixture_id", fixtureIds);
-          if (error) throw error;
-        }
-      }
-
-      if (type === "scores" || type === "all") {
+      if (fixtures2025 && fixtures2025.length > 0) {
+        const fixtureIds = fixtures2025.map(f => f.id);
         const { error } = await supabase
-          .from("user_scores")
+          .from("predictions")
           .delete()
-          .eq("season_year", 2025);
+          .in("fixture_id", fixtureIds);
         if (error) throw error;
       }
 
       toast({
         title: "Test data reset",
-        description: type === "all" 
-          ? "All 2025 predictions and leaderboard scores have been cleared."
-          : type === "predictions"
-            ? "All 2025 predictions have been cleared."
-            : "All 2025 leaderboard scores have been cleared.",
+        description: "All 2025 predictions have been cleared.",
       });
 
       loadWeekStats();
@@ -232,6 +210,18 @@ export function TestingCenter() {
           Simulate the 2025 season using historical data. Process results week by week to test the full prediction flow.
         </p>
       </div>
+
+      {/* Info card about auto-scoring */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="flex items-start gap-3 pt-4">
+          <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="text-sm text-muted-foreground">
+            <strong className="text-foreground">Auto-scoring is active.</strong> Brags are automatically calculated whenever fixture scores are entered or updated. 
+            Leaderboards are derived live from predictions — no rollup step needed.
+            Use "Re-calculate Brags" below only as a manual fallback.
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className={isSimulationMode ? "border-primary/50 bg-primary/5" : ""}>
         <CardHeader>
@@ -359,7 +349,7 @@ export function TestingCenter() {
                 Actions
               </CardTitle>
               <CardDescription>
-                Process results and advance the simulation.
+                Re-calculate brags for this weekend's fixtures (manual fallback).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -374,7 +364,7 @@ export function TestingCenter() {
                   ) : (
                     <>
                       <CheckCircle2 className="h-4 w-4" />
-                      Complete Weekend & Calculate Scores
+                      Re-calculate Brags
                     </>
                   )}
                 </Button>
@@ -389,8 +379,7 @@ export function TestingCenter() {
               </div>
 
               <p className="text-sm text-muted-foreground">
-                "Complete Weekend" will calculate points for all predictions on this weekend's fixtures based on actual scores, 
-                then update the leaderboards.
+                Brags are calculated automatically when scores are entered. Use this button to manually re-run the calculation if needed.
               </p>
             </CardContent>
           </Card>
@@ -402,80 +391,32 @@ export function TestingCenter() {
                 Reset Test Data
               </CardTitle>
               <CardDescription>
-                Clear test predictions and leaderboard data for 2025. This does not affect fixture data or 2026 data.
+                Clear test predictions for 2025. This does not affect fixture data or 2026 data.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-3">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <RotateCcw className="h-4 w-4" />
-                      Clear 2025 Predictions
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Clear 2025 Predictions?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will delete all predictions made on 2025 fixtures. This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => resetTestData("predictions")}>
-                        Clear Predictions
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <RotateCcw className="h-4 w-4" />
-                      Reset 2025 Leaderboards
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Reset 2025 Leaderboards?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will delete all user score records for the 2025 season. This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => resetTestData("scores")}>
-                        Reset Leaderboards
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="gap-2">
-                      <Trash2 className="h-4 w-4" />
-                      Clear All 2025 Test Data
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Clear All Test Data?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will completely wipe all test predictions and scores for 2025. Use this when starting a fresh test cycle.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => resetTestData("all")}>
-                        Clear All Data
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="gap-2">
+                    <Trash2 className="h-4 w-4" />
+                    Clear All 2025 Predictions
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear All 2025 Predictions?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will completely wipe all test predictions for 2025. Use this when starting a fresh test cycle.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={resetTestData}>
+                      Clear All Data
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
         </>

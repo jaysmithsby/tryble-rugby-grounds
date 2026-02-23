@@ -3,19 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Trophy, TrendingUp, Target, Users, School, Globe, MapPin, Share2 } from "lucide-react";
+import { Trophy, Users, School, Globe, MapPin, Share2 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
 import { PoolCard } from "@/components/pools/PoolCard";
-import { PoolInvite } from "@/components/pools/PoolInvite";
 import { BottomNav } from "@/components/BottomNav";
-import { getISOWeek } from "date-fns";
 
 type LeaderboardEntry = {
   rank: number;
@@ -29,32 +26,28 @@ type LeaderboardEntry = {
 type SchoolLeaderboardEntry = {
   rank: number;
   schoolName: string;
+  schoolId: string;
   averagePoints: number;
   totalUsers: number;
 };
 
-type WeeklyHighlights = {
-  topClimber: { name: string; spotsGained: number } | null;
-  bestAccuracy: { percentage: number } | null;
-};
-
 const Leaderboard = () => {
   const navigate = useNavigate();
-  const [period, setPeriod] = useState<"weekly" | "season">("weekly");
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [schoolLeaderboard, setSchoolLeaderboard] = useState<SchoolLeaderboardEntry[]>([]);
-  const [schoolIdMap, setSchoolIdMap] = useState<Record<string, string>>({});
+  const [schoolSlugMap, setSchoolSlugMap] = useState<Record<string, string>>({});
   const [userPools, setUserPools] = useState<any[]>([]);
   const [poolMemberCounts, setPoolMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [joinPoolCode, setJoinPoolCode] = useState("");
-  const [highlights, setHighlights] = useState<WeeklyHighlights>({ topClimber: null, bestAccuracy: null });
   const { toast } = useToast();
+
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     loadLeaderboardData();
     loadUserPools();
-  }, [period]);
+  }, []);
 
   const getSchoolCode = (schoolName: string) => {
     const words = schoolName.split(" ");
@@ -64,112 +57,100 @@ const Leaderboard = () => {
 
   const loadLeaderboardData = async () => {
     setLoading(true);
-    const currentWeek = getISOWeek(new Date());
-    const currentYear = new Date().getFullYear();
-    
+
     // Load school slugs for navigation
     const { data: schoolsData } = await supabase
       .from("schools")
-      .select("slug, name");
-    
+      .select("id, slug, name");
+
     const slugMap: Record<string, string> = {};
     schoolsData?.forEach(school => {
       slugMap[school.name] = school.slug;
     });
-    setSchoolIdMap(slugMap);
-    
-    // Fetch real global leaderboard data from user_scores joined with profiles_public
-    const { data: globalData, error: globalError } = await supabase
-      .from("user_scores")
-      .select(`
-        user_id,
-        weekly_points,
-        season_points,
-        rank_global,
-        accuracy_percentage
-      `)
-      .eq("season_year", currentYear)
-      .eq("week_number", currentWeek)
-      .order(period === "weekly" ? "weekly_points" : "season_points", { ascending: false })
-      .limit(50);
+    setSchoolSlugMap(slugMap);
 
-    if (globalError) {
-      console.error("Error fetching leaderboard:", globalError);
+    // Call get_leaderboard_stats RPC for global leaderboard
+    const { data: statsData, error: statsError } = await supabase.rpc("get_leaderboard_stats", {
+      p_season_year: currentYear,
+    });
+
+    if (statsError) {
+      console.error("Error fetching leaderboard:", statsError);
     }
 
     // Fetch profiles for the users
-    const userIds = globalData?.map(d => d.user_id) || [];
-    let profilesMap: Record<string, { display_name: string | null; school_name: string | null }> = {};
-    
+    const userIds = statsData?.map((d: any) => d.user_id) || [];
+    let profilesMap: Record<string, { display_name: string | null; school_name: string | null; school_id: string | null }> = {};
+
     if (userIds.length > 0) {
       const { data: profilesData } = await supabase
         .from("profiles_public")
         .select("id, display_name, school_name")
         .in("id", userIds);
-      
+
+      // Also get school_id from profiles for school grouping
+      const { data: profilesFull } = await supabase
+        .from("profiles")
+        .select("id, school_id")
+        .in("id", userIds);
+
+      const schoolIdMap: Record<string, string | null> = {};
+      profilesFull?.forEach(p => { schoolIdMap[p.id] = p.school_id; });
+
       profilesData?.forEach(p => {
         if (p.id) {
-          profilesMap[p.id] = { display_name: p.display_name, school_name: p.school_name };
+          profilesMap[p.id] = {
+            display_name: p.display_name,
+            school_name: p.school_name,
+            school_id: schoolIdMap[p.id] || null,
+          };
         }
       });
     }
 
-    // Transform to LeaderboardEntry format
-    const entries: LeaderboardEntry[] = (globalData || []).map((item, index) => {
+    // Transform to LeaderboardEntry format (limit 50)
+    const entries: LeaderboardEntry[] = (statsData || []).slice(0, 50).map((item: any, index: number) => {
       const profile = profilesMap[item.user_id];
       return {
         rank: index + 1,
         userId: item.user_id,
         nickname: profile?.display_name || "Anonymous",
         schoolCode: getSchoolCode(profile?.school_name || ""),
-        points: period === "weekly" ? (item.weekly_points || 0) : (item.season_points || 0),
+        points: Number(item.total_brags) || 0,
         badges: [],
       };
     });
 
     setGlobalLeaderboard(entries);
 
-    // Fetch real school leaderboard from school_scores
-    const { data: schoolScoresData, error: schoolError } = await supabase
-      .from("school_scores")
-      .select("*")
-      .eq("season_year", currentYear)
-      .eq("week_number", currentWeek)
-      .order("average_points", { ascending: false })
-      .limit(20);
+    // Build school leaderboard by grouping user stats by school
+    const schoolAgg: Record<string, { schoolName: string; schoolId: string; totalBrags: number; userCount: number }> = {};
+    (statsData || []).forEach((item: any) => {
+      const profile = profilesMap[item.user_id];
+      const schoolName = profile?.school_name;
+      const schoolId = profile?.school_id;
+      if (schoolName && schoolId) {
+        if (!schoolAgg[schoolId]) {
+          schoolAgg[schoolId] = { schoolName, schoolId, totalBrags: 0, userCount: 0 };
+        }
+        schoolAgg[schoolId].totalBrags += Number(item.total_brags) || 0;
+        schoolAgg[schoolId].userCount += 1;
+      }
+    });
 
-    if (schoolError) {
-      console.error("Error fetching school scores:", schoolError);
-    }
-
-    const schoolEntries: SchoolLeaderboardEntry[] = (schoolScoresData || []).map((item, index) => ({
-      rank: index + 1,
-      schoolName: item.school_name,
-      averagePoints: Number(item.average_points) || 0,
-      totalUsers: item.total_users || 0,
-    }));
+    const schoolEntries: SchoolLeaderboardEntry[] = Object.values(schoolAgg)
+      .map((s, _) => ({
+        rank: 0,
+        schoolName: s.schoolName,
+        schoolId: s.schoolId,
+        averagePoints: s.userCount > 0 ? s.totalBrags / s.userCount : 0,
+        totalUsers: s.userCount,
+      }))
+      .sort((a, b) => b.averagePoints - a.averagePoints)
+      .slice(0, 20)
+      .map((s, i) => ({ ...s, rank: i + 1 }));
 
     setSchoolLeaderboard(schoolEntries);
-
-    // Weekly highlights - calculate if we have data
-    if (entries.length > 0) {
-      // Find best accuracy from the data
-      const bestAccuracyEntry = globalData?.reduce((best, curr) => {
-        const currAcc = Number(curr.accuracy_percentage) || 0;
-        const bestAcc = Number(best?.accuracy_percentage) || 0;
-        return currAcc > bestAcc ? curr : best;
-      }, globalData[0]);
-
-      setHighlights({
-        topClimber: null, // Would need to compare with previous week's data
-        bestAccuracy: bestAccuracyEntry?.accuracy_percentage 
-          ? { percentage: Number(bestAccuracyEntry.accuracy_percentage) } 
-          : null,
-      });
-    } else {
-      setHighlights({ topClimber: null, bestAccuracy: null });
-    }
-
     setLoading(false);
   };
 
@@ -178,7 +159,6 @@ const Leaderboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch user's pools with member counts in a single query using the count aggregation
       const { data, error } = await supabase
         .from("pool_members")
         .select(`
@@ -197,15 +177,13 @@ const Leaderboard = () => {
         .eq("user_id", user.id);
 
       if (error) throw error;
-      
+
       const pools = data?.map(d => d.pools) || [];
       setUserPools(pools);
 
-      // Extract member counts from the aggregated query (no N+1!)
       const counts: Record<string, number> = {};
       for (const pool of pools) {
         if (pool) {
-          // The count comes from the nested pool_members aggregation
           const memberCount = (pool as any).pool_members?.[0]?.count ?? 0;
           counts[pool.id] = memberCount;
         }
@@ -215,7 +193,6 @@ const Leaderboard = () => {
       console.error("Error loading pools:", error);
     }
   };
-
 
   const joinPool = async () => {
     if (!joinPoolCode.trim()) {
@@ -230,7 +207,6 @@ const Leaderboard = () => {
         return;
       }
 
-      // Use the SECURITY DEFINER function to lookup pool by invite code
       const { data: poolData, error: poolError } = await supabase
         .rpc("get_pool_by_invite_code", { code: joinPoolCode.toUpperCase() });
 
@@ -244,7 +220,6 @@ const Leaderboard = () => {
         throw new Error("This pool is no longer active");
       }
 
-      // Check if already a member
       const { data: existingMember } = await supabase
         .from("pool_members")
         .select("id")
@@ -325,7 +300,7 @@ const Leaderboard = () => {
   const SchoolLeaderboardTable = ({ entries }: { entries: SchoolLeaderboardEntry[] }) => (
     <div className="space-y-2">
       {entries.map((entry) => {
-        const schoolSlug = schoolIdMap[entry.schoolName];
+        const schoolSlug = schoolSlugMap[entry.schoolName];
         return (
           <div
             key={entry.schoolName}
@@ -361,53 +336,7 @@ const Leaderboard = () => {
             Leaderboards
           </h1>
         </div>
-
-        {/* Weekly/Season Toggle */}
-        <div className="flex gap-2 justify-center">
-          <Button
-            variant={period === "weekly" ? "default" : "outline"}
-            onClick={() => setPeriod("weekly")}
-            size="sm"
-          >
-            Weekly
-          </Button>
-          <Button
-            variant={period === "season" ? "default" : "outline"}
-            onClick={() => setPeriod("season")}
-            size="sm"
-          >
-            Season
-          </Button>
-        </div>
       </div>
-
-      {/* Weekly Highlight Banner */}
-      {(highlights.topClimber || highlights.bestAccuracy) ? (
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
-              {highlights.topClimber && (
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-accent" />
-                  <span><strong>Top Climber:</strong> {highlights.topClimber.name} jumped {highlights.topClimber.spotsGained} places!</span>
-                </div>
-              )}
-              {highlights.bestAccuracy && (
-                <div className="flex items-center gap-2">
-                  <Target className="w-4 h-4 text-primary" />
-                  <span><strong>Best Accuracy:</strong> {highlights.bestAccuracy.percentage}% this week!</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
-          <div className="container mx-auto px-4 py-3 text-center text-sm text-muted-foreground">
-            Weekly highlights will appear after this weekend's matches are scored
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
@@ -436,7 +365,7 @@ const Leaderboard = () => {
               <CardHeader>
                 <CardTitle>Global Rankings</CardTitle>
                 <CardDescription>
-                  {period === "weekly" ? "This week's top performers" : "Season leaderboard"}
+                  Season leaderboard — {currentYear}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -562,17 +491,14 @@ const Leaderboard = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Season Reset Notice */}
-        {period === "season" && (
-          <div className="mt-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              🏁 Season ends on June 28th. Leaderboards reset for next season!
-            </p>
-          </div>
-        )}
+        {/* Season Note */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            🏁 Season ends on June 28th. Leaderboards reset for next season!
+          </p>
+        </div>
       </main>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </div>
   );
