@@ -237,7 +237,7 @@ export const Pools = () => {
               name="Global Leaderboard"
               memberCount={globalUserCount}
               userRank={globalRank}
-              onClick={() => navigate("/leaderboard")}
+              onClick={() => navigate("/leaderboard/global/all")}
             />
             {primarySchool && (
               <LeaderboardRow
@@ -245,7 +245,7 @@ export const Pools = () => {
                 name={primarySchool.name}
                 memberCount={primarySchoolMemberCount}
                 userRank={schoolRank}
-                onClick={() => navigate(`/school/${primarySchool.slug}`)}
+                onClick={() => navigate(`/leaderboard/school/${primarySchool.id}`)}
               />
             )}
             {followedSchools.map((school) => (
@@ -255,7 +255,7 @@ export const Pools = () => {
                 name={school.name}
                 memberCount={school.followerCount}
                 userRank={null}
-                onClick={() => navigate(`/school/${school.slug}`)}
+                onClick={() => navigate(`/leaderboard/school/${school.id}`)}
               />
             ))}
           </div>

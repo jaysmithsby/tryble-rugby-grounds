@@ -33,6 +33,7 @@ const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const PrivacyNote = lazy(() => import("@/pages/PrivacyNote"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const About = lazy(() => import("@/pages/About"));
+const LeaderboardDetail = lazy(() => import("@/pages/LeaderboardDetail"));
 
 const PageFallback = () => (
   <div className="min-h-screen bg-background p-4 space-y-4">
@@ -131,6 +132,7 @@ export const AnimatedRoutes = () => {
               <Route path="/how-scoring-works" element={<HowScoringWorks />} />
               <Route path="/learn-more" element={<LearnMore />} />
               <Route path="/school-setup/:token" element={<SchoolSetup />} />
+              <Route path="/leaderboard/:type/:id" element={<LeaderboardDetail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
