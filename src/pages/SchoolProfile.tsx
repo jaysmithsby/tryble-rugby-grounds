@@ -2,12 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Users, Trophy, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Users, Trophy, Search, X } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
-import { Calendar } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
@@ -17,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+import { startOfMonth, endOfMonth, format } from "date-fns";
 
 export default function SchoolProfile() {
   const { schoolSlug } = useParams();
@@ -37,8 +35,7 @@ export default function SchoolProfile() {
   // Search & month nav state
   const [searchQuery, setSearchQuery] = useState("");
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [dateRange, setDateRange] = useState({ from: startOfMonth(now), to: endOfMonth(now) });
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Filtered fixtures
@@ -52,9 +49,9 @@ export default function SchoolProfile() {
     }
     return allUpcomingFixtures.filter(f => {
       const d = new Date(f.match_date);
-      return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+      return d >= dateRange.from && d <= dateRange.to;
     });
-  }, [allUpcomingFixtures, debouncedSearch, selectedYear, selectedMonth, school]);
+  }, [allUpcomingFixtures, debouncedSearch, dateRange, school]);
 
   useEffect(() => {
     loadSchoolData();
@@ -325,42 +322,10 @@ export default function SchoolProfile() {
             </div>
 
             {!debouncedSearch && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="h-10 rounded-full gap-2 px-4 shrink-0 text-sm font-medium">
-                    <Calendar className="h-4 w-4" />
-                    {MONTHS[selectedMonth]} {selectedYear}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-3" align="end">
-                  {/* Year row */}
-                  <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setSelectedYear(y => y - 1)} className="p-1 hover:bg-muted rounded">
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <span className="text-sm font-semibold">{selectedYear}</span>
-                    <button onClick={() => setSelectedYear(y => y + 1)} className="p-1 hover:bg-muted rounded">
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                  {/* Month grid */}
-                  <div className="grid grid-cols-4 gap-1">
-                    {MONTHS.map((m, i) => (
-                      <button
-                        key={m}
-                        onClick={() => setSelectedMonth(i)}
-                        className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
-                          selectedMonth === i
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <FixturesDateSelector
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+              />
             )}
           </div>
 
@@ -425,7 +390,7 @@ export default function SchoolProfile() {
             <p className="text-xs text-muted-foreground text-center py-6">
               {debouncedSearch
                 ? `No fixtures found for '${debouncedSearch}'`
-                : `No fixtures in ${MONTHS[selectedMonth]} ${selectedYear}`}
+                : `No fixtures in ${format(dateRange.from, "MMM yyyy")}`}
             </p>
           )}
         </section>
