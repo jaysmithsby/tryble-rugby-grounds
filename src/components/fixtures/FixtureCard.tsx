@@ -142,10 +142,6 @@ export const FixtureCard = ({
               </>
             ) : onPredictionMade ? (
               <>
-                <div className="flex items-center gap-1 text-muted-foreground mb-0.5">
-                  <MapPin className="h-3 w-3" />
-                  <span className="text-[10px] truncate max-w-[70px]">{venue}</span>
-                </div>
                 <AlertCircle className="w-5 h-5 text-destructive" />
                 <span className="text-xs font-semibold text-destructive">Pick needed</span>
               </>
