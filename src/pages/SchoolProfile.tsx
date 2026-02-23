@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Users, Trophy, Search, X } from "lucide-react";
+import { Star, Users, Trophy, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
-import { FixturesMonthNav } from "@/components/fixtures/FixturesMonthNav";
+import { Calendar } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
@@ -301,35 +303,66 @@ export default function SchoolProfile() {
         <section>
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming Fixtures</h2>
 
-          {/* Search bar */}
-          <div className="relative mb-2">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search opponent..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-7 h-8 text-xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+          {/* Inline search + date picker row */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search school..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 text-sm rounded-full border-border"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {!debouncedSearch && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-10 rounded-full gap-2 px-4 shrink-0 text-sm font-medium">
+                    <Calendar className="h-4 w-4" />
+                    {MONTHS[selectedMonth]} {selectedYear}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" align="end">
+                  {/* Year row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <button onClick={() => setSelectedYear(y => y - 1)} className="p-1 hover:bg-muted rounded">
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <span className="text-sm font-semibold">{selectedYear}</span>
+                    <button onClick={() => setSelectedYear(y => y + 1)} className="p-1 hover:bg-muted rounded">
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {/* Month grid */}
+                  <div className="grid grid-cols-4 gap-1">
+                    {MONTHS.map((m, i) => (
+                      <button
+                        key={m}
+                        onClick={() => setSelectedMonth(i)}
+                        className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
+                          selectedMonth === i
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
-
-          {/* Month/Year nav (hidden during search) */}
-          {!debouncedSearch && (
-            <FixturesMonthNav
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              onYearChange={setSelectedYear}
-              onMonthChange={setSelectedMonth}
-            />
-          )}
 
           {/* Fixture list or empty state */}
           {filteredFixtures.length > 0 ? (
