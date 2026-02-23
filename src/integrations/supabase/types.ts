@@ -330,18 +330,21 @@ export type Database = {
       pool_members: {
         Row: {
           id: string
+          is_fake: boolean
           joined_at: string | null
           pool_id: string
           user_id: string
         }
         Insert: {
           id?: string
+          is_fake?: boolean
           joined_at?: string | null
           pool_id: string
           user_id: string
         }
         Update: {
           id?: string
+          is_fake?: boolean
           joined_at?: string | null
           pool_id?: string
           user_id?: string
@@ -430,6 +433,7 @@ export type Database = {
           id: string
           invite_code: string
           is_active: boolean | null
+          is_fake: boolean
           is_voting_finalized: boolean | null
           max_schools: number | null
           name: string
@@ -446,6 +450,7 @@ export type Database = {
           id?: string
           invite_code: string
           is_active?: boolean | null
+          is_fake?: boolean
           is_voting_finalized?: boolean | null
           max_schools?: number | null
           name: string
@@ -462,6 +467,7 @@ export type Database = {
           id?: string
           invite_code?: string
           is_active?: boolean | null
+          is_fake?: boolean
           is_voting_finalized?: boolean | null
           max_schools?: number | null
           name?: string
@@ -477,6 +483,7 @@ export type Database = {
           created_at: string
           fixture_id: string
           id: string
+          is_fake: boolean
           points_earned: number | null
           predicted_margin: number
           predicted_school_id: string
@@ -488,6 +495,7 @@ export type Database = {
           created_at?: string
           fixture_id: string
           id?: string
+          is_fake?: boolean
           points_earned?: number | null
           predicted_margin: number
           predicted_school_id: string
@@ -499,6 +507,7 @@ export type Database = {
           created_at?: string
           fixture_id?: string
           id?: string
+          is_fake?: boolean
           points_earned?: number | null
           predicted_margin?: number
           predicted_school_id?: string
@@ -535,6 +544,7 @@ export type Database = {
           display_name: string | null
           first_name: string
           id: string
+          is_fake: boolean
           onboarding_completed_at: string | null
           parent_email: string | null
           province: string | null
@@ -557,6 +567,7 @@ export type Database = {
           display_name?: string | null
           first_name: string
           id: string
+          is_fake?: boolean
           onboarding_completed_at?: string | null
           parent_email?: string | null
           province?: string | null
@@ -579,6 +590,7 @@ export type Database = {
           display_name?: string | null
           first_name?: string
           id?: string
+          is_fake?: boolean
           onboarding_completed_at?: string | null
           parent_email?: string | null
           province?: string | null
@@ -1011,18 +1023,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_fake: boolean
           school_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_fake?: boolean
           school_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_fake?: boolean
           school_id?: string
           user_id?: string
         }
@@ -1055,6 +1070,7 @@ export type Database = {
           accuracy_percentage: number | null
           created_at: string | null
           id: string
+          is_fake: boolean
           predictions_correct: number | null
           predictions_made: number | null
           rank_global: number | null
@@ -1071,6 +1087,7 @@ export type Database = {
           accuracy_percentage?: number | null
           created_at?: string | null
           id?: string
+          is_fake?: boolean
           predictions_correct?: number | null
           predictions_made?: number | null
           rank_global?: number | null
@@ -1087,6 +1104,7 @@ export type Database = {
           accuracy_percentage?: number | null
           created_at?: string | null
           id?: string
+          is_fake?: boolean
           predictions_correct?: number | null
           predictions_made?: number | null
           rank_global?: number | null
