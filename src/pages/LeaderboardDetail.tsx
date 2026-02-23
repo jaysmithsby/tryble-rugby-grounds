@@ -19,8 +19,6 @@ type ScoreRow = {
   season_points: number;
   predictions_made: number;
   predictions_correct: number;
-  rank_global: number | null;
-  rank_school: number | null;
   display_name: string | null;
   accuracy: number;
   efficiency: number;
@@ -48,58 +46,37 @@ const LeaderboardDetail = () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id ?? null);
 
-      // Determine title
+      // Determine title & school_id for RPC
+      let schoolId: string | null = null;
       if (type === "school" && id && id !== "all") {
         const { data: school } = await supabase.from("schools").select("name").eq("id", id).single();
         setTitle(school?.name ?? "School Leaderboard");
+        schoolId = id;
       } else {
         setTitle("Global Leaderboard");
       }
 
-      const currentYear = selectedSeason;
+      // Call get_leaderboard_stats RPC
+      const { data: statsData, error } = await supabase.rpc("get_leaderboard_stats", {
+        p_season_year: selectedSeason,
+        ...(schoolId ? { p_school_id: schoolId } : {}),
+      });
 
-      // Get user filter for school type
-      let userFilter: string[] | null = null;
-      if (type === "school" && id && id !== "all") {
-        const { data: profiles } = await supabase.from("profiles").select("id").eq("school_id", id);
-        userFilter = profiles?.map(p => p.id) || [];
-        if (userFilter.length === 0) {
-          setAllRows([]);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Fetch scores — get latest week per user by ordering
-      let query = supabase
-        .from("user_scores")
-        .select("user_id, season_points, predictions_made, predictions_correct, rank_global, rank_school")
-        .eq("season_year", currentYear)
-        .order("season_points", { ascending: false });
-
-      if (userFilter) {
-        query = query.in("user_id", userFilter);
-      }
-
-      const { data: scoresRaw } = await query;
-      if (!scoresRaw || scoresRaw.length === 0) {
+      if (error) {
+        console.error("Error fetching leaderboard stats:", error);
         setAllRows([]);
         setLoading(false);
         return;
       }
 
-      // Deduplicate: keep highest season_points per user
-      const userMap = new Map<string, typeof scoresRaw[0]>();
-      for (const s of scoresRaw) {
-        const existing = userMap.get(s.user_id);
-        if (!existing || (s.season_points ?? 0) > (existing.season_points ?? 0)) {
-          userMap.set(s.user_id, s);
-        }
+      if (!statsData || statsData.length === 0) {
+        setAllRows([]);
+        setLoading(false);
+        return;
       }
-      const dedupedScores = Array.from(userMap.values());
 
       // Fetch display names
-      const userIds = dedupedScores.map(s => s.user_id);
+      const userIds = statsData.map((s: any) => s.user_id);
       const { data: profilesPublic } = await supabase
         .from("profiles_public")
         .select("id, display_name")
@@ -110,25 +87,20 @@ const LeaderboardDetail = () => {
         if (p.id && p.display_name) nameMap.set(p.id, p.display_name);
       });
 
-      // Build rows sorted by season_points DESC
-      const rows: ScoreRow[] = dedupedScores
-        .sort((a, b) => (b.season_points ?? 0) - (a.season_points ?? 0))
-        .map(s => {
-          const made = s.predictions_made ?? 0;
-          const correct = s.predictions_correct ?? 0;
-          const pts = s.season_points ?? 0;
-          return {
-            user_id: s.user_id,
-            season_points: pts,
-            predictions_made: made,
-            predictions_correct: correct,
-            rank_global: s.rank_global,
-            rank_school: s.rank_school,
-            display_name: nameMap.get(s.user_id) ?? null,
-            accuracy: made > 0 ? (correct / made) * 100 : 0,
-            efficiency: made > 0 ? pts / made : 0,
-          };
-        });
+      const rows: ScoreRow[] = statsData.map((s: any) => {
+        const made = Number(s.picks_made) || 0;
+        const correct = Number(s.picks_correct) || 0;
+        const pts = Number(s.total_brags) || 0;
+        return {
+          user_id: s.user_id,
+          season_points: pts,
+          predictions_made: made,
+          predictions_correct: correct,
+          display_name: nameMap.get(s.user_id) ?? null,
+          accuracy: made > 0 ? (correct / made) * 100 : 0,
+          efficiency: Number(s.avg_efficiency) || 0,
+        };
+      });
 
       setAllRows(rows);
     } catch (err) {
@@ -248,7 +220,7 @@ const LeaderboardDetail = () => {
             <div className="grid grid-cols-[2.5rem_1fr_3.5rem_3.5rem_3rem] gap-1 px-3 py-2 bg-muted/50 text-[10px] font-semibold text-muted-foreground uppercase">
               <span><Hash className="w-3 h-3 inline" /></span>
               <span>User</span>
-              <span className="text-right">Pts</span>
+              <span className="text-right">Brags</span>
               <span className="text-right">Acc%</span>
               <span className="text-right">Picks</span>
             </div>
@@ -320,7 +292,7 @@ const LeaderboardDetail = () => {
           <div className="text-xs">
             <span className="font-semibold">Your Standings: </span>
             <span className="text-muted-foreground">
-              Rank #{userRank} · {currentUserRow.accuracy.toFixed(0)}% · {currentUserRow.season_points} pts
+              Rank #{userRank} · {currentUserRow.accuracy.toFixed(0)}% · {currentUserRow.season_points} brags
             </span>
           </div>
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPage(currentUserPage)}>

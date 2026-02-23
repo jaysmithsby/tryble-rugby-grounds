@@ -693,42 +693,6 @@ export type Database = {
         }
         Relationships: []
       }
-      school_scores: {
-        Row: {
-          average_points: number | null
-          created_at: string | null
-          id: string
-          rank: number | null
-          school_name: string
-          season_year: number
-          total_users: number | null
-          updated_at: string | null
-          week_number: number
-        }
-        Insert: {
-          average_points?: number | null
-          created_at?: string | null
-          id?: string
-          rank?: number | null
-          school_name: string
-          season_year: number
-          total_users?: number | null
-          updated_at?: string | null
-          week_number: number
-        }
-        Update: {
-          average_points?: number | null
-          created_at?: string | null
-          id?: string
-          rank?: number | null
-          school_name?: string
-          season_year?: number
-          total_users?: number | null
-          updated_at?: string | null
-          week_number?: number
-        }
-        Relationships: []
-      }
       schools: {
         Row: {
           archived_at: string | null
@@ -1065,60 +1029,6 @@ export type Database = {
           },
         ]
       }
-      user_scores: {
-        Row: {
-          accuracy_percentage: number | null
-          created_at: string | null
-          id: string
-          is_fake: boolean
-          predictions_correct: number | null
-          predictions_made: number | null
-          rank_global: number | null
-          rank_province: number | null
-          rank_school: number | null
-          season_points: number | null
-          season_year: number
-          updated_at: string | null
-          user_id: string
-          week_number: number
-          weekly_points: number | null
-        }
-        Insert: {
-          accuracy_percentage?: number | null
-          created_at?: string | null
-          id?: string
-          is_fake?: boolean
-          predictions_correct?: number | null
-          predictions_made?: number | null
-          rank_global?: number | null
-          rank_province?: number | null
-          rank_school?: number | null
-          season_points?: number | null
-          season_year: number
-          updated_at?: string | null
-          user_id: string
-          week_number: number
-          weekly_points?: number | null
-        }
-        Update: {
-          accuracy_percentage?: number | null
-          created_at?: string | null
-          id?: string
-          is_fake?: boolean
-          predictions_correct?: number | null
-          predictions_made?: number | null
-          rank_global?: number | null
-          rank_province?: number | null
-          rank_school?: number | null
-          season_points?: number | null
-          season_year?: number
-          updated_at?: string | null
-          user_id?: string
-          week_number?: number
-          weekly_points?: number | null
-        }
-        Relationships: []
-      }
       user_tournament_follows: {
         Row: {
           created_at: string | null
@@ -1200,6 +1110,16 @@ export type Database = {
         Returns: undefined
       }
       fixture_match_day: { Args: { ts: string }; Returns: string }
+      get_leaderboard_stats: {
+        Args: { p_school_id?: string; p_season_year: number }
+        Returns: {
+          avg_efficiency: number
+          picks_correct: number
+          picks_made: number
+          total_brags: number
+          user_id: string
+        }[]
+      }
       get_next_friday_8pm: { Args: { from_time: string }; Returns: string }
       get_pool_by_invite_code: {
         Args: { code: string }
@@ -1208,6 +1128,18 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+        }[]
+      }
+      get_user_season_stats: {
+        Args: { p_season_year: number; p_user_id: string }
+        Returns: {
+          accuracy_pct: number
+          current_streak: number
+          global_rank: number
+          picks_correct: number
+          picks_made: number
+          school_rank: number
+          total_brags: number
         }[]
       }
       has_role: {
@@ -1226,17 +1158,6 @@ export type Database = {
       is_pool_member: {
         Args: { _pool_id: string; _user_id: string }
         Returns: boolean
-      }
-      process_fixtures_in_range: {
-        Args: { p_end_date: string; p_start_date: string }
-        Returns: {
-          processed_fixtures: number
-          processed_predictions: number
-        }[]
-      }
-      rollup_week_scores: {
-        Args: { p_week: number; p_year: number }
-        Returns: number
       }
     }
     Enums: {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -236,16 +236,17 @@ export const PoolLeaderboard = () => {
         }
       }
 
-      const { data: scoresData } = await supabase
-        .from("user_scores").select("user_id, season_points, predictions_made, predictions_correct")
-        .in("user_id", memberIds).eq("season_year", selectedSeason);
+      // Get all predictions for pool fixtures by pool members
+      const { data: allPreds } = await supabase
+        .from("predictions").select("user_id, points_earned")
+        .in("user_id", memberIds).in("fixture_id", fixtureIds);
 
       const userAgg: Record<string, { points: number; picks: number; correct: number }> = {};
-      scoresData?.forEach(s => {
-        if (!userAgg[s.user_id]) userAgg[s.user_id] = { points: 0, picks: 0, correct: 0 };
-        userAgg[s.user_id].points = s.season_points || 0;
-        userAgg[s.user_id].picks += s.predictions_made || 0;
-        userAgg[s.user_id].correct += s.predictions_correct || 0;
+      allPreds?.forEach(p => {
+        if (!userAgg[p.user_id]) userAgg[p.user_id] = { points: 0, picks: 0, correct: 0 };
+        userAgg[p.user_id].points += p.points_earned || 0;
+        userAgg[p.user_id].picks += 1;
+        if ((p.points_earned || 0) >= 4) userAgg[p.user_id].correct += 1;
       });
 
       const entries: LeaderboardEntry[] = memberIds.map(userId => {

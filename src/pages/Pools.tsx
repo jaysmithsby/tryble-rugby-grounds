@@ -91,17 +91,16 @@ export const Pools = () => {
       // --- Leaderboard data ---
       const currentYear = new Date().getFullYear();
 
-      // Profile + scores + global count in parallel
-      const [profileRes, scoresRes, globalCountRes] = await Promise.all([
+      // Profile + user stats + global count in parallel
+      const [profileRes, userStatsRes, globalCountRes] = await Promise.all([
         supabase.from("profiles").select("school_id").eq("id", user.id).single(),
-        supabase.from("user_scores").select("rank_global, rank_school")
-          .eq("user_id", user.id).eq("season_year", currentYear)
-          .order("week_number", { ascending: false }).limit(1),
+        supabase.rpc("get_user_season_stats", { p_user_id: user.id, p_season_year: currentYear }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
       ]);
 
-      setGlobalRank(scoresRes.data?.[0]?.rank_global ?? null);
-      setSchoolRank(scoresRes.data?.[0]?.rank_school ?? null);
+      const userStats = userStatsRes.data?.[0];
+      setGlobalRank(userStats ? Number(userStats.global_rank) || null : null);
+      setSchoolRank(userStats ? Number(userStats.school_rank) || null : null);
       setGlobalUserCount(globalCountRes.count ?? 0);
 
       const userSchoolId = profileRes.data?.school_id;

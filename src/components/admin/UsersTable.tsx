@@ -168,15 +168,15 @@ export function UsersTable() {
       const profileIds = profiles.map(p => p.id);
 
       // Fetch related data for the current page only
-      const [sanctionsResult, scoresResult, poolsResult, badgesResult] = await Promise.all([
+      const [sanctionsResult, predictionsResult, poolsResult, badgesResult] = await Promise.all([
         supabase
           .from('user_sanctions')
           .select('*')
           .eq('is_active', true)
           .in('user_id', profileIds),
         supabase
-          .from('user_scores')
-          .select('user_id, predictions_made, predictions_correct')
+          .from('predictions')
+          .select('user_id, points_earned')
           .in('user_id', profileIds),
         supabase
           .from('pool_members')
@@ -189,14 +189,22 @@ export function UsersTable() {
       ]);
 
       const sanctions = sanctionsResult.data || [];
-      const scores = scoresResult.data || [];
+      const predictions = predictionsResult.data || [];
       const poolMemberships = poolsResult.data || [];
       const userBadges = badgesResult.data || [];
+
+      // Build prediction stats per user
+      const predStatsMap: Record<string, { predictions_made: number; predictions_correct: number }> = {};
+      predictions.forEach(p => {
+        if (!predStatsMap[p.user_id]) predStatsMap[p.user_id] = { predictions_made: 0, predictions_correct: 0 };
+        predStatsMap[p.user_id].predictions_made += 1;
+        if ((p.points_earned || 0) >= 4) predStatsMap[p.user_id].predictions_correct += 1;
+      });
 
       // Build users from profiles
       const combinedUsers: UserData[] = profiles.map(profile => {
         const userSanctions = sanctions.filter(s => s.user_id === profile.id);
-        const userScores = scores.find(s => s.user_id === profile.id) || null;
+        const userScores = predStatsMap[profile.id] || null;
         const poolCount = poolMemberships.filter(pm => pm.user_id === profile.id).length;
         const badgeCount = userBadges.filter(b => b.user_id === profile.id).length;
 
