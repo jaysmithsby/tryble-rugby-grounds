@@ -1,73 +1,68 @@
 
-# Refactor Pools Page to High-Density List Format
+
+# Unified Pool Action Dialog
 
 ## Overview
-Replace the large PoolCard grid on the Pools page with a compact, table-like row layout matching the Schools directory style. Each pool becomes a single clickable row with icon, name, member count, and rank.
+Replace the separate "Create Pool" button and "Join Code" input on the Pools page with a single `+` icon button in the header that opens a tabbed dialog containing both actions.
 
 ---
 
 ## Changes
 
-### 1. Create Pool List Row Component (`src/components/pools/PoolListRow.tsx`)
+### 1. Create Unified Modal (`src/components/pools/PoolActionDialog.tsx`)
 
-A new compact row component:
+A new component using shadcn `Dialog` + `Tabs`:
 
-- **Left**: 32px circular icon using `getPoolIconComponent` and `getPoolColorValue` (same as current PoolCard)
-- **Middle**: Pool name (bold, truncated) on one line
-- **Right side, two data columns**:
-  - Members: small `Users` icon + count number
-  - Rank: small `Trophy` icon + position number (or "--" if no rank data available yet)
-- **Entire row clickable** navigating to `/pool/:poolId`
-- **Hover state**: `hover:bg-muted/50` matching the Schools list rows
-- Divider lines between rows via parent `divide-y`
+- **Trigger**: Accepts an `open`/`onOpenChange` prop pair (controlled from parent) -- no built-in trigger button
+- **Tab 1 -- "Create"**: Embeds the full existing `CreatePoolDialog` form logic (pool name, icon selector, voting mode toggle, school selection, preview step). This is essentially the current `CreatePoolDialog` content moved into a tab panel.
+- **Tab 2 -- "Join"**: A simple form with:
+  - A 6-character uppercase mono input for the invite code
+  - Auto-verification: when exactly 6 characters are entered, call `get_pool_by_invite_code` RPC
+  - **Valid code**: Show a confirmation card with the pool name and a "Join Pool" button
+  - **Invalid code**: Show inline error text ("Pool not found")
+  - **Already a member**: Show message and redirect link
+  - Join logic reuses the existing `handleJoinPool` pattern from `Pools.tsx`
+- Uses `sonner` toasts for success feedback on both create and join
+- Single-column layout, mobile-friendly, max height 85vh with scroll
 
-Props: `pool` object (id, name, icon_id, color_id, member count) + optional `userRank`
+### 2. Update Pools Page Header (`src/pages/Pools.tsx`)
 
-### 2. Refactor Pools Page (`src/pages/Pools.tsx`)
+- **Remove**: The inline `CreatePoolDialog` component usage and the "Join Code" input row
+- **Add**: A `+` icon button (using lucide `Plus` icon, already imported) in the header row next to the search bar
+- **Header layout**: `[Search Input (flex-1)] [+ Button]` -- search spans remaining width, plus button is fixed size
+- The `+` button controls the `open` state of `PoolActionDialog`
+- `PoolActionDialog` receives `onPoolCreated={loadData}` callback to refresh the pool list after create or join
 
-**Simplify the page significantly:**
+### 3. Remove Old CreatePoolDialog Usage
 
-- **Remove**: Tournaments section, Leaderboard preview section, and all their associated state/data fetching (these are accessible elsewhere -- tournaments from Fixtures, leaderboard from the Leaderboard tab)
-- **Keep**: GlobalHeader, BottomNav, pool data fetching, join code flow, CreatePoolDialog
-- **Sticky header** with:
-  - "Your Pools" title with Trophy icon
-  - Row containing: search input (debounced, filters pools by name) + Create Pool button (compact)
-  - Join code input row (existing pattern, kept compact)
-- **Pool list**: Vertical stack of `PoolListRow` components with `divide-y` dividers
-- **Empty state**: Clean centered message with Users icon, "No pools yet" heading, and two CTAs: "Create a Pool" and join code input
-
-**Data changes:**
-- Pool rank: Currently no per-pool rank data exists in the database schema. The rank column will show "--" as a placeholder. This can be wired up later when pool-level scoring is implemented.
-- Member count: Already available from the existing `pool_members(count)` join
-
-### 3. Visual Consistency
-
-- Row height, typography, and spacing will match the Schools directory list items
-- Same `divide-y divide-border/40` pattern
-- Same `-mx-4 px-4` full-bleed hover pattern
-- Same `text-sm font-medium` for names, `text-xs text-muted-foreground` for secondary info
+- `CreatePoolDialog` component file (`src/components/pools/CreatePoolDialog.tsx`) will no longer be imported from `Pools.tsx`
+- The file itself can remain (it may be used elsewhere or can be cleaned up later), but all its logic will be duplicated into the Create tab of `PoolActionDialog`
 
 ---
 
 ## Technical Details
 
 ### Files Created
-- `src/components/pools/PoolListRow.tsx` -- compact row component
+- `src/components/pools/PoolActionDialog.tsx` -- unified tabbed dialog with Create and Join tabs
 
 ### Files Modified
-- `src/pages/Pools.tsx` -- major simplification: remove tournaments/leaderboard sections, replace PoolCard grid with PoolListRow stack, add search filter
+- `src/pages/Pools.tsx` -- remove inline join code input and CreatePoolDialog, add `+` button triggering PoolActionDialog
 
-### Existing Components Reused
-- `getPoolIconComponent`, `getPoolColorValue` from `PoolIconSelector`
-- `CreatePoolDialog` for pool creation
-- `useDebounce` for search filtering
-- `Input`, `Button` from shadcn
-- `Users`, `Trophy` icons from lucide-react
+### Join Tab Auto-Verification Logic
+```text
+User types code -> length === 6 -> call get_pool_by_invite_code RPC
+  -> found: show pool name + "Join" button
+  -> not found: show "Pool not found" error
+  -> on join: insert pool_members, toast, close dialog, refresh list
+```
 
-### What Gets Removed from Pools.tsx
-- Tournament section and `user_tournament_follows` query
-- Leaderboard preview section and `user_scores` / `profiles_public` queries
-- `Tabs`, `TabsList`, `TabsTrigger` imports
-- `leaderboardTab`, `leaderboardPeriod`, `leaderboardData`, `userSchool`, `userProvince`, tournament state
-- `loadLeaderboardPreview` function
-- `PoolCard` import (replaced by `PoolListRow`)
+### Components Reused
+- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from shadcn
+- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from shadcn
+- `Input`, `Button`, `Label`, `Switch`, `Badge`, `ScrollArea` from shadcn
+- `PoolIconSelector` for the create form
+- `useSchoolsQuery` for school selection
+- `sanitizePoolName` for name validation
+- `toast` from sonner for success/error feedback
+- `Plus`, `Users`, `UserPlus` icons from lucide-react
+
