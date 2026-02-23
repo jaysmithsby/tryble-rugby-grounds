@@ -11,6 +11,7 @@ import Fixtures from "@/pages/Fixtures";
 import Pools from "@/pages/Pools";
 import Profile from "@/pages/Profile";
 import Leaderboard from "@/pages/Leaderboard";
+import Schools from "@/pages/Schools";
 
 // Lazy loaded — secondary pages
 const PoolLeaderboard = lazy(() => import("@/pages/PoolLeaderboard").then(m => ({ default: m.PoolLeaderboard })));
@@ -51,7 +52,7 @@ const KEEP_ALIVE_ROUTES: { path: string; element: React.ReactNode }[] = [
   { path: "/home", element: <Home /> },
   { path: "/fixtures", element: <Fixtures /> },
   { path: "/pools", element: <Pools /> },
-  { path: "/profile", element: <Profile /> },
+  { path: "/schools", element: <Schools /> },
   { path: "/leaderboard", element: <Leaderboard /> },
 ];
 
@@ -119,6 +120,7 @@ export const AnimatedRoutes = () => {
               <Route path="/terms" element={<Terms />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/pool/:poolId" element={<PoolLeaderboard />} />
               <Route path="/school/:schoolSlug" element={<SchoolProfile />} />
               <Route path="/tournament/:tournamentId" element={<Tournament />} />
