@@ -1,22 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Users, Trophy } from "lucide-react";
+import { Star, Users, Trophy, Search, X } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { FixturesMonthNav } from "@/components/fixtures/FixturesMonthNav";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import { resolveVenueName } from "@/lib/venueUtils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function SchoolProfile() {
   const { schoolSlug } = useParams();
   const { toast } = useToast();
   const [school, setSchool] = useState<any>(null);
-  const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
+  const [allUpcomingFixtures, setAllUpcomingFixtures] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -26,6 +31,28 @@ export default function SchoolProfile() {
   const [followerCount, setFollowerCount] = useState(0);
   const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
   const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
+
+  // Search & month nav state
+  const [searchQuery, setSearchQuery] = useState("");
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Filtered fixtures
+  const filteredFixtures = useMemo(() => {
+    if (!school) return [];
+    if (debouncedSearch) {
+      return allUpcomingFixtures.filter(f => {
+        const opponent = f.school_a_id === school.id ? f.school_b : f.school_a;
+        return opponent?.name?.toLowerCase().includes(debouncedSearch.toLowerCase());
+      });
+    }
+    return allUpcomingFixtures.filter(f => {
+      const d = new Date(f.match_date);
+      return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+    });
+  }, [allUpcomingFixtures, debouncedSearch, selectedYear, selectedMonth, school]);
 
   useEffect(() => {
     loadSchoolData();
@@ -156,17 +183,15 @@ export default function SchoolProfile() {
         `)
         .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
         .in("status", ["upcoming", "holding"])
-        .gte("match_date", new Date().toISOString())
-        .order("match_date", { ascending: true })
-        .limit(5);
+        .order("match_date", { ascending: true });
 
       const upcoming = (upcomingData || []) as any[];
-      setUpcomingFixtures(upcoming);
+      setAllUpcomingFixtures(upcoming);
 
-      // Load history map for upcoming fixtures
+      // Load history map for all fixtures
       loadMatchHistory(upcoming);
 
-      // Load predictions for upcoming fixtures if user is logged in
+      // Load predictions for all fixtures if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
       if (user && upcoming.length > 0) {
         loadPredictions(upcoming.map(f => f.id), user.id);
@@ -273,49 +298,104 @@ export default function SchoolProfile() {
       <main className="px-4 py-4 space-y-6 max-w-7xl mx-auto">
 
         {/* Upcoming Fixtures */}
-        {upcomingFixtures.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming Fixtures</h2>
-            {showInteractive ? (
-              <div className="space-y-3">
-                {upcomingFixtures.map((f) => {
-                  const pred = userPredictions[f.id];
-                  return (
-                    <FixtureCard
-                      key={f.id}
-                      homeTeam={f.school_a?.name || "TBD"}
-                      awayTeam={f.school_b?.name || "TBD"}
-                      homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
-                      awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
-                      homeTeamIcon={f.school_a?.jersey_url}
-                      awayTeamIcon={f.school_b?.jersey_url}
-                      homeSchoolId={f.school_a_id}
-                      awaySchoolId={f.school_b_id}
-                      homeSchoolSlug={f.school_a?.slug}
-                      awaySchoolSlug={f.school_b?.slug}
-                      matchDate={f.match_date}
-                      time=""
-                      venue={resolveVenueName(f)}
-                      tournamentName={f.tournament?.name}
-                      matchId={f.id}
-                      isPredicted={!!pred}
-                      predictedSchoolId={pred?.predictedSchoolId}
-                      predictedMargin={pred?.predictedMargin}
-                      onPredictionMade={(schoolId, margin) => {
-                        setUserPredictions(prev => ({
-                          ...prev,
-                          [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
-                        }));
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <FixtureTable fixtures={upcomingFixtures} hasHistoryMap={hasHistoryMap} />
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming Fixtures</h2>
+
+          {/* Search bar */}
+          <div className="relative mb-2">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search opponent..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-7 h-8 text-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             )}
-          </section>
-        )}
+          </div>
+
+          {/* Month/Year nav (hidden during search) */}
+          {!debouncedSearch && (
+            <FixturesMonthNav
+              selectedYear={selectedYear}
+              selectedMonth={selectedMonth}
+              onYearChange={setSelectedYear}
+              onMonthChange={setSelectedMonth}
+            />
+          )}
+
+          {/* Fixture list or empty state */}
+          {filteredFixtures.length > 0 ? (
+            <div className="space-y-3 mt-3">
+              {filteredFixtures.map((f) => {
+                const pred = userPredictions[f.id];
+                return showInteractive ? (
+                  <FixtureCard
+                    key={f.id}
+                    homeTeam={f.school_a?.name || "TBD"}
+                    awayTeam={f.school_b?.name || "TBD"}
+                    homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                    awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                    homeTeamIcon={f.school_a?.jersey_url}
+                    awayTeamIcon={f.school_b?.jersey_url}
+                    homeSchoolId={f.school_a_id}
+                    awaySchoolId={f.school_b_id}
+                    homeSchoolSlug={f.school_a?.slug}
+                    awaySchoolSlug={f.school_b?.slug}
+                    matchDate={f.match_date}
+                    time=""
+                    venue={resolveVenueName(f)}
+                    tournamentName={f.tournament?.name}
+                    matchId={f.id}
+                    isPredicted={!!pred}
+                    predictedSchoolId={pred?.predictedSchoolId}
+                    predictedMargin={pred?.predictedMargin}
+                    onPredictionMade={(schoolId, margin) => {
+                      setUserPredictions(prev => ({
+                        ...prev,
+                        [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
+                      }));
+                    }}
+                    hasHistory={hasHistoryMap[f.id]}
+                  />
+                ) : (
+                  <FixtureCard
+                    key={f.id}
+                    homeTeam={f.school_a?.name || "TBD"}
+                    awayTeam={f.school_b?.name || "TBD"}
+                    homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                    awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                    homeTeamIcon={f.school_a?.jersey_url}
+                    awayTeamIcon={f.school_b?.jersey_url}
+                    homeSchoolId={f.school_a_id}
+                    awaySchoolId={f.school_b_id}
+                    homeSchoolSlug={f.school_a?.slug}
+                    awaySchoolSlug={f.school_b?.slug}
+                    matchDate={f.match_date}
+                    time=""
+                    venue={resolveVenueName(f)}
+                    tournamentName={f.tournament?.name}
+                    matchId={f.id}
+                    hasHistory={hasHistoryMap[f.id]}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              {debouncedSearch
+                ? `No fixtures found for '${debouncedSearch}'`
+                : `No fixtures in ${MONTHS[selectedMonth]} ${selectedYear}`}
+            </p>
+          )}
+        </section>
 
         {/* Recent Results */}
         <section>
