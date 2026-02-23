@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Star, School } from "lucide-react";
+import { Search, Star, School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { format } from "date-fns";
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +39,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface SchoolRow {
   id: string;
@@ -51,27 +51,42 @@ interface SchoolRow {
   status?: string;
 }
 
+interface TournamentRow {
+  id: string;
+  name: string;
+  venue: string;
+  province: string | null;
+  start_date: string;
+  end_date: string;
+  is_active: boolean | null;
+  logo_url: string | null;
+}
+
+type DiscoveryMode = "schools" | "tournaments";
+
+interface DialogTarget {
+  type: "school" | "tournament";
+  id: string;
+  name: string;
+  isFollowed: boolean;
+}
+
 const PAGE_SIZE = 20;
 
 export default function Schools() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState<DiscoveryMode>("schools");
   const [search, setSearch] = useState("");
   const [province, setProvince] = useState<string>("all");
   const debouncedSearch = useDebounce(search, 300);
   const pagination = usePagination(1, PAGE_SIZE);
 
-  // Dialog state
+  // Unified dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogSchool, setDialogSchool] = useState<{ id: string; name: string; isFollowed: boolean } | null>(null);
+  const [dialogTarget, setDialogTarget] = useState<DialogTarget | null>(null);
 
-  // Fetch all schools
-  const { schools, loading: schoolsLoading } = useSchoolsQuery<SchoolRow>({
-    select: "id, name, slug, province, emblem_url, jersey_url, icon_url",
-    orderBy: "name",
-  });
-
-  // Fetch current user
+  // ── Current user ──
   const { data: user } = useQuery({
     queryKey: ["current-user"],
     queryFn: async () => {
@@ -81,7 +96,7 @@ export default function Schools() {
     staleTime: CACHE_TIMES.STATIC,
   });
 
-  // Fetch user profile for primary school
+  // ── User profile (primary school) ──
   const { data: profile } = useQuery({
     queryKey: ["user-profile-school", user?.id],
     queryFn: async () => {
@@ -98,8 +113,14 @@ export default function Schools() {
     staleTime: CACHE_TIMES.USER_PROFILE,
   });
 
-  // Fetch user follows
-  const { data: follows = [] } = useQuery({
+  // ── Schools data ──
+  const { schools, loading: schoolsLoading } = useSchoolsQuery<SchoolRow>({
+    select: "id, name, slug, province, emblem_url, jersey_url, icon_url",
+    orderBy: "name",
+  });
+
+  // ── School follows ──
+  const { data: schoolFollows = [] } = useQuery({
     queryKey: ["user-school-follows", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -114,11 +135,67 @@ export default function Schools() {
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
-  const followedSet = useMemo(() => new Set(follows), [follows]);
+  // ── Tournaments data ──
+  const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery({
+    queryKey: ["all-tournaments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("id, name, venue, province, start_date, end_date, is_active, logo_url")
+        .eq("is_active", true)
+        .order("start_date", { ascending: true });
+      if (error) throw error;
+      return (data || []) as TournamentRow[];
+    },
+    staleTime: CACHE_TIMES.REFERENCE,
+  });
+
+  // ── Tournament follows ──
+  const { data: tournamentFollows = [] } = useQuery({
+    queryKey: ["user-tournament-follows", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("user_tournament_follows")
+        .select("tournament_id")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data?.map((f) => f.tournament_id) || [];
+    },
+    enabled: !!user?.id,
+    staleTime: CACHE_TIMES.REFERENCE,
+  });
+
+  const schoolFollowedSet = useMemo(() => new Set(schoolFollows), [schoolFollows]);
+  const tournamentFollowedSet = useMemo(() => new Set(tournamentFollows), [tournamentFollows]);
   const primarySchoolId = profile?.school_id;
 
-  // Client-side filtering
-  const filtered = useMemo(() => {
+  // ── Sorted & filtered tournaments ──
+  const sortedTournaments = useMemo(() => {
+    const now = new Date();
+    const upcoming = tournaments
+      .filter((t) => new Date(t.end_date) >= now)
+      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    const past = tournaments
+      .filter((t) => new Date(t.end_date) < now)
+      .sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
+    return [...upcoming, ...past];
+  }, [tournaments]);
+
+  const filteredTournaments = useMemo(() => {
+    let list = sortedTournaments;
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter((t) => t.name.toLowerCase().includes(q));
+    }
+    if (province !== "all") {
+      list = list.filter((t) => t.province === province);
+    }
+    return list;
+  }, [sortedTournaments, debouncedSearch, province]);
+
+  // ── Filtered schools ──
+  const filteredSchools = useMemo(() => {
     let list = schools;
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
@@ -130,61 +207,82 @@ export default function Schools() {
     return list;
   }, [schools, debouncedSearch, province]);
 
+  // Active filtered list for pagination
+  const activeList = mode === "schools" ? filteredSchools : filteredTournaments;
+
   // Update pagination total when filtered changes
   useMemo(() => {
-    pagination.setTotalCount(filtered.length);
-  }, [filtered.length]);
+    pagination.setTotalCount(activeList.length);
+  }, [activeList.length]);
 
-  // Reset to page 1 on filter change
+  // Reset to page 1 on filter/mode change
   useMemo(() => {
     pagination.goToPage(1);
-  }, [debouncedSearch, province]);
+  }, [debouncedSearch, province, mode]);
 
-  // Current page slice
   const pageItems = useMemo(
-    () => filtered.slice(pagination.from, pagination.to + 1),
-    [filtered, pagination.from, pagination.to]
+    () => activeList.slice(pagination.from, pagination.to + 1),
+    [activeList, pagination.from, pagination.to]
   );
 
+  // ── Follow/Unfollow handlers ──
   const handleStarClick = useCallback(
-    (school: SchoolRow) => {
+    (target: DialogTarget) => {
       if (!user) {
         navigate("/auth");
         return;
       }
-      if (school.id === primarySchoolId) return;
-      const isFollowed = followedSet.has(school.id);
-      setDialogSchool({ id: school.id, name: school.name, isFollowed });
+      if (target.type === "school" && target.id === primarySchoolId) return;
+      setDialogTarget(target);
       setDialogOpen(true);
     },
-    [user, primarySchoolId, followedSet, navigate]
+    [user, primarySchoolId, navigate]
   );
 
   const handleConfirmFollow = useCallback(async () => {
-    if (!dialogSchool || !user) return;
+    if (!dialogTarget || !user) return;
     try {
-      if (dialogSchool.isFollowed) {
-        const { error } = await supabase
-          .from("user_school_follows")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("school_id", dialogSchool.id);
-        if (error) throw error;
-        toast.success(`Unfollowed ${dialogSchool.name}`);
+      if (dialogTarget.type === "school") {
+        if (dialogTarget.isFollowed) {
+          const { error } = await supabase
+            .from("user_school_follows")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("school_id", dialogTarget.id);
+          if (error) throw error;
+          toast.success(`Unfollowed ${dialogTarget.name}`);
+        } else {
+          const { error } = await supabase
+            .from("user_school_follows")
+            .insert({ user_id: user.id, school_id: dialogTarget.id });
+          if (error) throw error;
+          toast.success(`Now following ${dialogTarget.name}`);
+        }
+        queryClient.invalidateQueries({ queryKey: ["user-school-follows", user.id] });
       } else {
-        const { error } = await supabase
-          .from("user_school_follows")
-          .insert({ user_id: user.id, school_id: dialogSchool.id });
-        if (error) throw error;
-        toast.success(`Now following ${dialogSchool.name}`);
+        if (dialogTarget.isFollowed) {
+          const { error } = await supabase
+            .from("user_tournament_follows")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("tournament_id", dialogTarget.id);
+          if (error) throw error;
+          toast.success(`Unfollowed ${dialogTarget.name}`);
+        } else {
+          const { error } = await supabase
+            .from("user_tournament_follows")
+            .insert({ user_id: user.id, tournament_id: dialogTarget.id });
+          if (error) throw error;
+          toast.success(`Now following ${dialogTarget.name}`);
+        }
+        queryClient.invalidateQueries({ queryKey: ["user-tournament-follows", user.id] });
       }
-      queryClient.invalidateQueries({ queryKey: ["user-school-follows", user.id] });
     } catch {
       toast.error("Something went wrong. Please try again.");
     }
     setDialogOpen(false);
-    setDialogSchool(null);
-  }, [dialogSchool, user, queryClient]);
+    setDialogTarget(null);
+  }, [dialogTarget, user, queryClient]);
 
   const getInitials = (name: string) =>
     name
@@ -194,20 +292,58 @@ export default function Schools() {
       .slice(0, 2)
       .toUpperCase();
 
+  const getTournamentDateLabel = (t: TournamentRow) => {
+    const now = new Date();
+    const start = new Date(t.start_date);
+    const end = new Date(t.end_date);
+    if (end < now) return `Ended ${format(end, "MMM d")}`;
+    if (start > now) return `Starts ${format(start, "MMM d")}`;
+    return `Live · Ends ${format(end, "MMM d")}`;
+  };
+
+  const isLoading = mode === "schools" ? schoolsLoading : tournamentsLoading;
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <GlobalHeader />
       {/* Sticky filter bar */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/40 px-4 py-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <School className="w-5 h-5 text-primary shrink-0" />
-          <h1 className="text-lg font-semibold text-foreground">Schools</h1>
+        {/* Mode toggle */}
+        <div className="flex gap-2">
+          <Button
+            variant={mode === "schools" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("schools")}
+            className="flex-1"
+          >
+            Schools
+          </Button>
+          <Button
+            variant={mode === "tournaments" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("tournaments")}
+            className="flex-1"
+          >
+            Tournaments
+          </Button>
         </div>
+
+        <div className="flex items-center gap-2">
+          {mode === "schools" ? (
+            <School className="w-5 h-5 text-primary shrink-0" />
+          ) : (
+            <Trophy className="w-5 h-5 text-primary shrink-0" />
+          )}
+          <h1 className="text-lg font-semibold text-foreground">
+            {mode === "schools" ? "Schools" : "Tournaments"}
+          </h1>
+        </div>
+
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search schools..."
+              placeholder={mode === "schools" ? "Search schools..." : "Search tournaments..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-9"
@@ -229,9 +365,9 @@ export default function Schools() {
         </div>
       </div>
 
-      {/* School list */}
+      {/* List */}
       <div className="px-4">
-        {schoolsLoading ? (
+        {isLoading ? (
           <div className="space-y-2 pt-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 py-2">
@@ -246,13 +382,14 @@ export default function Schools() {
           </div>
         ) : pageItems.length === 0 ? (
           <p className="text-center text-muted-foreground py-12 text-sm">
-            No schools found.
+            {mode === "schools" ? "No schools found." : "No tournaments found."}
           </p>
-        ) : (
+        ) : mode === "schools" ? (
+          /* ── School rows ── */
           <ul className="divide-y divide-border/40">
-            {pageItems.map((school) => {
+            {(pageItems as SchoolRow[]).map((school) => {
               const imgUrl = getSchoolDisplayImage(school);
-              const isFollowed = followedSet.has(school.id);
+              const isFollowed = schoolFollowedSet.has(school.id);
               const isPrimary = school.id === primarySchoolId;
 
               return (
@@ -260,7 +397,6 @@ export default function Schools() {
                   key={school.id}
                   className="flex items-center gap-3 py-2.5 hover:bg-muted/50 -mx-4 px-4 transition-colors"
                 >
-                  {/* Avatar */}
                   <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                     {imgUrl ? (
                       <img
@@ -276,7 +412,6 @@ export default function Schools() {
                     )}
                   </div>
 
-                  {/* Name & province */}
                   <button
                     onClick={() => navigate(`/school/${school.slug}`)}
                     className="flex-1 min-w-0 text-left"
@@ -291,13 +426,19 @@ export default function Schools() {
                     )}
                   </button>
 
-                  {/* Follow star */}
                   {user && (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
-                            onClick={() => handleStarClick(school)}
+                            onClick={() =>
+                              handleStarClick({
+                                type: "school",
+                                id: school.id,
+                                name: school.name,
+                                isFollowed,
+                              })
+                            }
                             disabled={isPrimary}
                             className="shrink-0 p-1 disabled:cursor-default"
                             aria-label={
@@ -329,10 +470,68 @@ export default function Schools() {
               );
             })}
           </ul>
+        ) : (
+          /* ── Tournament rows ── */
+          <ul className="divide-y divide-border/40">
+            {(pageItems as TournamentRow[]).map((tournament) => {
+              const isFollowed = tournamentFollowedSet.has(tournament.id);
+              const dateLabel = getTournamentDateLabel(tournament);
+
+              return (
+                <li
+                  key={tournament.id}
+                  className="flex items-center gap-3 py-2.5 hover:bg-muted/50 -mx-4 px-4 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <Trophy className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+
+                  <button
+                    onClick={() => navigate(`/tournament/${tournament.id}`)}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {tournament.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {tournament.venue} · {dateLabel}
+                    </p>
+                  </button>
+
+                  {user && (
+                    <button
+                      onClick={() =>
+                        handleStarClick({
+                          type: "tournament",
+                          id: tournament.id,
+                          name: tournament.name,
+                          isFollowed,
+                        })
+                      }
+                      className="shrink-0 p-1"
+                      aria-label={
+                        isFollowed
+                          ? `Unfollow ${tournament.name}`
+                          : `Follow ${tournament.name}`
+                      }
+                    >
+                      <Star
+                        className={`w-4.5 h-4.5 transition-colors ${
+                          isFollowed
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-muted-foreground hover:text-yellow-400"
+                        }`}
+                      />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
 
-        {/* Simple pagination */}
-        {!schoolsLoading && filtered.length > PAGE_SIZE && (
+        {/* Pagination */}
+        {!isLoading && activeList.length > PAGE_SIZE && (
           <div className="flex items-center justify-between py-4">
             <span className="text-xs text-muted-foreground">
               {pagination.startItem}–{pagination.endItem} of {pagination.totalCount}
@@ -366,20 +565,24 @@ export default function Schools() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {dialogSchool?.isFollowed
-                ? `Unfollow ${dialogSchool?.name}?`
-                : `Follow ${dialogSchool?.name}?`}
+              {dialogTarget?.isFollowed
+                ? `Unfollow ${dialogTarget?.name}?`
+                : `Follow ${dialogTarget?.name}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {dialogSchool?.isFollowed
-                ? "They will be removed from your home feed."
-                : "They will be added to your home feed."}
+              {dialogTarget?.isFollowed
+                ? dialogTarget?.type === "school"
+                  ? "They will be removed from your home feed."
+                  : "Tournament matches will be removed from your feed."
+                : dialogTarget?.type === "school"
+                ? "They will be added to your home feed."
+                : "Tournament matches will appear in your feed."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmFollow}>
-              {dialogSchool?.isFollowed ? "Unfollow" : "Follow"}
+              {dialogTarget?.isFollowed ? "Unfollow" : "Follow"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

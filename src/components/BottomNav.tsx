@@ -79,7 +79,7 @@ export const BottomNav = () => {
             }`}
           >
             <School className="w-5 h-5" />
-            <span className="text-xs font-medium">Schools</span>
+            <span className="text-xs font-medium">Discover</span>
           </button>
         </div>
       </div>
