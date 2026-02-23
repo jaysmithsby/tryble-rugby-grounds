@@ -98,6 +98,7 @@ export function usePrefetch() {
       case "/fixtures": prefetchSchools(); prefetchFixtures(); break;
       case "/leaderboard": prefetchSchools(); prefetchUserPools(); break;
       case "/profile": prefetchProfile(); prefetchUserPools(); break;
+      case "/schools": prefetchSchools(); prefetchProfile(); break;
       default: break;
     }
   }, [prefetchProfile, prefetchUserPools, prefetchSchools, prefetchFixtures]);
