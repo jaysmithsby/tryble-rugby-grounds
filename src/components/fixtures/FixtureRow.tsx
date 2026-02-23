@@ -114,9 +114,11 @@ const CenterArea = ({
   predictedMargin?: number;
   compact?: boolean;
 }) => {
+  const wrapClass = cn("flex flex-col items-center justify-center gap-1", compact ? "min-h-[36px]" : "min-h-[48px]");
+
   if (isPredicted) {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <div className={wrapClass}>
         <Lock className={cn("text-primary", compact ? "w-4 h-4" : "w-5 h-5")} />
         <span className={cn("font-semibold text-primary text-center", compact ? "text-[10px]" : "text-xs")}>
           {predictedSchoolName} by {predictedMargin}
@@ -126,13 +128,17 @@ const CenterArea = ({
   }
   if (onPredictionMade) {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <div className={wrapClass}>
         <AlertCircle className={cn("text-destructive", compact ? "w-4 h-4" : "w-5 h-5")} />
         <span className={cn("font-semibold text-destructive", compact ? "text-[10px]" : "text-xs")}>Pick needed</span>
       </div>
     );
   }
-  return <span className={cn("font-semibold text-muted-foreground", compact ? "text-sm" : "text-xl font-bold")}>VS</span>;
+  return (
+    <div className={wrapClass}>
+      <span className={cn("font-semibold text-muted-foreground", compact ? "text-sm" : "text-xl font-bold")}>VS</span>
+    </div>
+  );
 };
 
 // --- Main Component ---
