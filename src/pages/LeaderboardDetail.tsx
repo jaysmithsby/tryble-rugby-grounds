@@ -1,14 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Users, Trophy, Target, Hash } from "lucide-react";
+import { ChevronLeft, Users, Trophy, Target, Hash, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
+import { cn } from "@/lib/utils";
 
 const ROWS_PER_PAGE = 20;
+const AVAILABLE_SEASONS = [2025, 2026];
 
 type ScoreRow = {
   user_id: string;
@@ -134,10 +137,12 @@ const LeaderboardDetail = () => {
   const [allRows, setAllRows] = useState<ScoreRow[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [selectedSeason, setSelectedSeason] = useState(2026);
+  const [seasonPopoverOpen, setSeasonPopoverOpen] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, [type, id]);
+  }, [type, id, selectedSeason]);
 
   const loadData = async () => {
     setLoading(true);
@@ -153,7 +158,7 @@ const LeaderboardDetail = () => {
         setTitle("Global Leaderboard");
       }
 
-      const currentYear = new Date().getFullYear();
+      const currentYear = selectedSeason;
 
       // Get user filter for school type
       let userFilter: string[] | null = null;
@@ -281,7 +286,7 @@ const LeaderboardDetail = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate("/pools")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold truncate">{title}</h1>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
@@ -294,6 +299,40 @@ const LeaderboardDetail = () => {
               </span>
             </div>
           </div>
+          <Popover open={seasonPopoverOpen} onOpenChange={setSeasonPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 font-medium text-xs shrink-0 h-8 px-2.5"
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                {selectedSeason}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="end">
+              <div className="flex flex-col gap-1">
+                {AVAILABLE_SEASONS.map(year => (
+                  <button
+                    key={year}
+                    onClick={() => {
+                      setSelectedSeason(year);
+                      setSeasonPopoverOpen(false);
+                      setPage(0);
+                    }}
+                    className={cn(
+                      "px-4 py-2 text-sm rounded-md font-medium transition-colors text-left",
+                      selectedSeason === year
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-foreground"
+                    )}
+                  >
+                    {year} Season
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Box-and-Whisker */}
