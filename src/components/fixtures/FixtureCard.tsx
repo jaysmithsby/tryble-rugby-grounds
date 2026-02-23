@@ -119,9 +119,19 @@ export const FixtureCard = ({
                 )}
                 <span className="text-xs text-muted-foreground">{venue}</span>
               </div>
-              {isPredicted && (
+              {canExpand ? (
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1 -mr-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", historyOpen && "rotate-180")} />
+                  </button>
+                </CollapsibleTrigger>
+              ) : isPredicted ? (
                 <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
-              )}
+              ) : null}
             </div>
 
             {tournamentName && (
@@ -189,18 +199,8 @@ export const FixtureCard = ({
               </div>
             </div>
 
-            {/* Chevron row */}
-            {canExpand && (
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full flex justify-center pt-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", historyOpen && "rotate-180")} />
-                </button>
-              </CollapsibleTrigger>
-            )}
+
+
           </div>
         </Card>
         <CollapsibleContent>
