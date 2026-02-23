@@ -4,16 +4,22 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import trybalLogo from "@/assets/trybal-logo.png";
+
 import { supabase } from "@/integrations/supabase/client";
+import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
 import { HomeCarousel } from "@/components/home/HomeCarousel";
+import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
-import { Users } from "lucide-react";
+import { MessageCircle, Award, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 import { useHomeAuth } from "@/hooks/useHomeAuth";
 import { useHomeFixtures } from "@/hooks/useHomeFixtures";
+import { buildWhatsAppUrl } from "@/lib/constants";
 
 const Home = () => {
   const navigate = useNavigate();
