@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trophy, Users, UserPlus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trophy, Users, Plus } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { PoolListRow } from "@/components/pools/PoolListRow";
-import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
+import { PoolActionDialog } from "@/components/pools/PoolActionDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -27,9 +27,8 @@ export const Pools = () => {
   const { toast } = useToast();
   const [pools, setPools] = useState<Pool[]>([]);
   const [loading, setLoading] = useState(true);
-  const [joinCode, setJoinCode] = useState("");
-  const [joining, setJoining] = useState(false);
   const [search, setSearch] = useState("");
+  const [actionOpen, setActionOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
@@ -79,66 +78,6 @@ export const Pools = () => {
     }
   };
 
-  const handleJoinPool = async () => {
-    if (!joinCode.trim()) return;
-
-    setJoining(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: poolData, error: poolError } = await supabase
-        .rpc("get_pool_by_invite_code", { code: joinCode.toUpperCase() });
-
-      if (poolError || !poolData || poolData.length === 0) {
-        throw new Error("Pool not found. Check the invite code and try again.");
-      }
-
-      const pool = poolData[0];
-
-      const { data: existingMember } = await supabase
-        .from("pool_members")
-        .select("id")
-        .eq("pool_id", pool.id)
-        .eq("user_id", user.id)
-        .single();
-
-      if (existingMember) {
-        toast({
-          title: "Already a member",
-          description: "You're already in this pool!",
-        });
-        setJoinCode("");
-        return;
-      }
-
-      const { error: joinError } = await supabase
-        .from("pool_members")
-        .insert({
-          pool_id: pool.id,
-          user_id: user.id
-        });
-
-      if (joinError) throw joinError;
-
-      toast({
-        title: "Joined pool!",
-        description: `Welcome to ${pool.name}`,
-      });
-
-      setJoinCode("");
-      loadData();
-    } catch (error: any) {
-      toast({
-        title: "Error joining pool",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setJoining(false);
-    }
-  };
-
   const filteredPools = pools.filter(pool =>
     pool.name.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
@@ -165,7 +104,7 @@ export const Pools = () => {
           <span className="text-xs text-muted-foreground">{pools.length} pool{pools.length !== 1 ? "s" : ""}</span>
         </div>
 
-        {/* Search + Create */}
+        {/* Search + Add */}
         <div className="flex gap-2">
           <Input
             placeholder="Search pools..."
@@ -173,27 +112,8 @@ export const Pools = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 h-9 text-sm"
           />
-          <CreatePoolDialog onPoolCreated={loadData} />
-        </div>
-
-        {/* Join Code */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Enter invite code"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
-            className="font-mono uppercase flex-1 h-9 text-sm"
-          />
-          <Button
-            onClick={handleJoinPool}
-            disabled={!joinCode.trim() || joining}
-            size="sm"
-            variant="outline"
-            className="h-9"
-          >
-            <UserPlus className="w-4 h-4 mr-1" />
-            Join
+          <Button size="icon" className="h-9 w-9 shrink-0" onClick={() => setActionOpen(true)}>
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
 
@@ -213,12 +133,17 @@ export const Pools = () => {
             <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />
             <h3 className="font-semibold mb-1">No pools yet</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Create a pool to compete with friends or enter an invite code to join one.
+              Create a pool or enter an invite code to join one.
             </p>
+            <Button onClick={() => setActionOpen(true)} size="sm">
+              <Plus className="w-4 h-4 mr-1" />
+              Get Started
+            </Button>
           </div>
         )}
       </main>
 
+      <PoolActionDialog open={actionOpen} onOpenChange={setActionOpen} onPoolCreated={loadData} />
       <BottomNav />
     </div>
   );
