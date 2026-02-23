@@ -225,7 +225,7 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
       if (!isOpen) resetAndClose();
       else onOpenChange(true);
     }}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-sm max-h-[80vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle>Pools</DialogTitle>
         </DialogHeader>
