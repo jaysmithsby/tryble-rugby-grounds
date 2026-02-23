@@ -1,88 +1,125 @@
 
 
-# Refine PoolActionDialog: Single-View Create + Compact Join
+# Unified Discovery Page: Schools + Tournaments
 
 ## Overview
-Flatten the Create tab from a multi-step wizard into a single dense form, replace the bulky icon selector with a popover triggered from a small circle button inline with the name input, remove voting mode entirely, and compact the Join tab inputs.
+Refactor the Schools page into a dual-mode Discovery page with a toggle to switch between browsing Schools and Tournaments. The tournament list reuses the same high-density row layout and includes a follow-star system using `user_tournament_follows`.
 
 ---
 
 ## Changes
 
-### 1. Inline Icon Picker with Popover
+### 1. Rename Schools Page to Discovery (`src/pages/Schools.tsx`)
 
-Replace the large `PoolIconSelector` component usage with a compact inline layout:
+Transform in-place (keep the same file to minimize routing changes):
 
-- **Row layout**: `[32px circular icon button] [Pool Name Input (flex-1)]` on one line, no labels
-- **Icon button**: Shows the currently selected icon in its selected color. Clicking opens a shadcn `Popover`.
-- **Popover content**: Contains the 4x4 icon grid (reuse `POOL_ICON_OPTIONS` from `PoolIconSelector.tsx`) and a horizontal row of color circles below it. Same data, just rendered inside a `Popover` instead of inline.
-- The `PoolIconSelector` component file stays unchanged (its exported helpers `getPoolIconComponent`, `getPoolColorValue`, `PoolIconConfig` are still used). We just stop rendering the full component and instead build a smaller inline version directly in the dialog.
+- **Mode toggle**: Add a two-button toggle (`Schools` | `Tournaments`) at the top of the sticky filter bar, styled identically to the `FixturesFilters` toggle (two `Button` components, `variant="default"` for active, `variant="outline"` for inactive, each `flex-1`, `size="sm"`).
+- **Header icon/title**: Changes based on mode -- `School` icon + "Schools" vs `Trophy` icon + "Tournaments".
+- **Province filter**: Visible in both modes (tournaments also have a `province` column).
+- **Search placeholder**: Dynamically changes -- "Search schools..." / "Search tournaments...".
 
-### 2. Flatten Create Tab to Single View
+When mode is `"schools"`, render the existing school list (unchanged).
 
-Remove the two-step flow (`configure` -> `preview`). Everything happens in one scrollable view:
+When mode is `"tournaments"`, render the new tournament list.
 
-- **Top row**: Icon button + Name input (no label, placeholder "Enter pool name...")
-- **Remove**: Voting mode toggle and all voting-related UI/logic
-- **Remove**: Pool Packs / templates section (simplify)
-- **School selection**: Keep as-is (search + scrollable list with badges for selected), but remove the "Confirm Schools" intermediate step
-- **Create button**: At the bottom, directly calls `createPool()`. Validates inline (name + 5-10 schools). Shows `Loader2` spinner when creating.
-- **Remove**: Preview step entirely. No more `step` state.
+### 2. Tournament List View (within Schools.tsx)
 
-### 3. Compact Join Tab
+A list of tournaments fetched from the `tournaments` table with the same `divide-y` row pattern as schools:
 
-- Reduce invite code input from `h-12 text-lg` to `h-9 text-sm` with tighter `tracking-wider` instead of `tracking-widest`
-- Reduce Join button from `h-10` to `h-9`
-- Reduce confirmation card padding from `p-4` to `p-3`
-- Match dense typography used in Schools directory
+**Row layout per tournament:**
+- **Left**: 28px `Trophy` icon in a muted circle (matching school avatar sizing)
+- **Middle**: Tournament name (bold, truncated) on line 1, venue + date info on line 2 (`text-xs text-muted-foreground`)
+  - Date line: "Starts Mar 12" for upcoming, "Ended Feb 8" for past
+- **Right**: Follow star (same pattern as school stars, using `user_tournament_follows`)
+- **Entire row clickable**: navigates to `/tournament/:id`
 
-### 4. Toast Updates
+**Sorting logic:**
+- Primary: Tournaments where `start_date >= today` OR `end_date >= today` (active/upcoming) come first, ordered by `start_date` ascending
+- Secondary: Past tournaments (`end_date < today`) at the bottom, ordered by `end_date` descending
+- This sorting is done client-side after fetching all active tournaments
 
-- Create success toast: "Pool '[Name]' created! Invite your friends."
-- Keep join toast as-is
+**Follow system:**
+- Query `user_tournament_follows` for the current user
+- Star click opens the same `AlertDialog` pattern as school follows
+- Follow/unfollow inserts/deletes from `user_tournament_follows`
+- Toast feedback: "Now following [Tournament Name]" / "Unfollowed [Tournament Name]"
 
-### 5. Code Cleanup
+**Pagination:** Same `usePagination` hook, 20 per page
 
-- Remove `step` state and `handleConfirmSchools` function
-- Remove `votingMode` state and all voting-related logic
-- Remove `poolTemplates` state and `loadTemplates` function
-- Remove template-related UI
-- Simplify `createPool` to always set `voting_mode: false`, `is_voting_finalized: true`, `schools: selectedSchools`
-- Remove `loadTemplates` call from `useEffect`
+### 3. Update Bottom Nav Label (`src/components/BottomNav.tsx`)
+
+- Change the last nav item label from "Schools" to "Discover"
+- Keep the `School` icon (or optionally switch to `Compass` -- keeping `School` for now to be minimal)
+- Route stays `/schools` to avoid breaking links
+
+### 4. Update AnimatedRoutes Keep-Alive (`src/components/AnimatedRoutes.tsx`)
+
+No changes needed -- the `/schools` route is already in the keep-alive list and renders the same `Schools` component.
+
+### 5. Home Feed Integration (already done)
+
+The `useHomeFixtures` hook already:
+- Fetches `user_tournament_follows` for the current user
+- Queries fixtures matching those tournament IDs within a 7-day window
+- Merges them into `upcomingFixtures` with deduplication
+- These fixtures are interactive with the prediction dialog
+
+No changes needed to the home page or `useHomeFixtures`.
 
 ---
 
 ## Technical Details
 
 ### Files Modified
-- `src/components/pools/PoolActionDialog.tsx` -- major refactor of Create tab UI, compact Join tab
+- `src/pages/Schools.tsx` -- Add mode toggle state, tournament fetching query, tournament list rendering, tournament follow logic
+- `src/components/BottomNav.tsx` -- Change label from "Schools" to "Discover"
 
 ### No New Files Created
 
-### Key UI Structure (Create Tab)
+### Tournament Query
 ```text
-[Icon Popover Trigger (32px circle)] [Name Input "Enter pool name..." (flex-1)]
-
-Selected: [Badge] [Badge] [Badge x]
-
-[Search schools input]
-[Scrollable school list with toggle buttons]
-{selectedSchools.length}/10 · min 5
-
-[Create Pool button with spinner]
+supabase.from("tournaments")
+  .select("id, name, venue, province, start_date, end_date, is_active, logo_url")
+  .eq("is_active", true)
+  .order("start_date", { ascending: true })
 ```
 
-### Removed State/Logic
-- `step` (no more multi-step)
-- `votingMode` (removed feature)
-- `poolTemplates`, `loadTemplates` (removed templates)
-- `handleConfirmSchools` (replaced by direct validation in `createPool`)
+### Client-Side Sorting
+```text
+const now = new Date();
+const upcoming = tournaments.filter(t => new Date(t.end_date) >= now)
+  .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+const past = tournaments.filter(t => new Date(t.end_date) < now)
+  .sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
+const sorted = [...upcoming, ...past];
+```
 
-### Components Added to Imports
-- `Popover`, `PopoverTrigger`, `PopoverContent` from shadcn
+### Tournament Follow Queries
+```text
+// Fetch follows
+supabase.from("user_tournament_follows")
+  .select("tournament_id")
+  .eq("user_id", userId)
 
-### Validation
-- Pool name: `sanitizePoolName()` check, min 3 chars
-- Schools: 5-10 required
-- Both validated when user clicks "Create Pool", with toast errors
+// Follow
+supabase.from("user_tournament_follows")
+  .insert({ user_id, tournament_id })
+
+// Unfollow
+supabase.from("user_tournament_follows")
+  .delete()
+  .eq("user_id", userId)
+  .eq("tournament_id", tournamentId)
+```
+
+### State Additions to Schools.tsx
+- `mode: "schools" | "tournaments"` (default: "schools")
+- Tournament data query (React Query)
+- Tournament follows query (React Query)
+- `dialogTournament` state for follow/unfollow confirmation (reuses the same AlertDialog, extended to handle both schools and tournaments)
+
+### Shared AlertDialog
+The existing `AlertDialog` will be generalized to handle both types:
+- `dialogTarget: { type: "school" | "tournament"; id: string; name: string; isFollowed: boolean } | null`
+- `handleConfirmFollow` branches on `dialogTarget.type` to call the correct table
 
