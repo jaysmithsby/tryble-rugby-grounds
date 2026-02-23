@@ -80,6 +80,8 @@ export const useFixturesData = ({
           venue_type,
           venue_id,
           status,
+          score_a,
+          score_b,
           school_a_id,
           school_b_id,
           school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),

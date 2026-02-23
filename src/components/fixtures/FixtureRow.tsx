@@ -30,6 +30,8 @@ export interface Fixture {
   school_a: FixtureSchool;
   school_b: FixtureSchool;
   tournament?: { id: string; name: string } | null;
+  score_a?: number | null;
+  score_b?: number | null;
 }
 
 export interface FixtureRowProps {
@@ -107,15 +109,54 @@ const CenterArea = ({
   predictedSchoolName,
   predictedMargin,
   compact,
+  isPast,
+  scoreLeft,
+  scoreRight,
 }: {
   isPredicted?: boolean;
   onPredictionMade?: (schoolId: string, margin: number) => void;
   predictedSchoolName?: string;
   predictedMargin?: number;
   compact?: boolean;
+  isPast?: boolean;
+  scoreLeft?: number | null;
+  scoreRight?: number | null;
 }) => {
   const wrapClass = cn("flex flex-col items-center justify-center gap-1", compact ? "min-h-[36px]" : "min-h-[48px]");
+  const scoreSizeClass = compact ? "text-sm" : "text-xl";
 
+  // Priority 1: Past with scores
+  if (isPast && scoreLeft != null && scoreRight != null) {
+    return (
+      <div className={wrapClass}>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+          <span className={cn("font-mono font-bold text-foreground text-right", scoreSizeClass)}>{scoreLeft}</span>
+          <span className={cn("font-mono text-muted-foreground", scoreSizeClass)}>-</span>
+          <span className={cn("font-mono font-bold text-foreground text-left", scoreSizeClass)}>{scoreRight}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Priority 2 & 3: Past, no score
+  if (isPast) {
+    return (
+      <div className={wrapClass}>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+          <span className={cn("font-mono font-semibold text-muted-foreground text-right", scoreSizeClass)}>?</span>
+          <span className={cn("font-mono text-muted-foreground", scoreSizeClass)}>-</span>
+          <span className={cn("font-mono font-semibold text-muted-foreground text-left", scoreSizeClass)}>?</span>
+        </div>
+        {isPredicted && predictedSchoolName && (
+          <span className="text-[10px] text-muted-foreground text-center leading-tight">
+            {predictedSchoolName} by {predictedMargin}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // Priority 4: Future, prediction locked
   if (isPredicted) {
     return (
       <div className={wrapClass}>
@@ -126,6 +167,8 @@ const CenterArea = ({
       </div>
     );
   }
+
+  // Priority 5: Future, pick needed
   if (onPredictionMade) {
     return (
       <div className={wrapClass}>
@@ -134,6 +177,8 @@ const CenterArea = ({
       </div>
     );
   }
+
+  // Priority 6: Future, no prediction context
   return (
     <div className={wrapClass}>
       <span className={cn("font-semibold text-muted-foreground", compact ? "text-sm" : "text-xl font-bold")}>VS</span>
@@ -163,6 +208,10 @@ export const FixtureRow = ({
   const [autoHasHistory, setAutoHasHistory] = useState<boolean | null>(null);
 
   const [left, right, leftIsA] = useMemo(() => sortSchoolsAlpha(fixture), [fixture]);
+
+  const isPast = new Date(fixture.match_date) < new Date();
+  const leftScore = leftIsA ? (fixture.score_a ?? null) : (fixture.score_b ?? null);
+  const rightScore = leftIsA ? (fixture.score_b ?? null) : (fixture.score_a ?? null);
 
   useEffect(() => {
     if (hasHistory !== undefined) return;
@@ -204,10 +253,13 @@ export const FixtureRow = ({
   const centerArea = (
     <CenterArea
       isPredicted={isPredicted}
-      onPredictionMade={onPredictionMade}
+      onPredictionMade={isPast ? undefined : onPredictionMade}
       predictedSchoolName={predictedSchoolName}
       predictedMargin={predictedMargin}
       compact={variant === "table"}
+      isPast={isPast}
+      scoreLeft={leftScore}
+      scoreRight={rightScore}
     />
   );
 
