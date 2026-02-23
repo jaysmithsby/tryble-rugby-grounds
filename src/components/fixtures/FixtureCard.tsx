@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Lock, Trophy, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Lock, Trophy, AlertCircle, MapPin } from "lucide-react";
 import { PredictionDialog } from "@/components/home/PredictionDialog";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
-import { MatchHistory } from "@/components/fixtures/MatchHistory";
 import { format } from "date-fns";
 
 interface FixtureCardProps {
@@ -167,13 +167,6 @@ export const FixtureCard = ({
             <span className="text-xs font-medium text-center line-clamp-2">{awayTeam}</span>
           </div>
         </div>
-
-        {/* Match History */}
-        {homeSchoolId && awaySchoolId && (
-          <div className="border-t border-border/40 -mx-4 -mb-4 px-0">
-            <MatchHistory leftSchoolId={homeSchoolId} rightSchoolId={awaySchoolId} />
-          </div>
-        )}
 
       </div>
     </Card>
