@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Star, Users, Trophy } from "lucide-react";
@@ -16,7 +17,7 @@ export default function SchoolProfile() {
   const { toast } = useToast();
   const [school, setSchool] = useState<any>(null);
   const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
-  const [recentResults, setRecentResults] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [primarySchoolId, setPrimarySchoolId] = useState<string | null>(null);
@@ -162,27 +163,8 @@ export default function SchoolProfile() {
       const upcoming = (upcomingData || []) as any[];
       setUpcomingFixtures(upcoming);
 
-      // Load match history map for upcoming + recent
-      const { data: resultsData } = await supabase
-        .from("fixtures")
-        .select(`
-          id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby, score_a, score_b,
-          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
-          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
-          tournament:tournaments(id, name)
-        `)
-        .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
-        .eq("status", "completed")
-        .not("score_a", "is", null)
-        .not("score_b", "is", null)
-        .order("match_date", { ascending: false })
-        .limit(5);
-
-      const results = (resultsData || []) as any[];
-      setRecentResults(results);
-
-      // Load history map for all displayed fixtures
-      loadMatchHistory([...upcoming, ...results]);
+      // Load history map for upcoming fixtures
+      loadMatchHistory(upcoming);
 
       // Load predictions for upcoming fixtures if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
@@ -336,12 +318,10 @@ export default function SchoolProfile() {
         )}
 
         {/* Recent Results */}
-        {recentResults.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
-            <FixtureTable fixtures={recentResults} hasHistoryMap={hasHistoryMap} />
-          </section>
-        )}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
+          <RecentResultsTable schoolId={school.id} />
+        </section>
       </main>
 
       <BottomNav />
