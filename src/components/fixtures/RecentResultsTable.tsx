@@ -32,7 +32,7 @@ export function RecentResultsTable({ schoolId }: RecentResultsTableProps) {
   const [results, setResults] = useState<ResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { page, from, to, totalPages, setTotalCount, nextPage, prevPage, hasNextPage, hasPrevPage } =
-    usePagination(1, 10);
+    usePagination(1, 5);
 
   useEffect(() => {
     const fetchResults = async () => {
