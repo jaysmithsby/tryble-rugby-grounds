@@ -1,135 +1,137 @@
 
-# Leaderboard Rows on Pools Page
+
+# Leaderboard Detail Page
 
 ## Overview
-Add a "Leaderboards" section below the "Your Pools" list on the Pools page, using rows that visually match `PoolListRow`. Each row links to a specific leaderboard view, showing participant count and the user's rank.
+Create a new `LeaderboardDetail` page accessible from the Pools page leaderboard rows. It features a compact header, an SVG-based box-and-whisker accuracy distribution chart, a high-density ranking table (20 rows/page), and a sticky "Your Standings" footer bar.
 
 ## Changes
 
-### 1. Create `src/components/pools/LeaderboardRow.tsx`
+### 1. Create route in `src/components/AnimatedRoutes.tsx`
 
-A new component mirroring `PoolListRow` layout:
-- **Left**: 32px circular icon area (Lucide icon or school emblem image) + leaderboard name
-- **Middle**: Participant count with Users icon (e.g., "1,240")
-- **Right**: User rank with Trophy icon (e.g., "#14" or "--")
-- **Click**: Navigates to `/leaderboard` (for global) or `/school/:slug` (for school leaderboards)
-- Uses the same `-mx-4 px-4 flex items-center justify-between py-3 hover:bg-muted/50 cursor-pointer` classes
+Add a lazy import and route for the new page:
+- `const LeaderboardDetail = lazy(() => import("@/pages/LeaderboardDetail"));`
+- Route: `<Route path="/leaderboard/:type/:id" element={<LeaderboardDetail />} />`
 
-Props: `icon` (ReactNode for the 32px circle), `name` (string), `memberCount` (number), `userRank` (number | null), `onClick` (function)
+### 2. Update navigation in `src/pages/Pools.tsx`
 
-### 2. Update `src/pages/Pools.tsx`
+Change the leaderboard row `onClick` handlers to navigate to the new detail route:
+- Global: `navigate("/leaderboard/global/all")`
+- Primary School: `navigate(`/leaderboard/school/${primarySchool.id}`)`
+- Followed Schools: `navigate(`/leaderboard/school/${school.id}`)`
 
-**New data fetching** (inside `loadData`, after pools are loaded):
-- Get `currentUserId` from the auth call (already available as `user.id`)
-- **Profile query**: Fetch the user's `school_id` from `profiles`
-- **Primary school query**: If `school_id` exists, fetch the school's `name`, `slug`, `emblem_url`, `jersey_url` from `schools`
-- **Followed schools query**: Fetch from `user_school_follows` joined with `schools` (name, slug, emblem_url, jersey_url), excluding the primary school
-- **Global rank**: Query `user_scores` for the current user, current week/year, to get `rank_global`
-- **Global user count**: Query `profiles` with `select("*", { count: "exact", head: true })`
-- **Primary school rank**: Query `user_scores` for the user to get `rank_school`; count profiles with matching `school_id`
-- **Followed school ranks**: For each followed school, count followers from `user_school_follows`; rank is not directly stored, so display "--" initially (or derive from `user_scores` if available)
+### 3. Create `src/pages/LeaderboardDetail.tsx`
 
-**New state**:
-- `currentUserId: string | null`
-- `primarySchool: { name, slug, emblem_url, jersey_url } | null`
-- `followedSchools: Array<{ id, name, slug, emblem_url, jersey_url, followerCount }>`
-- `globalRank: number | null`
-- `globalUserCount: number`
-- `schoolRank: number | null`
-- `primarySchoolMemberCount: number`
+**Page Header:**
+- Dynamic title based on route params: "Global Leaderboard", or school name fetched from `schools` table
+- Stats row: total player count + "Average Accuracy: X%" calculated from the fetched data
+- Back button (ChevronLeft) to return to `/pools`
 
-**New section in JSX** (after the pool list div, before `PoolActionDialog`):
-```
-<section>
-  <h2 className="text-sm font-semibold text-muted-foreground mb-3">Leaderboards</h2>
-  <div className="divide-y divide-border/40">
-    <LeaderboardRow ... /> {/* Global */}
-    <LeaderboardRow ... /> {/* Primary School */}
-    {followedSchools.map(school => <LeaderboardRow ... />)}
-  </div>
-</section>
-```
+**Box-and-Whisker Visualization** ("Pool Performance Distribution"):
+- A custom SVG component rendered above the table
+- Horizontal line from min to max accuracy in the dataset (the "whisker")
+- Filled rectangle from Q1 to Q3 (the "box", interquartile range)
+- Vertical line at the median
+- A distinct marker (triangle/arrow) showing the current user's accuracy position
+- All values computed client-side from the fetched `accuracy_percentage` array using simple sorting
 
-The leaderboard rows use the same `divide-y` styling as the pool list for visual continuity.
+**Ranking Table:**
+- Columns: Rank | User (avatar initials + display name) | Points | Accuracy % | Picks
+- 20 rows per page with Prev/Next pagination
+- Current user's row highlighted with `bg-primary/10`
+- Data source: `user_scores` joined with `profiles_public`
+  - If `type === "global"`: fetch all users ordered by `season_points DESC`
+  - If `type === "school"`: fetch users whose profile `school_id` matches the `:id` param
+- Accuracy calculated as: `predictions_correct / predictions_made * 100` (from `user_scores` columns)
 
-### 3. Navigation Targets
+**Sticky Footer Bar:**
+- Only visible when the user's row is NOT on the current page
+- Shows: "Your Standings: Rank #X | Y% Accuracy | Z pts"
+- "Jump to My Page" button that calculates and navigates to the correct page number
 
-- **Global**: `navigate("/leaderboard")` -- existing page
-- **School rows**: `navigate(`/school/${slug}`)` -- existing school profile page
+### 4. Data Fetching Strategy
 
-No new routes needed.
-
-## Technical Details
-
-### LeaderboardRow component structure
 ```text
-<div className="-mx-4 px-4 flex items-center justify-between py-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={onClick}>
-  <div className="flex items-center gap-3 min-w-0 flex-1">
-    {/* 32px icon circle */}
-    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
-      {icon}  {/* Either <Trophy /> or <img src={emblem} /> */}
-    </div>
-    <span className="text-sm font-medium truncate">{name}</span>
-  </div>
-  <div className="flex items-center gap-5 shrink-0">
-    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-      <Users className="w-3 h-3" />
-      <span>{memberCount.toLocaleString()}</span>
-    </div>
-    <div className="flex items-center gap-1 text-xs text-muted-foreground w-8 justify-end">
-      <Trophy className="w-3 h-3" />
-      <span>{userRank ? `#${userRank}` : "--"}</span>
-    </div>
-  </div>
-</div>
-```
+// Step 1: Determine leaderboard type and fetch context
+const { type, id } = useParams();  // type: "global" | "school", id: "all" | school UUID
 
-### Data queries in Pools.tsx loadData
-```text
-// Profile + school
-const { data: profile } = await supabase
-  .from("profiles").select("school_id").eq("id", user.id).single();
-
-// Primary school details
-if (profile?.school_id) {
-  const { data: school } = await supabase
-    .from("schools").select("id, name, slug, emblem_url, jersey_url")
-    .eq("id", profile.school_id).single();
+// Step 2: If school type, fetch school name
+if (type === "school") {
+  const { data } = await supabase.from("schools")
+    .select("name").eq("id", id).single();
 }
 
-// Followed schools (excluding primary)
-const { data: follows } = await supabase
-  .from("user_school_follows")
-  .select("school_id, schools(id, name, slug, emblem_url, jersey_url)")
-  .eq("user_id", user.id);
-// Filter out primary school_id
+// Step 3: Fetch all scores for this leaderboard (for box-whisker stats)
+// Global: all user_scores for current year, latest week
+// School: user_scores where user_id IN (profiles where school_id = id)
+const currentYear = new Date().getFullYear();
 
-// User scores for ranks
-const { data: scores } = await supabase
-  .from("user_scores").select("rank_global, rank_school")
-  .eq("user_id", user.id).eq("season_year", currentYear)
-  .order("week_number", { ascending: false }).limit(1);
-
-// Global user count
-const { count: globalCount } = await supabase
-  .from("profiles").select("*", { count: "exact", head: true });
-
-// Primary school member count
-const { count: schoolCount } = await supabase
-  .from("profiles").select("*", { count: "exact", head: true })
-  .eq("school_id", profile.school_id);
-
-// Followed school follower counts
-for (const school of followedSchools) {
-  const { count } = await supabase
-    .from("user_school_follows").select("*", { count: "exact", head: true })
-    .eq("school_id", school.id);
+// For school type, first get user IDs
+let userFilter: string[] | null = null;
+if (type === "school") {
+  const { data: profiles } = await supabase.from("profiles")
+    .select("id").eq("school_id", id);
+  userFilter = profiles?.map(p => p.id) || [];
 }
+
+// Fetch scores
+let query = supabase.from("user_scores")
+  .select("user_id, season_points, weekly_points, predictions_made, predictions_correct, rank_global, rank_school")
+  .eq("season_year", currentYear)
+  .order("season_points", { ascending: false });
+
+if (userFilter) {
+  query = query.in("user_id", userFilter);
+}
+
+// Step 4: Fetch display names from profiles_public
+const { data: profiles } = await supabase.from("profiles_public")
+  .select("id, display_name, school_name")
+  .in("id", userIds);
+
+// Step 5: Compute box-whisker stats from accuracy values
+const accuracies = scores.map(s => 
+  s.predictions_made > 0 ? (s.predictions_correct / s.predictions_made) * 100 : 0
+).sort((a, b) => a - b);
+
+const min = accuracies[0];
+const max = accuracies[accuracies.length - 1];
+const q1 = accuracies[Math.floor(accuracies.length * 0.25)];
+const median = accuracies[Math.floor(accuracies.length * 0.5)];
+const q3 = accuracies[Math.floor(accuracies.length * 0.75)];
 ```
 
-### School emblem in icon circle
-For school rows, use `getSchoolDisplayImage()` from `@/lib/schoolImageUtils` to resolve the emblem URL. If an image exists, render `<img>` inside the circle; otherwise fall back to school initials.
+### 5. Box-and-Whisker SVG Component
 
-### Files modified
-- `src/components/pools/LeaderboardRow.tsx` -- new file
-- `src/pages/Pools.tsx` -- add leaderboard section with data fetching
+Inline SVG rendered within the page (no separate file needed):
+- Width: 100% of container, height: ~60px
+- Light gray background bar (full width = 0-100% range)
+- Thin horizontal line from `min` to `max` (whisker)
+- Filled rectangle from `q1` to `q3` with `bg-primary/20` fill and `border-primary` stroke
+- Vertical line at `median` position
+- Small triangle marker at the user's accuracy position in a distinct accent color
+- Labels: "Min", "Max", "You" positioned near their markers
+
+### 6. Section Layout
+
+```text
+GlobalHeader
+  Back button + Title (e.g., "Global Leaderboard")
+  Stats: "{N} players . Avg Accuracy: {X}%"
+
+  "Pool Performance Distribution" heading
+  Box-and-Whisker SVG
+
+  Ranking Table (20 rows/page)
+    Rank | User | Points | Accuracy | Picks
+  Pagination (Prev / Page X of Y / Next)
+
+  Sticky Footer (when user not on current page):
+    "Your Standings: Rank #14 | 88% | 950 pts" + "Jump" button
+BottomNav
+```
+
+### Files modified/created
+- `src/pages/LeaderboardDetail.tsx` -- new file
+- `src/components/AnimatedRoutes.tsx` -- add route + lazy import
+- `src/pages/Pools.tsx` -- update navigation targets for leaderboard rows
