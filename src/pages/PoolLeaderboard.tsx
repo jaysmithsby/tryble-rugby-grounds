@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Lock, Clock, Users, Trophy, Hash, Calendar } from "lucide-react";
+import { BoxWhiskerChart, computeBoxWhisker } from "@/components/ui/BoxWhiskerChart";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -519,6 +520,16 @@ export const PoolLeaderboard = () => {
                 </PopoverContent>
               </Popover>
             </div>
+
+            {/* Box & Whisker - Points Efficiency */}
+            {(() => {
+              const withPicks = leaderboard.filter(e => e.picks > 0);
+              const effs = withPicks.map(e => e.points / e.picks);
+              const userEntry = leaderboard.find(e => e.userId === currentUserId);
+              const userEff = userEntry && userEntry.picks > 0 ? userEntry.points / userEntry.picks : null;
+              const stats = computeBoxWhisker(effs, userEff);
+              return stats ? <BoxWhiskerChart stats={stats} /> : null;
+            })()}
 
             {/* Leaderboard Table (same as LeaderboardDetail) */}
             {paginatedLeaderboard.length > 0 ? (

@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
+import { BoxWhiskerChart, computeBoxWhisker } from "@/components/ui/BoxWhiskerChart";
 
 const ROWS_PER_PAGE = 20;
 const AVAILABLE_SEASONS = [2025, 2026];
@@ -22,111 +23,8 @@ type ScoreRow = {
   rank_school: number | null;
   display_name: string | null;
   accuracy: number;
+  efficiency: number;
 };
-
-type BoxWhiskerStats = {
-  min: number;
-  max: number;
-  q1: number;
-  median: number;
-  q3: number;
-  userAccuracy: number | null;
-};
-
-function computeBoxWhisker(accuracies: number[], userAcc: number | null): BoxWhiskerStats | null {
-  if (accuracies.length === 0) return null;
-  const sorted = [...accuracies].sort((a, b) => a - b);
-  return {
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
-    q1: sorted[Math.floor(sorted.length * 0.25)],
-    median: sorted[Math.floor(sorted.length * 0.5)],
-    q3: sorted[Math.floor(sorted.length * 0.75)],
-    userAccuracy: userAcc,
-  };
-}
-
-function BoxWhiskerChart({ stats }: { stats: BoxWhiskerStats }) {
-  const pad = 16;
-  const chartWidth = 100; // percentage-based
-  const toX = (val: number) => `${Math.max(0, Math.min(100, val))}%`;
-
-  return (
-    <div className="rounded-lg border border-border bg-muted/30 p-4">
-      <h3 className="text-xs font-semibold text-muted-foreground mb-3">Pool Performance Distribution</h3>
-      <svg viewBox={`0 0 400 60`} className="w-full h-[60px]" preserveAspectRatio="xMidYMid meet">
-        {/* Background track */}
-        <rect x="20" y="22" width="360" height="16" rx="8" fill="hsl(var(--muted))" />
-
-        {/* Whisker line: min to max */}
-        <line
-          x1={20 + (stats.min / 100) * 360}
-          x2={20 + (stats.max / 100) * 360}
-          y1="30" y2="30"
-          stroke="hsl(var(--muted-foreground))" strokeWidth="1.5"
-        />
-
-        {/* Min cap */}
-        <line
-          x1={20 + (stats.min / 100) * 360}
-          x2={20 + (stats.min / 100) * 360}
-          y1="24" y2="36"
-          stroke="hsl(var(--muted-foreground))" strokeWidth="1.5"
-        />
-
-        {/* Max cap */}
-        <line
-          x1={20 + (stats.max / 100) * 360}
-          x2={20 + (stats.max / 100) * 360}
-          y1="24" y2="36"
-          stroke="hsl(var(--muted-foreground))" strokeWidth="1.5"
-        />
-
-        {/* IQR box */}
-        <rect
-          x={20 + (stats.q1 / 100) * 360}
-          y="20"
-          width={((stats.q3 - stats.q1) / 100) * 360}
-          height="20"
-          rx="3"
-          fill="hsl(var(--primary) / 0.2)"
-          stroke="hsl(var(--primary))"
-          strokeWidth="1.5"
-        />
-
-        {/* Median line */}
-        <line
-          x1={20 + (stats.median / 100) * 360}
-          x2={20 + (stats.median / 100) * 360}
-          y1="18" y2="42"
-          stroke="hsl(var(--primary))" strokeWidth="2"
-        />
-
-        {/* User marker (triangle) */}
-        {stats.userAccuracy !== null && (
-          <polygon
-            points={`${20 + (stats.userAccuracy / 100) * 360},14 ${20 + (stats.userAccuracy / 100) * 360 - 5},6 ${20 + (stats.userAccuracy / 100) * 360 + 5},6`}
-            fill="hsl(var(--accent-foreground))"
-          />
-        )}
-
-        {/* Labels */}
-        <text x={20 + (stats.min / 100) * 360} y="54" textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))">{stats.min.toFixed(0)}%</text>
-        <text x={20 + (stats.max / 100) * 360} y="54" textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))">{stats.max.toFixed(0)}%</text>
-        {stats.userAccuracy !== null && (
-          <text x={20 + (stats.userAccuracy / 100) * 360} y="4" textAnchor="middle" fontSize="8" fontWeight="bold" fill="hsl(var(--accent-foreground))">You</text>
-        )}
-      </svg>
-      <div className="flex justify-between text-[10px] text-muted-foreground mt-1 px-1">
-        <span>Min</span>
-        <span>Q1: {stats.q1.toFixed(0)}%</span>
-        <span>Median: {stats.median.toFixed(0)}%</span>
-        <span>Q3: {stats.q3.toFixed(0)}%</span>
-        <span>Max</span>
-      </div>
-    </div>
-  );
-}
 
 const LeaderboardDetail = () => {
   const { type, id } = useParams<{ type: string; id: string }>();
@@ -215,18 +113,22 @@ const LeaderboardDetail = () => {
       // Build rows sorted by season_points DESC
       const rows: ScoreRow[] = dedupedScores
         .sort((a, b) => (b.season_points ?? 0) - (a.season_points ?? 0))
-        .map(s => ({
-          user_id: s.user_id,
-          season_points: s.season_points ?? 0,
-          predictions_made: s.predictions_made ?? 0,
-          predictions_correct: s.predictions_correct ?? 0,
-          rank_global: s.rank_global,
-          rank_school: s.rank_school,
-          display_name: nameMap.get(s.user_id) ?? null,
-          accuracy: (s.predictions_made ?? 0) > 0
-            ? ((s.predictions_correct ?? 0) / (s.predictions_made ?? 0)) * 100
-            : 0,
-        }));
+        .map(s => {
+          const made = s.predictions_made ?? 0;
+          const correct = s.predictions_correct ?? 0;
+          const pts = s.season_points ?? 0;
+          return {
+            user_id: s.user_id,
+            season_points: pts,
+            predictions_made: made,
+            predictions_correct: correct,
+            rank_global: s.rank_global,
+            rank_school: s.rank_school,
+            display_name: nameMap.get(s.user_id) ?? null,
+            accuracy: made > 0 ? (correct / made) * 100 : 0,
+            efficiency: made > 0 ? pts / made : 0,
+          };
+        });
 
       setAllRows(rows);
     } catch (err) {
@@ -245,9 +147,10 @@ const LeaderboardDetail = () => {
   }, [allRows]);
 
   const boxStats = useMemo(() => {
-    const accs = allRows.map(r => r.accuracy);
+    const effs = allRows.filter(r => r.predictions_made > 0).map(r => r.efficiency);
     const userRow = allRows.find(r => r.user_id === currentUserId);
-    return computeBoxWhisker(accs, userRow?.accuracy ?? null);
+    const userEff = userRow && userRow.predictions_made > 0 ? userRow.efficiency : null;
+    return computeBoxWhisker(effs, userEff);
   }, [allRows, currentUserId]);
 
   const currentUserRow = allRows.find(r => r.user_id === currentUserId);
