@@ -274,26 +274,21 @@ export default function SchoolProfile() {
               .join(" · ")}
           </p>
         )}
+
+        {/* Inline Stats */}
+        <div className="flex items-center gap-4 pl-11 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Users className="w-3.5 h-3.5" />
+            {followerCount} Followers
+          </span>
+          <span className="flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5" />
+            {school.springboks_count ?? 0} Springboks
+          </span>
+        </div>
       </div>
 
       <main className="px-4 py-4 space-y-6 max-w-7xl mx-auto">
-        {/* Impact Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg bg-muted/30 border border-border/40 p-4 text-center">
-            <div className="flex items-center justify-center gap-1.5 mb-1">
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-primary">{followerCount}</div>
-            <div className="text-xs text-muted-foreground">Followers</div>
-          </div>
-          <div className="rounded-lg bg-muted/30 border border-border/40 p-4 text-center">
-            <div className="flex items-center justify-center gap-1.5 mb-1">
-              <Trophy className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-primary">{school.springboks_count ?? 0}</div>
-            <div className="text-xs text-muted-foreground">Springboks</div>
-          </div>
-        </div>
 
         {/* Upcoming Fixtures */}
         {upcomingFixtures.length > 0 && (
