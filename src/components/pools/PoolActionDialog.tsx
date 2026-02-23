@@ -2,30 +2,58 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, X, Search, UserPlus, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { X, Search, UserPlus, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizePoolName } from "@/lib/profanityFilter";
 import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
-import { PoolIconSelector, type PoolIconConfig, getPoolIconComponent, getPoolColorValue } from "./PoolIconSelector";
+import { type PoolIconConfig, getPoolIconComponent, getPoolColorValue } from "./PoolIconSelector";
+import { cn } from "@/lib/utils";
+
+// Re-declare icon/color options locally to build the inline popover
+import {
+  Shield, Trophy, Swords, Flag, Star, Zap, Target, Crown,
+  Flame, Medal, Mountain, Castle, Users, GraduationCap,
+  Anchor, BookOpen,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+const ICON_OPTIONS: { id: string; icon: LucideIcon; label: string }[] = [
+  { id: "shield", icon: Shield, label: "Shield" },
+  { id: "trophy", icon: Trophy, label: "Trophy" },
+  { id: "swords", icon: Swords, label: "Swords" },
+  { id: "flag", icon: Flag, label: "Flag" },
+  { id: "star", icon: Star, label: "Star" },
+  { id: "zap", icon: Zap, label: "Lightning" },
+  { id: "target", icon: Target, label: "Target" },
+  { id: "crown", icon: Crown, label: "Crown" },
+  { id: "flame", icon: Flame, label: "Flame" },
+  { id: "medal", icon: Medal, label: "Medal" },
+  { id: "mountain", icon: Mountain, label: "Mountain" },
+  { id: "castle", icon: Castle, label: "Castle" },
+  { id: "users", icon: Users, label: "Team" },
+  { id: "graduation-cap", icon: GraduationCap, label: "Scholar" },
+  { id: "anchor", icon: Anchor, label: "Anchor" },
+  { id: "book-open", icon: BookOpen, label: "Book" },
+];
+
+const COLOR_OPTIONS = [
+  { id: "green", value: "#10B981" },
+  { id: "red", value: "#EF4444" },
+  { id: "blue", value: "#3B82F6" },
+  { id: "gold", value: "#F59E0B" },
+  { id: "white", value: "#FFFFFF" },
+];
 
 interface School {
   id: string;
   name: string;
   icon_url: string | null;
-}
-
-interface PoolTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  schools: string[];
 }
 
 interface PoolActionDialogProps {
@@ -36,14 +64,10 @@ interface PoolActionDialogProps {
 
 export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActionDialogProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // --- Create tab state ---
-  const [step, setStep] = useState<"configure" | "preview">("configure");
   const [poolName, setPoolName] = useState("");
-  const [votingMode, setVotingMode] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [poolTemplates, setPoolTemplates] = useState<PoolTemplate[]>([]);
   const [schoolSearch, setSchoolSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [iconConfig, setIconConfig] = useState<PoolIconConfig>({ iconId: "trophy", colorId: "green" });
@@ -57,10 +81,6 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
 
   const { schools: availableSchools } = useSchoolsQuery<School>({ select: "id, name, icon_url" });
 
-  useEffect(() => {
-    if (open) loadTemplates();
-  }, [open]);
-
   // Auto-verify join code
   useEffect(() => {
     setFoundPool(null);
@@ -69,19 +89,6 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
       verifyCode(joinCode);
     }
   }, [joinCode]);
-
-  const loadTemplates = async () => {
-    try {
-      const { data } = await supabase
-        .from("pool_templates")
-        .select("*")
-        .eq("status", "approved")
-        .order("name");
-      setPoolTemplates(data || []);
-    } catch (e) {
-      console.error("Error loading templates:", e);
-    }
-  };
 
   const verifyCode = async (code: string) => {
     setVerifying(true);
@@ -114,7 +121,7 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
         .single();
 
       if (existing) {
-        toast({ title: "Already a member", description: "You're already in this pool!" });
+        toast.info("You're already in this pool!");
         resetAndClose();
         return;
       }
@@ -124,21 +131,14 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
         .insert({ pool_id: foundPool.id, user_id: user.id });
       if (error) throw error;
 
-      toast({ title: "Joined pool!", description: `Welcome to ${foundPool.name}` });
+      toast.success(`Joined ${foundPool.name}!`);
       resetAndClose();
       onPoolCreated();
     } catch (error: any) {
-      toast({ title: "Error joining pool", description: error.message, variant: "destructive" });
+      toast.error(error.message || "Error joining pool");
     } finally {
       setJoining(false);
     }
-  };
-
-  // --- Create tab logic (from CreatePoolDialog) ---
-  const applyTemplate = (template: PoolTemplate) => {
-    setSelectedSchools(template.schools);
-    setVotingMode(false);
-    toast({ title: "Template applied", description: `${template.schools.length} schools selected from ${template.name}` });
   };
 
   const toggleSchool = (schoolName: string) => {
@@ -153,20 +153,18 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
     s.name.toLowerCase().includes(schoolSearch.toLowerCase())
   );
 
-  const handleConfirmSchools = () => {
+  const createPool = async () => {
+    // Validate
     const validation = sanitizePoolName(poolName);
     if (!validation.isValid) {
-      toast({ title: "Invalid pool name", description: validation.message, variant: "destructive" });
+      toast.error(validation.message || "Invalid pool name");
       return;
     }
-    if (!votingMode && selectedSchools.length < 5) {
-      toast({ title: "Minimum schools required", description: "Please select at least 5 schools.", variant: "destructive" });
+    if (selectedSchools.length < 5) {
+      toast.error("Please select at least 5 schools.");
       return;
     }
-    setStep("preview");
-  };
 
-  const createPool = async () => {
     setCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -174,23 +172,16 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
 
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      let votingClosesAt = null;
-      if (votingMode) {
-        const { data, error } = await supabase.rpc("get_next_friday_8pm", { from_time: new Date().toISOString() });
-        if (error) throw error;
-        votingClosesAt = data;
-      }
-
       const { data: pool, error: poolError } = await supabase
         .from("pools")
         .insert({
           name: poolName,
           invite_code: inviteCode,
           creator_id: user.id,
-          schools: votingMode ? [] : selectedSchools,
-          voting_mode: votingMode,
-          voting_closes_at: votingClosesAt,
-          is_voting_finalized: !votingMode,
+          schools: selectedSchools,
+          voting_mode: false,
+          voting_closes_at: null,
+          is_voting_finalized: true,
           max_schools: 10,
           icon_id: iconConfig.iconId,
           color_id: iconConfig.colorId,
@@ -202,12 +193,12 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
 
       await supabase.from("pool_members").insert({ pool_id: pool.id, user_id: user.id });
 
-      toast({ title: "Pool created!", description: `Invite code: ${inviteCode}` });
+      toast.success(`Pool '${poolName}' created! Invite your friends.`);
       resetAndClose();
       navigate(`/pool/${pool.id}`);
       onPoolCreated();
     } catch (error: any) {
-      toast({ title: "Error creating pool", description: error.message, variant: "destructive" });
+      toast.error(error.message || "Error creating pool");
     } finally {
       setCreating(false);
     }
@@ -216,8 +207,6 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
   const resetAndClose = () => {
     setPoolName("");
     setSelectedSchools([]);
-    setVotingMode(false);
-    setStep("configure");
     setSchoolSearch("");
     setIconConfig({ iconId: "trophy", colorId: "green" });
     setJoinCode("");
@@ -226,7 +215,10 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
     onOpenChange(false);
   };
 
-  const isConfigureValid = poolName.trim().length >= 3 && (votingMode || (selectedSchools.length >= 5 && selectedSchools.length <= 10));
+  const isCreateValid = poolName.trim().length >= 3 && selectedSchools.length >= 5 && selectedSchools.length <= 10;
+
+  const SelectedIcon = getPoolIconComponent(iconConfig.iconId);
+  const selectedColor = getPoolColorValue(iconConfig.colorId);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -246,184 +238,168 @@ export function PoolActionDialog({ open, onOpenChange, onPoolCreated }: PoolActi
 
           {/* ===== CREATE TAB ===== */}
           <TabsContent value="create" className="flex-1 overflow-y-auto px-6 pb-6 mt-0">
-            {step === "configure" && (
-              <div className="space-y-5 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="poolNameAction">Pool Name</Label>
-                  <Input
-                    id="poolNameAction"
-                    placeholder="e.g., MHS Rugby Fans 2025"
-                    value={poolName}
-                    onChange={(e) => setPoolName(e.target.value)}
-                    maxLength={50}
-                  />
-                  <p className="text-xs text-muted-foreground">Choose a respectful, school-appropriate name</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Pool Icon & Color</Label>
-                  <PoolIconSelector config={iconConfig} onChange={setIconConfig} />
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-medium">Voting Mode</Label>
-                    <p className="text-xs text-muted-foreground">Let members vote on schools</p>
-                  </div>
-                  <Switch checked={votingMode} onCheckedChange={setVotingMode} />
-                </div>
-
-                {!votingMode && (
-                  <div className="space-y-3">
-                    {poolTemplates.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Pool Packs</Label>
-                        <ScrollArea className="h-28 border rounded-lg bg-muted/30">
-                          <div className="p-2 space-y-1">
-                            {poolTemplates.map((t) => (
-                              <Button key={t.id} variant="outline" size="sm" onClick={() => applyTemplate(t)} className="w-full justify-start h-auto py-2 px-3">
-                                <div className="text-left w-full">
-                                  <div className="font-medium text-sm">{t.name}</div>
-                                  {t.description && <div className="text-xs text-muted-foreground mt-0.5">{t.description} · {t.schools.length} schools</div>}
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label>Select Schools (5–10)</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedSchools.length}/10 selected
-                        {selectedSchools.length < 5 && <span className="text-destructive ml-1">(min 5)</span>}
-                      </p>
-                    </div>
-
-                    {selectedSchools.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg bg-muted/30">
-                        {selectedSchools.map((s) => (
-                          <Badge key={s} variant="default" className="cursor-pointer h-6 px-2 text-xs" onClick={() => toggleSchool(s)}>
-                            {s}<X className="w-3 h-3 ml-1" />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input placeholder="Search schools..." value={schoolSearch} onChange={(e) => setSchoolSearch(e.target.value)} className="pl-9 h-9" />
-                      </div>
-                      <ScrollArea className="h-44 border rounded-lg bg-background">
-                        <div className="p-2 space-y-1">
-                          {filteredSchools.length > 0 ? filteredSchools.map((school) => (
-                            <Button
-                              key={school.name}
-                              variant={selectedSchools.includes(school.name) ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => toggleSchool(school.name)}
-                              disabled={selectedSchools.length >= 10 && !selectedSchools.includes(school.name)}
-                              className="w-full justify-start h-9 gap-2"
-                            >
-                              {school.icon_url && <img src={school.icon_url} alt="" className="w-5 h-5 object-contain shrink-0" />}
-                              <span className="truncate">{school.name}</span>
-                            </Button>
-                          )) : (
-                            <p className="text-sm text-muted-foreground text-center py-6">No schools found</p>
+            <div className="space-y-4 pt-4">
+              {/* Icon + Name row */}
+              <div className="flex items-center gap-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors hover:opacity-80"
+                      style={{ borderColor: selectedColor, backgroundColor: `${selectedColor}15` }}
+                    >
+                      <SelectedIcon className="w-4 h-4" style={{ color: selectedColor }} />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-3" align="start">
+                    <div className="grid grid-cols-4 gap-1.5 mb-3">
+                      {ICON_OPTIONS.map(({ id, icon: Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setIconConfig(c => ({ ...c, iconId: id }))}
+                          className={cn(
+                            "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
+                            iconConfig.iconId === id ? "ring-2 bg-muted/30" : "hover:bg-muted/20"
                           )}
-                        </div>
-                      </ScrollArea>
+                          style={iconConfig.iconId === id ? { "--tw-ring-color": selectedColor } as React.CSSProperties : undefined}
+                        >
+                          <Icon
+                            className="w-4 h-4"
+                            style={{ color: iconConfig.iconId === id ? selectedColor : "hsl(var(--muted-foreground))" }}
+                          />
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                )}
-
-                {votingMode && (
-                  <div className="p-3 bg-muted/50 rounded-lg border">
-                    <p className="text-xs text-muted-foreground">🗳️ Members will vote on schools after joining. Top 10 by votes will be followed.</p>
-                  </div>
-                )}
-
-                <Button onClick={handleConfirmSchools} className="w-full h-10" disabled={!isConfigureValid}>
-                  {votingMode ? "Next →" : selectedSchools.length < 5 ? `Select ${5 - selectedSchools.length} More` : `Confirm ${selectedSchools.length} Schools →`}
-                </Button>
+                    <div className="flex gap-2 justify-center pt-2 border-t">
+                      {COLOR_OPTIONS.map(({ id, value }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setIconConfig(c => ({ ...c, colorId: id }))}
+                          className={cn(
+                            "w-6 h-6 rounded-full transition-all flex items-center justify-center",
+                            iconConfig.colorId === id ? "ring-2 ring-offset-1 ring-offset-background" : "hover:scale-110"
+                          )}
+                          style={{
+                            backgroundColor: value,
+                            "--tw-ring-color": iconConfig.colorId === id ? value : undefined,
+                          } as React.CSSProperties}
+                        >
+                          {iconConfig.colorId === id && (
+                            <CheckCircle2 className="w-3 h-3" style={{ color: id === "white" ? "#000" : "#fff" }} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  placeholder="Enter pool name..."
+                  value={poolName}
+                  onChange={(e) => setPoolName(e.target.value)}
+                  maxLength={50}
+                  className="flex-1 h-9"
+                />
               </div>
-            )}
 
-            {step === "preview" && (
-              <div className="space-y-5 pt-4">
-                <div className="p-5 border rounded-lg bg-card space-y-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Pool Name</p>
-                    <p className="font-semibold">{poolName}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Mode</p>
-                    <Badge variant={votingMode ? "default" : "secondary"}>
-                      {votingMode ? "🗳️ Voting" : "✓ Pre-selected"}
-                    </Badge>
-                  </div>
-                  {!votingMode && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Schools ({selectedSchools.length})</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedSchools.map((s) => <Badge key={s} variant="outline" className="h-6 text-xs">{s}</Badge>)}
-                      </div>
-                    </div>
+              {/* School selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {selectedSchools.length}/10 schools
+                    {selectedSchools.length < 5 && <span className="text-destructive ml-1">(min 5)</span>}
+                  </p>
+                  {selectedSchools.length >= 10 && (
+                    <p className="text-xs text-destructive font-medium">Max reached</p>
                   )}
                 </div>
-
-                <Button onClick={createPool} className="w-full h-10" disabled={creating}>
-                  {creating ? "Creating..." : "Create Pool"}
-                </Button>
-                <Button onClick={() => setStep("configure")} variant="outline" className="w-full" disabled={creating}>
-                  ← Back
-                </Button>
               </div>
-            )}
+
+              {selectedSchools.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg bg-muted/30">
+                  {selectedSchools.map((s) => (
+                    <Badge key={s} variant="default" className="cursor-pointer h-6 px-2 text-xs" onClick={() => toggleSchool(s)}>
+                      {s}<X className="w-3 h-3 ml-1" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input placeholder="Search schools..." value={schoolSearch} onChange={(e) => setSchoolSearch(e.target.value)} className="pl-9 h-9" />
+                </div>
+                <ScrollArea className="h-44 border rounded-lg bg-background">
+                  <div className="p-2 space-y-1">
+                    {filteredSchools.length > 0 ? filteredSchools.map((school) => (
+                      <Button
+                        key={school.name}
+                        variant={selectedSchools.includes(school.name) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => toggleSchool(school.name)}
+                        disabled={selectedSchools.length >= 10 && !selectedSchools.includes(school.name)}
+                        className="w-full justify-start h-9 gap-2"
+                      >
+                        {school.icon_url && <img src={school.icon_url} alt="" className="w-5 h-5 object-contain shrink-0" />}
+                        <span className="truncate">{school.name}</span>
+                      </Button>
+                    )) : (
+                      <p className="text-sm text-muted-foreground text-center py-6">No schools found</p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              <Button onClick={createPool} className="w-full h-9" disabled={!isCreateValid || creating}>
+                {creating ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</>
+                ) : (
+                  "Create Pool"
+                )}
+              </Button>
+            </div>
           </TabsContent>
 
           {/* ===== JOIN TAB ===== */}
           <TabsContent value="join" className="flex-1 overflow-y-auto px-6 pb-6 mt-0">
-            <div className="space-y-5 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="joinCodeAction">Invite Code</Label>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-1.5">
                 <Input
-                  id="joinCodeAction"
                   placeholder="e.g., ABC123"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
                   maxLength={6}
-                  className="font-mono uppercase text-center text-lg tracking-widest h-12"
+                  className="font-mono uppercase text-center text-sm tracking-wider h-9"
                 />
                 <p className="text-xs text-muted-foreground text-center">Enter the 6-character code from your friend</p>
               </div>
 
               {verifying && (
-                <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Checking code...</span>
+                  <span className="text-xs">Checking...</span>
                 </div>
               )}
 
               {joinError && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
                   <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
-                  <p className="text-sm text-destructive">{joinError}</p>
+                  <p className="text-xs text-destructive">{joinError}</p>
                 </div>
               )}
 
               {foundPool && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2.5 p-3 rounded-lg border bg-card">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{foundPool.name}</p>
-                      <p className="text-xs text-muted-foreground">Pool found — ready to join</p>
+                      <p className="text-xs text-muted-foreground">Pool found</p>
                     </div>
                   </div>
-                  <Button onClick={handleJoinPool} className="w-full h-10" disabled={joining}>
+                  <Button onClick={handleJoinPool} className="w-full h-9" disabled={joining}>
                     {joining ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Joining...</>
                     ) : (
