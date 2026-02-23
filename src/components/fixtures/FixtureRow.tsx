@@ -261,14 +261,6 @@ export const FixtureRow = ({
                 </div>
               </div>
 
-              {fixture.tournament && fixture.venue_type !== "tournament" && (
-                <div className="flex items-center gap-1.5">
-                  <Trophy className="w-3 h-3 text-primary" />
-                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                    {fixture.tournament.name}
-                  </span>
-                </div>
-              )}
 
               {/* Teams row */}
               <div className="flex items-center justify-between gap-4">
