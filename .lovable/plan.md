@@ -1,82 +1,74 @@
 
+# Replace Profile Tab with Schools Directory
 
-## Drop `venue_legacy` and resolve venue from `venue_type` + `venue_id` / `tournament_id`
-
-### Overview
-Remove the `venue_legacy` column from fixtures. Keep `tournament_id`. The venue location displayed to users will be resolved dynamically:
-- If `venue_type = 'tournament'`, the location name comes from the tournament joined via `tournament_id`
-- If `venue_type = 'school'`, the location name comes from the school referenced by `venue_id`
-
-This eliminates the redundant free-text `venue_legacy` column while keeping the `tournament_id` foreign key for direct tournament queries.
+## Overview
+Replace the "Profile" tab in the bottom navigation with a "Schools" directory page. Users can browse, search, filter by province, and follow/unfollow schools with confirmation dialogs. Profile remains accessible via the GlobalHeader burger menu (already linked there).
 
 ---
 
-### Step 1: Database Migration
+## Changes
 
-1. Backfill: For any fixture where `tournament_id IS NOT NULL` but `venue_type` is not `'tournament'`, update `venue_type = 'tournament'`.
-2. Drop the `venue_legacy` column.
+### 1. Create Schools Directory Page (`src/pages/Schools.tsx`)
 
-```text
-UPDATE fixtures
-SET venue_type = 'tournament'
-WHERE tournament_id IS NOT NULL AND venue_type != 'tournament';
+A new mobile-first page with:
 
-ALTER TABLE fixtures DROP COLUMN venue_legacy;
-```
+- **Sticky filter bar**: Debounced search input + province dropdown (reusing `saProvinces` data and existing filter patterns from Fixtures)
+- **School list**: Fetched via `useSchoolsQuery` with `select: "id, name, slug, province, emblem_url, jersey_url, icon_url"`, paginated at 20 per page using `usePagination`
+- **Client-side filtering**: Search by name and filter by province applied to the fetched list (schools are static data, so client-side filtering is efficient)
+- **Each list row**:
+  - 28px circular avatar using `getSchoolDisplayImage()` with initials fallback
+  - School name as a clickable link to `/school/:slug`
+  - Province in muted smaller text
+  - Star icon (filled yellow if followed, outline if not)
+- **Follow/unfollow logic**:
+  - Fetch `user_school_follows` for the current user on mount
+  - Fetch user's `school_id` from profile for primary school detection
+  - Clicking star opens an `AlertDialog` with contextual message
+  - Primary school star is filled but disabled with a `Tooltip` showing "Primary School"
+  - On confirm: insert/delete from `user_school_follows`, show sonner toast
+- **Pagination controls** at the bottom using existing `PaginationControls` pattern (Previous/Next buttons with item count display)
 
----
+### 2. Update Bottom Navigation (`src/components/BottomNav.tsx`)
 
-### Step 2: Create a shared venue resolution utility
+- Replace the Profile button: change icon from `User` to `School` (from lucide-react), label from "Profile" to "Schools", route from `/profile` to `/schools`
+- Update `isActive` check to match `/schools`
+- Update prefetch handler to prefetch schools data for `/schools`
 
-Create `src/lib/venueUtils.ts` with a helper function:
+### 3. Update Routing (`src/components/AnimatedRoutes.tsx`)
 
-```text
-resolveVenueName(fixture):
-  if venue_type === 'tournament' and tournament exists:
-    return tournament.name
-  if venue_type === 'school' and venue_id matches school_a or school_b:
-    return that school's name
-  return 'TBD'
-```
+- Import the new `Schools` page eagerly (core nav page)
+- Add `/schools` to the `KEEP_ALIVE_ROUTES` array for cached navigation
+- Keep `/profile` as a secondary animated route (still accessible, just not in bottom nav)
 
-This avoids duplicating venue resolution logic across many components.
+### 4. Update Prefetch Hook (`src/hooks/usePrefetch.ts`)
 
----
-
-### Step 3: Update all files referencing `venue_legacy`
-
-**17 files** need updates to remove `venue_legacy` from interfaces, queries, and display logic, replacing it with the resolved venue name:
-
-| File | Changes |
-|------|---------|
-| `src/hooks/useFixturesData.ts` | Remove `venue_legacy` from query select and interface |
-| `src/hooks/useHomeFixtures.ts` | Remove `venue_legacy` from query; resolve venue from joined tournament/school data |
-| `src/hooks/usePrefetch.ts` | Remove `venue_legacy` from query select |
-| `src/components/fixtures/FixtureTable.tsx` | Remove `venue_legacy` from `Fixture` interface; display resolved venue name using tournament join or school_a/school_b match against venue_id |
-| `src/components/fixtures/FixtureListCard.tsx` | Remove `venue_legacy` fallback from `getVenue()`; it already resolves from venue_type/venue_id |
-| `src/components/home/HomeCarousel.tsx` | Remove `venue_legacy` from interface and query |
-| `src/components/home/DerbySlide.tsx` | Remove `venue_legacy` from interface |
-| `src/components/scores/MatchScoreSubmission.tsx` | Remove `venue_legacy` from interface and query; resolve venue from school data |
-| `src/components/scores/SchoolScoreSubmission.tsx` | Remove `venue_legacy` from interface and query; resolve venue from school data |
-| `src/components/auth/signup-steps/StepNextMatch.tsx` | Remove `venue_legacy` from interface and query; resolve venue from joined tournament or school |
-| `src/pages/Fixtures.tsx` | Remove `venue_legacy` from fixture pass-through |
-| `src/pages/SchoolProfile.tsx` | Remove `venue_legacy` from queries |
-| `src/pages/Tournament.tsx` | Remove `venue_legacy` from display; resolve venue from tournament data (already available on the page) |
-| `src/components/admin/FixturesTable.tsx` | Remove `venue_legacy` from search/display; resolve venue using the existing `schools` and `tournaments` maps |
-| `src/components/admin/CreateFixtureDialog.tsx` | Remove `venue_legacy` / `venueLegacy` computation from insert data |
-| `src/components/admin/EditFixtureDialog.tsx` | Remove `venue_legacy` / `venueLegacy` computation from update data |
-| `src/components/admin/ImportFixturesButton.tsx` | Remove `venue_legacy` from fixture object |
+- Add a `/schools` case to `prefetchForRoute` that calls `prefetchSchools()` and `prefetchProfile()` (profile needed for follow state)
 
 ---
 
-### Step 4: Fix HistoricalFixturesUpload (bonus cleanup)
+## Technical Details
 
-`src/components/admin/HistoricalFixturesUpload.tsx` still uses old column names (`home_school_id`, `away_school_id`, `venue`). Update to use `school_a_id`, `school_b_id`, `score_a`, `score_b`, and remove the `venue` field (was mapping to `venue_legacy`). Set `venue_type` and `venue_id` based on `tournament_id` presence.
+### Data Fetching Strategy
+- Schools list: Use `useSchoolsQuery` with `CACHE_TIMES.STATIC` (already configured)
+- User follows: Separate `useQuery` fetching all `user_school_follows` for the current user, keyed as `["user-school-follows", userId]` with `CACHE_TIMES.REFERENCE`
+- User profile `school_id`: Reuse existing profile query pattern
 
----
+### Files Created
+- `src/pages/Schools.tsx` -- the full directory page
 
-### Key Principle
-- `tournament_id` stays as a first-class FK for querying tournament fixtures
-- `venue_type` determines where the location name comes from: `'tournament'` reads from the tournament join, `'school'` reads from `venue_id` matched against school data
-- No more free-text venue field -- venue is always resolved from structured data
+### Files Modified
+- `src/components/BottomNav.tsx` -- swap Profile for Schools
+- `src/components/AnimatedRoutes.tsx` -- add Schools to keep-alive routes, move Profile to secondary routes
+- `src/hooks/usePrefetch.ts` -- add `/schools` prefetch case
 
+### Components Used (existing)
+- `AlertDialog` (shadcn) for follow/unfollow confirmation
+- `Tooltip` for primary school indicator
+- `Select` for province filter
+- `Input` with search icon for search bar
+- `Skeleton` for loading states
+- `getSchoolDisplayImage` from `schoolImageUtils`
+- `saProvinces` for province filter options
+- `useDebounce` for search input
+- `usePagination` for page state
+- `toast` from sonner for success feedback
