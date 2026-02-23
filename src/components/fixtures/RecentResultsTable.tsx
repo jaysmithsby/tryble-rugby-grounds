@@ -91,38 +91,28 @@ export function RecentResultsTable({ schoolId }: RecentResultsTableProps) {
       <Table>
         <TableBody>
           {results.map((r) => {
-            const isDraw = r.score_a === r.score_b;
-            let winner: { id: string; name: string };
-            let loser: { id: string; name: string };
-            let winnerScore: number;
-            let loserScore: number;
-
-            if (r.score_a >= r.score_b) {
-              winner = r.school_a ?? { id: r.school_a_id, name: "Unknown" };
-              loser = r.school_b ?? { id: r.school_b_id, name: "Unknown" };
-              winnerScore = r.score_a;
-              loserScore = r.score_b;
-            } else {
-              winner = r.school_b ?? { id: r.school_b_id, name: "Unknown" };
-              loser = r.school_a ?? { id: r.school_a_id, name: "Unknown" };
-              winnerScore = r.score_b;
-              loserScore = r.score_a;
-            }
+            const isSchoolA = r.school_a_id === schoolId;
+            const myScore = isSchoolA ? r.score_a : r.score_b;
+            const oppScore = isSchoolA ? r.score_b : r.score_a;
+            const opponent = isSchoolA
+              ? (r.school_b ?? { id: r.school_b_id, name: "Unknown" })
+              : (r.school_a ?? { id: r.school_a_id, name: "Unknown" });
+            const won = myScore > oppScore;
+            const draw = myScore === oppScore;
 
             return (
               <TableRow key={r.id}>
                 <TableCell className="text-xs text-muted-foreground px-2 py-1.5 whitespace-nowrap">
                   {format(new Date(r.match_date), "d MMM yy")}
                 </TableCell>
-                <TableCell className="text-xs font-medium text-right px-2 py-1.5">
-                  {winner.name}
-                </TableCell>
                 <TableCell className="text-xs text-center font-mono w-20 px-0 py-1.5">
-                  {winnerScore} - {loserScore}
-                  {isDraw && <span className="text-muted-foreground ml-1">(D)</span>}
+                  <span className={won ? "font-semibold" : draw ? "" : "text-muted-foreground"}>{myScore}</span>
+                  {" - "}
+                  <span className={!won && !draw ? "font-semibold" : draw ? "" : "text-muted-foreground"}>{oppScore}</span>
+                  {draw && <span className="text-muted-foreground ml-1">(D)</span>}
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground text-left px-2 py-1.5">
-                  {loser.name}
+                <TableCell className="text-xs text-left px-2 py-1.5">
+                  {opponent.name}
                 </TableCell>
               </TableRow>
             );
