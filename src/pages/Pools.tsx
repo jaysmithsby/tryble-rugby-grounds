@@ -3,13 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trophy, Users, Plus } from "lucide-react";
+import { Trophy, Users, Plus, Globe } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { PoolListRow } from "@/components/pools/PoolListRow";
+import { LeaderboardRow } from "@/components/pools/LeaderboardRow";
 import { PoolActionDialog } from "@/components/pools/PoolActionDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
+import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 
 type Pool = {
   id: string;
@@ -22,6 +24,15 @@ type Pool = {
   pool_members: { count: number }[];
 };
 
+type SchoolInfo = {
+  id: string;
+  name: string;
+  slug: string;
+  emblem_url: string | null;
+  jersey_url: string | null;
+  followerCount: number;
+};
+
 export const Pools = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -30,6 +41,14 @@ export const Pools = () => {
   const [search, setSearch] = useState("");
   const [actionOpen, setActionOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
+
+  // Leaderboard state
+  const [globalRank, setGlobalRank] = useState<number | null>(null);
+  const [globalUserCount, setGlobalUserCount] = useState(0);
+  const [schoolRank, setSchoolRank] = useState<number | null>(null);
+  const [primarySchool, setPrimarySchool] = useState<SchoolInfo | null>(null);
+  const [primarySchoolMemberCount, setPrimarySchoolMemberCount] = useState(0);
+  const [followedSchools, setFollowedSchools] = useState<SchoolInfo[]>([]);
 
   useEffect(() => {
     loadData();
@@ -44,6 +63,7 @@ export const Pools = () => {
         return;
       }
 
+      // Fetch pools
       const { data: poolsData, error: poolsError } = await supabase
         .from("pool_members")
         .select(`
@@ -67,6 +87,64 @@ export const Pools = () => {
         ?.map(d => d.pools)
         .filter((p): p is Pool => p !== null) || [];
       setPools(userPools);
+
+      // --- Leaderboard data ---
+      const currentYear = new Date().getFullYear();
+
+      // Profile + scores + global count in parallel
+      const [profileRes, scoresRes, globalCountRes] = await Promise.all([
+        supabase.from("profiles").select("school_id").eq("id", user.id).single(),
+        supabase.from("user_scores").select("rank_global, rank_school")
+          .eq("user_id", user.id).eq("season_year", currentYear)
+          .order("week_number", { ascending: false }).limit(1),
+        supabase.from("profiles").select("*", { count: "exact", head: true }),
+      ]);
+
+      setGlobalRank(scoresRes.data?.[0]?.rank_global ?? null);
+      setSchoolRank(scoresRes.data?.[0]?.rank_school ?? null);
+      setGlobalUserCount(globalCountRes.count ?? 0);
+
+      const userSchoolId = profileRes.data?.school_id;
+
+      if (userSchoolId) {
+        // Primary school details + member count + followed schools in parallel
+        const [schoolRes, schoolCountRes, followsRes] = await Promise.all([
+          supabase.from("schools").select("id, name, slug, emblem_url, jersey_url")
+            .eq("id", userSchoolId).single(),
+          supabase.from("profiles").select("*", { count: "exact", head: true })
+            .eq("school_id", userSchoolId),
+          supabase.from("user_school_follows")
+            .select("school_id, schools(id, name, slug, emblem_url, jersey_url)")
+            .eq("user_id", user.id),
+        ]);
+
+        if (schoolRes.data) {
+          setPrimarySchool({ ...schoolRes.data, followerCount: 0 });
+        }
+        setPrimarySchoolMemberCount(schoolCountRes.count ?? 0);
+
+        // Process followed schools (exclude primary)
+        const followedRaw = (followsRes.data || [])
+          .map(f => f.schools)
+          .filter((s): s is { id: string; name: string; slug: string; emblem_url: string | null; jersey_url: string | null } =>
+            s !== null && (s as any).id !== userSchoolId
+          );
+
+        // Fetch follower counts in parallel
+        const withCounts = await Promise.all(
+          followedRaw.map(async (school) => {
+            const { count } = await supabase
+              .from("user_school_follows").select("*", { count: "exact", head: true })
+              .eq("school_id", school.id);
+            return { ...school, followerCount: count ?? 0 };
+          })
+        );
+        setFollowedSchools(withCounts);
+      } else {
+        setPrimarySchool(null);
+        setPrimarySchoolMemberCount(0);
+        setFollowedSchools([]);
+      }
     } catch (error: any) {
       toast({
         title: "Error loading data",
@@ -81,6 +159,14 @@ export const Pools = () => {
   const filteredPools = pools.filter(pool =>
     pool.name.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
+
+  const renderSchoolIcon = (school: { emblem_url?: string | null; jersey_url?: string | null; name: string }) => {
+    const imgUrl = getSchoolDisplayImage(school);
+    if (imgUrl) {
+      return <img src={imgUrl} alt={school.name} className="w-5 h-5 object-contain" />;
+    }
+    return <span className="text-[10px] font-bold text-primary">{school.name.slice(0, 2).toUpperCase()}</span>;
+  };
 
   if (loading) {
     return (
@@ -141,6 +227,39 @@ export const Pools = () => {
             </Button>
           </div>
         )}
+
+        {/* Leaderboards Section */}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Leaderboards</h2>
+          <div className="divide-y divide-border/40">
+            <LeaderboardRow
+              icon={<Globe className="w-4 h-4 text-primary" />}
+              name="Global Leaderboard"
+              memberCount={globalUserCount}
+              userRank={globalRank}
+              onClick={() => navigate("/leaderboard")}
+            />
+            {primarySchool && (
+              <LeaderboardRow
+                icon={renderSchoolIcon(primarySchool)}
+                name={primarySchool.name}
+                memberCount={primarySchoolMemberCount}
+                userRank={schoolRank}
+                onClick={() => navigate(`/school/${primarySchool.slug}`)}
+              />
+            )}
+            {followedSchools.map((school) => (
+              <LeaderboardRow
+                key={school.id}
+                icon={renderSchoolIcon(school)}
+                name={school.name}
+                memberCount={school.followerCount}
+                userRank={null}
+                onClick={() => navigate(`/school/${school.slug}`)}
+              />
+            ))}
+          </div>
+        </section>
       </main>
 
       <PoolActionDialog open={actionOpen} onOpenChange={setActionOpen} onPoolCreated={loadData} />
