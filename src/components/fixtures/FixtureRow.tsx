@@ -95,7 +95,7 @@ const SchoolBlock = ({
       priority={priority}
       containerClassName="border-border"
     />
-    <span className={cn("text-xs text-center line-clamp-2 leading-tight font-medium", size === "sm" ? "max-w-[120px]" : "")}>
+    <span className={cn("text-xs text-center line-clamp-2 leading-tight font-medium h-[2lh]", size === "sm" ? "max-w-[120px]" : "")}>
       {school.name}
     </span>
   </button>
@@ -248,15 +248,17 @@ export const FixtureRow = ({
                   <span className="text-xs font-semibold text-foreground">{dateStr}</span>
                   {venue !== "TBD" && <span className="text-xs text-muted-foreground">{venue}</span>}
                 </div>
-                {canExpand ? (
-                  <CollapsibleTrigger asChild>
-                    <button type="button" className="p-1 -mr-1" onClick={(e) => e.stopPropagation()}>
-                      {chevronIcon}
-                    </button>
-                  </CollapsibleTrigger>
-                ) : isPredicted ? (
-                  <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
-                ) : null}
+                <div className="w-6 h-6 flex items-center justify-center -mr-1">
+                  {canExpand ? (
+                    <CollapsibleTrigger asChild>
+                      <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
+                        {chevronIcon}
+                      </button>
+                    </CollapsibleTrigger>
+                  ) : isPredicted ? (
+                    <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
+                  ) : null}
+                </div>
               </div>
 
               {fixture.tournament && fixture.venue_type !== "tournament" && (
@@ -323,14 +325,16 @@ export const FixtureRow = ({
     >
       <TableCell className="text-sm align-middle">{dateVenueContent}</TableCell>
       <TableCell>{matchGrid("sm")}</TableCell>
-      <TableCell className="align-middle">
-        {canExpand && (
-          <CollapsibleTrigger asChild>
-            <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
-              {chevronIcon}
-            </button>
-          </CollapsibleTrigger>
-        )}
+      <TableCell className="align-middle w-[40px]">
+        <div className="w-6 h-6 flex items-center justify-center">
+          {canExpand && (
+            <CollapsibleTrigger asChild>
+              <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
+                {chevronIcon}
+              </button>
+            </CollapsibleTrigger>
+          )}
+        </div>
       </TableCell>
     </TableRow>
   );
@@ -343,15 +347,17 @@ export const FixtureRow = ({
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs">{dateVenueContent}</span>
-        {canExpand ? (
-          <CollapsibleTrigger asChild>
-            <button type="button" className="p-1 -mr-1" onClick={(e) => e.stopPropagation()}>
-              {chevronIcon}
-            </button>
-          </CollapsibleTrigger>
-        ) : isPredicted ? (
-          <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
-        ) : null}
+        <div className="w-6 h-6 flex items-center justify-center -mr-1">
+          {canExpand ? (
+            <CollapsibleTrigger asChild>
+              <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
+                {chevronIcon}
+              </button>
+            </CollapsibleTrigger>
+          ) : isPredicted ? (
+            <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
+          ) : null}
+        </div>
       </div>
       {matchGrid("sm")}
     </div>
