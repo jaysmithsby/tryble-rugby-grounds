@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, isSameDay } from "date-fns";
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,6 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-const FULL_MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
 interface FixturesDateSelectorProps {
   dateRange: { from: Date; to: Date };
   onDateRangeChange: (range: { from: Date; to: Date }) => void;
@@ -35,30 +30,54 @@ export const FixturesDateSelector = ({
   const now = new Date();
   const [yearInView, setYearInView] = useState(dateRange.from.getFullYear());
 
+  // Detect if the current range is a full year (Jan 1 – Dec 31)
+  const isFullYear = useMemo(() => {
+    const soy = startOfYear(dateRange.from);
+    const eoy = endOfYear(dateRange.from);
+    return isSameDay(dateRange.from, soy) && isSameDay(dateRange.to, eoy);
+  }, [dateRange]);
+
   // Detect if the current range is a full month
   const isFullMonth = useMemo(() => {
+    if (isFullYear) return false;
     const som = startOfMonth(dateRange.from);
     const eom = endOfMonth(dateRange.from);
-    return (
-      isSameDay(dateRange.from, som) &&
-      isSameDay(dateRange.to, eom)
-    );
-  }, [dateRange]);
+    return isSameDay(dateRange.from, som) && isSameDay(dateRange.to, eom);
+  }, [dateRange, isFullYear]);
 
   const selectedMonthIndex = isFullMonth ? dateRange.from.getMonth() : null;
 
   const triggerLabel = useMemo(() => {
+    if (isFullYear) {
+      return `${dateRange.from.getFullYear()}`;
+    }
     if (isFullMonth) {
       return `${MONTHS[dateRange.from.getMonth()]} ${dateRange.from.getFullYear()}`;
     }
     const fromStr = format(dateRange.from, "MMM d");
     const toStr = format(dateRange.to, "MMM d");
     return `${fromStr} – ${toStr}`;
-  }, [dateRange, isFullMonth]);
+  }, [dateRange, isFullMonth, isFullYear]);
 
   const handleMonthClick = (monthIndex: number) => {
+    // If already selected, deselect to year-only
+    if (selectedMonthIndex === monthIndex && dateRange.from.getFullYear() === yearInView) {
+      const from = new Date(yearInView, 0, 1);
+      const to = endOfYear(from);
+      onDateRangeChange({ from, to });
+      setOpen(false);
+      return;
+    }
     const from = new Date(yearInView, monthIndex, 1);
     const to = endOfMonth(from);
+    onDateRangeChange({ from, to });
+    setOpen(false);
+  };
+
+  const handleYearClick = () => {
+    // Clicking the year label selects the full year
+    const from = new Date(yearInView, 0, 1);
+    const to = endOfYear(from);
     onDateRangeChange({ from, to });
     setOpen(false);
   };
@@ -77,7 +96,7 @@ export const FixturesDateSelector = ({
           size="sm"
           className={cn(
             "gap-1.5 font-medium text-xs shrink-0 h-8 px-2.5",
-            !isFullMonth && "text-primary border-primary/40"
+            !isFullMonth && !isFullYear && "text-primary border-primary/40"
           )}
         >
           <CalendarIcon className="h-3.5 w-3.5" />
@@ -85,7 +104,7 @@ export const FixturesDateSelector = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="end">
-        <Tabs defaultValue={isFullMonth ? "month" : "custom"} className="w-full">
+        <Tabs defaultValue={isFullMonth || isFullYear ? "month" : "custom"} className="w-full">
           <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
             <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
             <TabsTrigger value="custom" className="text-xs">Custom Range</TabsTrigger>
@@ -102,7 +121,17 @@ export const FixturesDateSelector = ({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-semibold">{yearInView}</span>
+              <button
+                onClick={handleYearClick}
+                className={cn(
+                  "text-sm font-semibold px-3 py-1 rounded-md transition-colors",
+                  isFullYear && dateRange.from.getFullYear() === yearInView
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
+                )}
+              >
+                {yearInView}
+              </button>
               <Button
                 variant="ghost"
                 size="icon"

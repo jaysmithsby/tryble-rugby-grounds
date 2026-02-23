@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Users, Trophy, Search, X } from "lucide-react";
+import { Star, Users, Trophy, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
 
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { startOfYear, endOfYear, format } from "date-fns";
 
 export default function SchoolProfile() {
   const { schoolSlug } = useParams();
@@ -34,9 +34,10 @@ export default function SchoolProfile() {
 
   // Search & month nav state
   const [searchQuery, setSearchQuery] = useState("");
-  const now = new Date();
-  const [dateRange, setDateRange] = useState({ from: startOfMonth(now), to: endOfMonth(now) });
+  const [dateRange, setDateRange] = useState({ from: new Date(2026, 0, 1), to: endOfYear(new Date(2026, 0, 1)) });
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const [fixturesPage, setFixturesPage] = useState(1);
+  const FIXTURES_PER_PAGE = 8;
 
   // Filtered fixtures
   const filteredFixtures = useMemo(() => {
@@ -52,6 +53,17 @@ export default function SchoolProfile() {
       return d >= dateRange.from && d <= dateRange.to;
     });
   }, [allUpcomingFixtures, debouncedSearch, dateRange, school]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setFixturesPage(1);
+  }, [debouncedSearch, dateRange]);
+
+  const totalFixturePages = Math.max(1, Math.ceil(filteredFixtures.length / FIXTURES_PER_PAGE));
+  const paginatedFixtures = filteredFixtures.slice(
+    (fixturesPage - 1) * FIXTURES_PER_PAGE,
+    fixturesPage * FIXTURES_PER_PAGE
+  );
 
   useEffect(() => {
     loadSchoolData();
@@ -330,67 +342,91 @@ export default function SchoolProfile() {
           </div>
 
           {/* Fixture list or empty state */}
-          {filteredFixtures.length > 0 ? (
-            <div className="space-y-3 mt-3">
-              {filteredFixtures.map((f) => {
-                const pred = userPredictions[f.id];
-                return showInteractive ? (
-                  <FixtureCard
-                    key={f.id}
-                    homeTeam={f.school_a?.name || "TBD"}
-                    awayTeam={f.school_b?.name || "TBD"}
-                    homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
-                    awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
-                    homeTeamIcon={f.school_a?.jersey_url}
-                    awayTeamIcon={f.school_b?.jersey_url}
-                    homeSchoolId={f.school_a_id}
-                    awaySchoolId={f.school_b_id}
-                    homeSchoolSlug={f.school_a?.slug}
-                    awaySchoolSlug={f.school_b?.slug}
-                    matchDate={f.match_date}
-                    time=""
-                    venue={resolveVenueName(f)}
-                    tournamentName={f.tournament?.name}
-                    matchId={f.id}
-                    isPredicted={!!pred}
-                    predictedSchoolId={pred?.predictedSchoolId}
-                    predictedMargin={pred?.predictedMargin}
-                    onPredictionMade={(schoolId, margin) => {
-                      setUserPredictions(prev => ({
-                        ...prev,
-                        [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
-                      }));
-                    }}
-                    hasHistory={hasHistoryMap[f.id]}
-                  />
-                ) : (
-                  <FixtureCard
-                    key={f.id}
-                    homeTeam={f.school_a?.name || "TBD"}
-                    awayTeam={f.school_b?.name || "TBD"}
-                    homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
-                    awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
-                    homeTeamIcon={f.school_a?.jersey_url}
-                    awayTeamIcon={f.school_b?.jersey_url}
-                    homeSchoolId={f.school_a_id}
-                    awaySchoolId={f.school_b_id}
-                    homeSchoolSlug={f.school_a?.slug}
-                    awaySchoolSlug={f.school_b?.slug}
-                    matchDate={f.match_date}
-                    time=""
-                    venue={resolveVenueName(f)}
-                    tournamentName={f.tournament?.name}
-                    matchId={f.id}
-                    hasHistory={hasHistoryMap[f.id]}
-                  />
-                );
-              })}
-            </div>
+          {paginatedFixtures.length > 0 ? (
+            <>
+              <div className="space-y-3 mt-3">
+                {paginatedFixtures.map((f) => {
+                  const pred = userPredictions[f.id];
+                  return showInteractive ? (
+                    <FixtureCard
+                      key={f.id}
+                      homeTeam={f.school_a?.name || "TBD"}
+                      awayTeam={f.school_b?.name || "TBD"}
+                      homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                      awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                      homeTeamIcon={f.school_a?.jersey_url}
+                      awayTeamIcon={f.school_b?.jersey_url}
+                      homeSchoolId={f.school_a_id}
+                      awaySchoolId={f.school_b_id}
+                      homeSchoolSlug={f.school_a?.slug}
+                      awaySchoolSlug={f.school_b?.slug}
+                      matchDate={f.match_date}
+                      time=""
+                      venue={resolveVenueName(f)}
+                      tournamentName={f.tournament?.name}
+                      matchId={f.id}
+                      isPredicted={!!pred}
+                      predictedSchoolId={pred?.predictedSchoolId}
+                      predictedMargin={pred?.predictedMargin}
+                      onPredictionMade={(schoolId, margin) => {
+                        setUserPredictions(prev => ({
+                          ...prev,
+                          [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
+                        }));
+                      }}
+                      hasHistory={hasHistoryMap[f.id]}
+                    />
+                  ) : (
+                    <FixtureCard
+                      key={f.id}
+                      homeTeam={f.school_a?.name || "TBD"}
+                      awayTeam={f.school_b?.name || "TBD"}
+                      homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                      awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                      homeTeamIcon={f.school_a?.jersey_url}
+                      awayTeamIcon={f.school_b?.jersey_url}
+                      homeSchoolId={f.school_a_id}
+                      awaySchoolId={f.school_b_id}
+                      homeSchoolSlug={f.school_a?.slug}
+                      awaySchoolSlug={f.school_b?.slug}
+                      matchDate={f.match_date}
+                      time=""
+                      venue={resolveVenueName(f)}
+                      tournamentName={f.tournament?.name}
+                      matchId={f.id}
+                      hasHistory={hasHistoryMap[f.id]}
+                    />
+                  );
+                })}
+              </div>
+              {/* Pagination */}
+              {totalFixturePages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <button
+                    onClick={() => setFixturesPage(p => Math.max(1, p - 1))}
+                    disabled={fixturesPage === 1}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {fixturesPage} / {totalFixturePages}
+                  </span>
+                  <button
+                    onClick={() => setFixturesPage(p => Math.min(totalFixturePages, p + 1))}
+                    disabled={fixturesPage === totalFixturePages}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-xs text-muted-foreground text-center py-6">
               {debouncedSearch
                 ? `No fixtures found for '${debouncedSearch}'`
-                : `No fixtures in ${format(dateRange.from, "MMM yyyy")}`}
+                : `No fixtures in ${format(dateRange.from, "yyyy")}`}
             </p>
           )}
         </section>
