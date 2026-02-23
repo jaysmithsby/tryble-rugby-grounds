@@ -45,6 +45,8 @@ export interface FixtureRowProps {
   priority?: boolean;
   /** Pre-resolved venue string (used by card wrapper when venue is already resolved) */
   venueOverride?: string;
+  /** When used inside FixtureTable, render only desktop or mobile layout (parent handles responsive wrapper) */
+  responsiveMode?: "desktop" | "mobile";
 }
 
 // --- Helpers ---
@@ -147,6 +149,7 @@ export const FixtureRow = ({
   hasHistory,
   priority = false,
   venueOverride,
+  responsiveMode,
 }: FixtureRowProps) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -348,6 +351,9 @@ export const FixtureRow = ({
     </div>
   );
 
+  const showDesktop = !responsiveMode || responsiveMode === "desktop";
+  const showMobile = !responsiveMode || responsiveMode === "mobile";
+
   return (
     <>
       {onPredictionMade && (
@@ -368,22 +374,24 @@ export const FixtureRow = ({
         />
       )}
       {/* Desktop */}
-      <Collapsible open={open} onOpenChange={setOpen} asChild className="hidden sm:contents">
-        <>
-          <CollapsibleTrigger asChild>{desktopRow}</CollapsibleTrigger>
-          {canExpand && (
-            <CollapsibleContent asChild>
-              <tr>
-                <td colSpan={3} className="bg-muted/30 p-0">
-                  {historyContent}
-                </td>
-              </tr>
-            </CollapsibleContent>
-          )}
-        </>
-      </Collapsible>
+      {showDesktop && (
+        <Collapsible open={open} onOpenChange={setOpen} asChild>
+          <>
+            <CollapsibleTrigger asChild>{desktopRow}</CollapsibleTrigger>
+            {canExpand && (
+              <CollapsibleContent asChild>
+                <tr>
+                  <td colSpan={3} className="bg-muted/30 p-0">
+                    {historyContent}
+                  </td>
+                </tr>
+              </CollapsibleContent>
+            )}
+          </>
+        </Collapsible>
+      )}
       {/* Mobile */}
-      <div className="sm:hidden">
+      {showMobile && (
         <Collapsible open={open} onOpenChange={setOpen}>
           <CollapsibleTrigger asChild>{mobileRow}</CollapsibleTrigger>
           {canExpand && (
@@ -394,7 +402,7 @@ export const FixtureRow = ({
             </CollapsibleContent>
           )}
         </Collapsible>
-      </div>
+      )}
     </>
   );
 };

@@ -50,6 +50,7 @@ export const FixtureTable = ({ fixtures, searchQuery = "", hasHistoryMap }: Fixt
                 fixture={fixture}
                 variant="table"
                 hasHistory={hasHistoryMap?.[fixture.id]}
+                responsiveMode="desktop"
               />
             ))}
           </TableBody>
@@ -62,6 +63,7 @@ export const FixtureTable = ({ fixtures, searchQuery = "", hasHistoryMap }: Fixt
             fixture={fixture}
             variant="table"
             hasHistory={hasHistoryMap?.[fixture.id]}
+            responsiveMode="mobile"
           />
         ))}
       </div>
