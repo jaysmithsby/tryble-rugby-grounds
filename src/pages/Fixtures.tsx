@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
-import { CalendarDays } from "lucide-react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -117,6 +117,46 @@ const Fixtures = () => {
       .filter((group) => group.fixtures.length > 0);
   }, [groupedFixtures, searchQuery]);
 
+  // Flatten all fixtures for pagination
+  const FIXTURES_PER_PAGE = 8;
+  const [page, setPage] = useState(1);
+
+  // Reset page on filter changes
+  useEffect(() => { setPage(1); }, [dateRange, viewMode, selectedProvince, searchQuery]);
+
+  // My-schools: flatten filtered groups, paginate, then re-group
+  const allMyFixtures = useMemo(() => filteredGroupedFixtures.flatMap(g => g.fixtures), [filteredGroupedFixtures]);
+  const totalMyPages = Math.max(1, Math.ceil(allMyFixtures.length / FIXTURES_PER_PAGE));
+  const paginatedMyFixtures = allMyFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
+  const paginatedMyGroups = useMemo(() => {
+    const groups: typeof filteredGroupedFixtures = [];
+    for (const f of paginatedMyFixtures) {
+      const dateKey = new Date(f.match_date).toDateString();
+      const existing = groups.find(g => g.date.toDateString() === dateKey);
+      if (existing) {
+        existing.fixtures.push(f);
+      } else {
+        groups.push({ date: new Date(f.match_date), fixtures: [f] });
+      }
+    }
+    return groups;
+  }, [paginatedMyFixtures]);
+
+  // All-schools: paginate the flat fixtures list
+  const filteredAllFixtures = useMemo(() => {
+    if (!searchQuery) return fixtures;
+    const q = searchQuery.toLowerCase();
+    return fixtures.filter(f =>
+      f.school_a?.name?.toLowerCase().includes(q) ||
+      f.school_b?.name?.toLowerCase().includes(q)
+    );
+  }, [fixtures, searchQuery]);
+  const totalAllPages = Math.max(1, Math.ceil(filteredAllFixtures.length / FIXTURES_PER_PAGE));
+  const paginatedAllFixtures = filteredAllFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
+
+  const totalPages = viewMode === "my-schools" ? totalMyPages : totalAllPages;
+  const showPagination = !isLoading && totalPages > 1;
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <GlobalHeader />
@@ -165,7 +205,7 @@ const Fixtures = () => {
         )}
 
         {viewMode === "my-schools" &&
-          filteredGroupedFixtures.map((group) => (
+          paginatedMyGroups.map((group) => (
             <FixtureDateGroup key={group.date.toISOString()} date={group.date} fixtureCount={group.fixtures.length}>
               {group.fixtures.map((fixture) => (
                 <FixtureListCard
@@ -189,7 +229,29 @@ const Fixtures = () => {
           ))}
 
         {viewMode === "all-schools" && !isLoading && (
-          <FixtureTable fixtures={fixtures} searchQuery={searchQuery} />
+          <FixtureTable fixtures={paginatedAllFixtures} />
+        )}
+
+        {showPagination && (
+          <div className="flex items-center justify-between mt-4">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" /> Prev
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+            >
+              Next <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
       </main>
 
