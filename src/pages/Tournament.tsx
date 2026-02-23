@@ -390,33 +390,11 @@ export default function Tournament() {
               </Popover>
             )}
 
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search school..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 text-sm rounded-full border-border"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
             {/* Date selector */}
-            {!debouncedSearch && (
-              <FixturesDateSelector
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
-              />
-            )}
+            <FixturesDateSelector
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
           </div>
 
           {/* Fixture cards */}
