@@ -1,116 +1,106 @@
 
-
-# Consolidate FixtureCard + FixtureTable into FixtureRow
+# Replace Recent Results with RecentResultsTable
 
 ## Overview
-Create a single `FixtureRow` component that replaces both `FixtureCard` and `FixtureTable`'s internal row components. This eliminates logic drift by centralizing alphabetical sorting, history detection, prediction states, and collapsible expansion in one place. Two visual variants (`card` and `table`) cover all use cases.
+Replace the `FixtureTable` in the "Recent Results" section of SchoolProfile with a new, text-only, high-density table component that prioritizes score alignment.
 
-## New File: `src/components/fixtures/FixtureRow.tsx`
+## New File: `src/components/fixtures/RecentResultsTable.tsx`
 
-A unified component with these responsibilities:
+### Props
+- `schoolId: string` -- the school whose results to display
 
-### Props (FixtureRowProps)
-- `fixture`: A `Fixture` object (reuse the existing interface from FixtureTable -- `id`, `match_date`, `venue_type`, `venue_id`, `school_a_id`, `school_b_id`, `school_a`, `school_b`, `tournament`)
-- `variant`: `'card' | 'table'` (default `'table'`)
-- `isPredicted?`: boolean
-- `predictedSchoolId?`: string
-- `predictedMargin?`: number
-- `onPredictionMade?`: `(schoolId: string, margin: number) => void`
-- `matchId?`: string
-- `appliesTo?`: string[]
-- `hasHistory?`: boolean (pre-computed override)
-- `priority?`: boolean (for image loading priority in card variant)
+### Data Fetching
+- Uses `useState` + `useEffect` to query the `fixtures` table directly from Supabase
+- Filters: `status = 'completed'`, `school_a_id` or `school_b_id` matches `schoolId`, `score_a` and `score_b` are not null
+- Joins `school_a` and `school_b` for names
+- Orders by `match_date DESC`
+- Uses `usePagination(1, 10)` for 10 results per page with Supabase `.range(from, to)`
+- Fetches total count with `{ count: 'exact', head: true }` in a parallel query
 
-### Core Logic (shared across both variants)
-1. **Alphabetical sorting** via `sortSchoolsAlpha` -- always display schools A-Z regardless of DB order
-2. **History auto-detection** via a single `useEffect` querying completed fixtures (skip if `hasHistory` prop provided)
-3. **canExpand** computed from `hasHistory` prop or `autoHasHistory` state
-4. **Prediction state**: derive `predictedSchoolName` from `predictedSchoolId` matching left/right school
-5. **PredictionDialog** rendered only when `onPredictionMade` is provided; card click opens dialog when `!isPredicted`
-6. **School navigation** via `navigate(/school/{slug})` on jersey click with `e.stopPropagation()`
-7. **Date format**: `format(new Date(fixture.match_date), "EEE d MMM")`
-8. **Venue**: `resolveVenueName(fixture)`
+### Winner/Loser Logic (frontend)
+For each fixture row:
+- If `score_a > score_b`: winner = school_a, loser = school_b, winner score = score_a, loser score = score_b
+- If `score_b > score_a`: winner = school_b, loser = school_a, winner score = score_b, loser score = score_a
+- If `score_a === score_b` (draw): winner column = school_a (home), loser column = school_b (away), show a subtle "Draw" badge
 
-### Variant: `table` (high-density row)
-- Desktop: renders a `TableRow` with three cells (Date+venue, Match grid, Chevron)
-- Mobile: renders a compact bordered card (same as current `MobileFixtureCard`)
-- Center "vs" area shows: "vs" (default), "Pick needed" (if `onPredictionMade && !isPredicted`), or Lock + prediction summary (if `isPredicted`)
-- Chevron only shown when `canExpand` is true
-- Collapsible wraps the row; expanded content is a `MatchHistory` in `bg-muted/30`
+### Table Layout
+Uses shadcn `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`.
 
-### Variant: `card` (gradient card)
-- Wrapped in `Card` with `bg-gradient-card` styling
-- Header row: date + venue left, chevron or lock icon right
-- Tournament badge if applicable
-- Teams row with `size="md"` jerseys
-- Center area: VS / Pick needed / Locked prediction
-- `CollapsibleContent` below card with `MatchHistory`
+Four columns:
+1. **Date** -- left-aligned, formatted `d MMM yyyy`, `text-xs text-muted-foreground`
+2. **Winner** -- right-aligned school name, `text-xs font-medium text-right`
+3. **Score** -- center-aligned, `text-center font-mono w-20` displaying `{winnerScore} - {loserScore}`. The fixed `w-20` + monospace font ensures the dash is perfectly aligned across all rows.
+4. **Loser** -- left-aligned school name, `text-xs text-muted-foreground text-left`
 
-## Modified File: `src/components/fixtures/FixtureTable.tsx`
-- Remove `FixtureTableRow`, `MobileFixtureCard`, `SchoolBlock`, and `sortSchoolsAlpha` internal components
-- Import `FixtureRow` from `./FixtureRow`
-- Keep `FixtureTable` as the outer container that handles search filtering, the desktop `Table` wrapper with header, and the mobile list
-- Desktop: map filtered fixtures to `<FixtureRow variant="table" fixture={f} hasHistory={hasHistoryMap?.[f.id]} />`
-- Mobile: same but rendered in a `div` wrapper instead of table body
-- Export the `Fixture` and `FixtureSchool` interfaces from this file (or from FixtureRow)
+For draws, a small `(D)` or muted "Draw" text appears next to the score.
 
-## Modified File: `src/components/fixtures/FixtureCard.tsx`
-- Convert to a thin wrapper that maps the existing flat props into a `Fixture`-shaped object and renders `<FixtureRow variant="card" ... />`
-- This preserves backward compatibility so `Home.tsx`, `Tournament.tsx`, `SchoolProfile.tsx`, and `FixtureListCard.tsx` don't need immediate refactoring
-- All logic (history detection, prediction, collapsible) is delegated to `FixtureRow`
+### Pagination
+- Renders a simplified pagination footer below the table (not the full admin `PaginationControls`)
+- Shows "Page X of Y" with left/right chevron buttons
+- Only appears when `totalPages > 1`
 
-## Modified File: `src/components/fixtures/FixtureListCard.tsx`
-- No changes needed -- it already wraps `FixtureCard` which will delegate to `FixtureRow`
+### Empty State
+- Shows "No results yet." centered text when no completed fixtures exist
 
-## Consumer Pages (no changes needed)
-- `Home.tsx`, `Tournament.tsx`, `SchoolProfile.tsx`, `Fixtures.tsx` -- all continue using `FixtureCard` or `FixtureTable` with the same props; the consolidation is internal
+## Modified File: `src/pages/SchoolProfile.tsx`
+
+### Changes
+1. Remove `recentResults` state, its fetch logic from `loadSchoolData`, and its inclusion in `loadMatchHistory`
+2. Replace the "Recent Results" section (lines 338-344) with:
+   ```
+   <section>
+     <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
+     <RecentResultsTable schoolId={school.id} />
+   </section>
+   ```
+3. The section always renders (the component handles its own empty state internally)
+4. Remove the `FixtureTable` import if it's no longer used elsewhere on this page (it's still used for upcoming fixtures for non-followers, so it stays)
 
 ---
 
 ## Technical Details
 
-### FixtureRow internal structure
+### RecentResultsTable internal structure
 
 ```text
-FixtureRow
+RecentResultsTable({ schoolId })
   |
-  +-- sortSchoolsAlpha(fixture) --> [left, right, leftIsA]
-  +-- useEffect: auto-detect history (query completed fixtures)
-  +-- canExpand = hasHistory ?? autoHasHistory
-  +-- predictedSchoolName = match predictedSchoolId to left/right
+  +-- usePagination(1, 10)
+  +-- useState: results[], loading, totalCount
+  +-- useEffect([schoolId, page]): fetch fixtures + count
   |
-  +-- if variant === 'card':
-  |     PredictionDialog (conditional)
-  |     Collapsible > Card > header + teams + center state
-  |     CollapsibleContent > MatchHistory
+  +-- Table
+  |     TableHeader: Date | Winner | Score | Loser
+  |     TableBody: map results to rows
+  |       - determine winner/loser from score_a vs score_b
+  |       - Date cell: format(match_date, "d MMM yyyy")
+  |       - Winner cell: text-right font-medium
+  |       - Score cell: font-mono w-20 text-center "{high} - {low}"
+  |       - Loser cell: text-left text-muted-foreground
+  |       - Draw: append subtle "(D)" in score cell
   |
-  +-- if variant === 'table':
-  |     Desktop: Collapsible > TableRow > cells + center state
-  |              CollapsibleContent > tr > td > MatchHistory
-  |     Mobile:  Collapsible > div card > header + teams + center state
-  |              CollapsibleContent > MatchHistory
+  +-- Pagination footer (if totalPages > 1)
+        Page X of Y + prev/next buttons
 ```
 
-### SchoolBlock sub-component
-Extracted as a shared internal component in `FixtureRow.tsx`, accepting `school`, `isHome`, `onNavigate`, and `size` ('sm' for table, 'md' for card).
+### Score column alignment approach
+- `TableHead` and `TableCell` for score column get `className="w-20 text-center"`
+- Score text uses `font-mono` so digits are equal width
+- Format: `{winnerScore} - {loserScore}` with an actual dash character, not an en-dash
 
-### Center area rendering (shared function)
-A helper renders the center VS/prediction area based on `isPredicted`, `onPredictionMade`, `predictedSchoolName`, and `predictedMargin` -- used by both variants.
-
-### FixtureCard wrapper mapping
-The wrapper constructs a `Fixture` object from flat props:
+### Supabase query structure
 ```text
-fixture = {
-  id: matchId,
-  match_date: matchDate,
-  venue_type: null,
-  venue_id: null,
-  school_a_id: homeSchoolId,
-  school_b_id: awaySchoolId,
-  school_a: { id, name, slug, jersey_url, province: null },
-  school_b: { id, name, slug, jersey_url, province: null },
-  tournament: tournamentName ? { id: '', name: tournamentName } : null
-}
+supabase
+  .from("fixtures")
+  .select(`
+    id, match_date, score_a, score_b, school_a_id, school_b_id,
+    school_a:schools!fixtures_school_a_id_fkey(id, name),
+    school_b:schools!fixtures_school_b_id_fkey(id, name)
+  `)
+  .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
+  .eq("status", "completed")
+  .not("score_a", "is", null)
+  .not("score_b", "is", null)
+  .order("match_date", { ascending: false })
+  .range(from, to)
 ```
-The venue is passed separately since the card variant receives a pre-resolved venue string.
-
