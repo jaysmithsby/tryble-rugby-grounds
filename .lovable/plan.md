@@ -1,68 +1,88 @@
 
 
-# Unified Pool Action Dialog
+# Refine PoolActionDialog: Single-View Create + Compact Join
 
 ## Overview
-Replace the separate "Create Pool" button and "Join Code" input on the Pools page with a single `+` icon button in the header that opens a tabbed dialog containing both actions.
+Flatten the Create tab from a multi-step wizard into a single dense form, replace the bulky icon selector with a popover triggered from a small circle button inline with the name input, remove voting mode entirely, and compact the Join tab inputs.
 
 ---
 
 ## Changes
 
-### 1. Create Unified Modal (`src/components/pools/PoolActionDialog.tsx`)
+### 1. Inline Icon Picker with Popover
 
-A new component using shadcn `Dialog` + `Tabs`:
+Replace the large `PoolIconSelector` component usage with a compact inline layout:
 
-- **Trigger**: Accepts an `open`/`onOpenChange` prop pair (controlled from parent) -- no built-in trigger button
-- **Tab 1 -- "Create"**: Embeds the full existing `CreatePoolDialog` form logic (pool name, icon selector, voting mode toggle, school selection, preview step). This is essentially the current `CreatePoolDialog` content moved into a tab panel.
-- **Tab 2 -- "Join"**: A simple form with:
-  - A 6-character uppercase mono input for the invite code
-  - Auto-verification: when exactly 6 characters are entered, call `get_pool_by_invite_code` RPC
-  - **Valid code**: Show a confirmation card with the pool name and a "Join Pool" button
-  - **Invalid code**: Show inline error text ("Pool not found")
-  - **Already a member**: Show message and redirect link
-  - Join logic reuses the existing `handleJoinPool` pattern from `Pools.tsx`
-- Uses `sonner` toasts for success feedback on both create and join
-- Single-column layout, mobile-friendly, max height 85vh with scroll
+- **Row layout**: `[32px circular icon button] [Pool Name Input (flex-1)]` on one line, no labels
+- **Icon button**: Shows the currently selected icon in its selected color. Clicking opens a shadcn `Popover`.
+- **Popover content**: Contains the 4x4 icon grid (reuse `POOL_ICON_OPTIONS` from `PoolIconSelector.tsx`) and a horizontal row of color circles below it. Same data, just rendered inside a `Popover` instead of inline.
+- The `PoolIconSelector` component file stays unchanged (its exported helpers `getPoolIconComponent`, `getPoolColorValue`, `PoolIconConfig` are still used). We just stop rendering the full component and instead build a smaller inline version directly in the dialog.
 
-### 2. Update Pools Page Header (`src/pages/Pools.tsx`)
+### 2. Flatten Create Tab to Single View
 
-- **Remove**: The inline `CreatePoolDialog` component usage and the "Join Code" input row
-- **Add**: A `+` icon button (using lucide `Plus` icon, already imported) in the header row next to the search bar
-- **Header layout**: `[Search Input (flex-1)] [+ Button]` -- search spans remaining width, plus button is fixed size
-- The `+` button controls the `open` state of `PoolActionDialog`
-- `PoolActionDialog` receives `onPoolCreated={loadData}` callback to refresh the pool list after create or join
+Remove the two-step flow (`configure` -> `preview`). Everything happens in one scrollable view:
 
-### 3. Remove Old CreatePoolDialog Usage
+- **Top row**: Icon button + Name input (no label, placeholder "Enter pool name...")
+- **Remove**: Voting mode toggle and all voting-related UI/logic
+- **Remove**: Pool Packs / templates section (simplify)
+- **School selection**: Keep as-is (search + scrollable list with badges for selected), but remove the "Confirm Schools" intermediate step
+- **Create button**: At the bottom, directly calls `createPool()`. Validates inline (name + 5-10 schools). Shows `Loader2` spinner when creating.
+- **Remove**: Preview step entirely. No more `step` state.
 
-- `CreatePoolDialog` component file (`src/components/pools/CreatePoolDialog.tsx`) will no longer be imported from `Pools.tsx`
-- The file itself can remain (it may be used elsewhere or can be cleaned up later), but all its logic will be duplicated into the Create tab of `PoolActionDialog`
+### 3. Compact Join Tab
+
+- Reduce invite code input from `h-12 text-lg` to `h-9 text-sm` with tighter `tracking-wider` instead of `tracking-widest`
+- Reduce Join button from `h-10` to `h-9`
+- Reduce confirmation card padding from `p-4` to `p-3`
+- Match dense typography used in Schools directory
+
+### 4. Toast Updates
+
+- Create success toast: "Pool '[Name]' created! Invite your friends."
+- Keep join toast as-is
+
+### 5. Code Cleanup
+
+- Remove `step` state and `handleConfirmSchools` function
+- Remove `votingMode` state and all voting-related logic
+- Remove `poolTemplates` state and `loadTemplates` function
+- Remove template-related UI
+- Simplify `createPool` to always set `voting_mode: false`, `is_voting_finalized: true`, `schools: selectedSchools`
+- Remove `loadTemplates` call from `useEffect`
 
 ---
 
 ## Technical Details
 
-### Files Created
-- `src/components/pools/PoolActionDialog.tsx` -- unified tabbed dialog with Create and Join tabs
-
 ### Files Modified
-- `src/pages/Pools.tsx` -- remove inline join code input and CreatePoolDialog, add `+` button triggering PoolActionDialog
+- `src/components/pools/PoolActionDialog.tsx` -- major refactor of Create tab UI, compact Join tab
 
-### Join Tab Auto-Verification Logic
+### No New Files Created
+
+### Key UI Structure (Create Tab)
 ```text
-User types code -> length === 6 -> call get_pool_by_invite_code RPC
-  -> found: show pool name + "Join" button
-  -> not found: show "Pool not found" error
-  -> on join: insert pool_members, toast, close dialog, refresh list
+[Icon Popover Trigger (32px circle)] [Name Input "Enter pool name..." (flex-1)]
+
+Selected: [Badge] [Badge] [Badge x]
+
+[Search schools input]
+[Scrollable school list with toggle buttons]
+{selectedSchools.length}/10 · min 5
+
+[Create Pool button with spinner]
 ```
 
-### Components Reused
-- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from shadcn
-- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from shadcn
-- `Input`, `Button`, `Label`, `Switch`, `Badge`, `ScrollArea` from shadcn
-- `PoolIconSelector` for the create form
-- `useSchoolsQuery` for school selection
-- `sanitizePoolName` for name validation
-- `toast` from sonner for success/error feedback
-- `Plus`, `Users`, `UserPlus` icons from lucide-react
+### Removed State/Logic
+- `step` (no more multi-step)
+- `votingMode` (removed feature)
+- `poolTemplates`, `loadTemplates` (removed templates)
+- `handleConfirmSchools` (replaced by direct validation in `createPool`)
+
+### Components Added to Imports
+- `Popover`, `PopoverTrigger`, `PopoverContent` from shadcn
+
+### Validation
+- Pool name: `sanitizePoolName()` check, min 3 chars
+- Schools: 5-10 required
+- Both validated when user clicks "Create Pool", with toast errors
 
