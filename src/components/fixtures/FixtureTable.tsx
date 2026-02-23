@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
@@ -12,6 +12,7 @@ import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { MatchHistory } from "./MatchHistory";
 import { cn } from "@/lib/utils";
 import { resolveVenueName } from "@/lib/venueUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface FixtureSchool {
   id: string;
@@ -122,9 +123,25 @@ const SchoolBlock = ({
 
 const FixtureTableRow = ({ fixture, hasHistoryMap }: { fixture: Fixture; hasHistoryMap?: Record<string, boolean> }) => {
   const [open, setOpen] = useState(false);
+  const [autoHasHistory, setAutoHasHistory] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const [left, right, leftIsA] = sortSchoolsAlpha(fixture);
-  const canExpand = !hasHistoryMap || hasHistoryMap[fixture.id] !== false;
+
+  useEffect(() => {
+    if (hasHistoryMap) return;
+    const aId = fixture.school_a_id;
+    const bId = fixture.school_b_id;
+    supabase
+      .from("fixtures")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "completed")
+      .or(`and(school_a_id.eq.${aId},school_b_id.eq.${bId}),and(school_a_id.eq.${bId},school_b_id.eq.${aId})`)
+      .then(({ count }) => setAutoHasHistory((count ?? 0) > 0));
+  }, [fixture.school_a_id, fixture.school_b_id, hasHistoryMap]);
+
+  const canExpand = hasHistoryMap
+    ? hasHistoryMap[fixture.id] !== false
+    : autoHasHistory === true;
 
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
@@ -183,9 +200,25 @@ const FixtureTableRow = ({ fixture, hasHistoryMap }: { fixture: Fixture; hasHist
 
 const MobileFixtureCard = ({ fixture, hasHistoryMap }: { fixture: Fixture; hasHistoryMap?: Record<string, boolean> }) => {
   const [open, setOpen] = useState(false);
+  const [autoHasHistory, setAutoHasHistory] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const [left, right, leftIsA] = sortSchoolsAlpha(fixture);
-  const canExpand = !hasHistoryMap || hasHistoryMap[fixture.id] !== false;
+
+  useEffect(() => {
+    if (hasHistoryMap) return;
+    const aId = fixture.school_a_id;
+    const bId = fixture.school_b_id;
+    supabase
+      .from("fixtures")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "completed")
+      .or(`and(school_a_id.eq.${aId},school_b_id.eq.${bId}),and(school_a_id.eq.${bId},school_b_id.eq.${aId})`)
+      .then(({ count }) => setAutoHasHistory((count ?? 0) > 0));
+  }, [fixture.school_a_id, fixture.school_b_id, hasHistoryMap]);
+
+  const canExpand = hasHistoryMap
+    ? hasHistoryMap[fixture.id] !== false
+    : autoHasHistory === true;
 
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
