@@ -89,14 +89,6 @@ export function RecentResultsTable({ schoolId }: RecentResultsTableProps) {
   return (
     <div>
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-xs px-2">Date</TableHead>
-            <TableHead className="text-xs text-right px-2">Winner</TableHead>
-            <TableHead className="text-xs text-center w-20 px-0">Score</TableHead>
-            <TableHead className="text-xs text-left px-2">Loser</TableHead>
-          </TableRow>
-        </TableHeader>
         <TableBody>
           {results.map((r) => {
             const isDraw = r.score_a === r.score_b;
@@ -120,7 +112,7 @@ export function RecentResultsTable({ schoolId }: RecentResultsTableProps) {
             return (
               <TableRow key={r.id}>
                 <TableCell className="text-xs text-muted-foreground px-2 py-1.5 whitespace-nowrap">
-                  {format(new Date(r.match_date), "d MMM yyyy")}
+                  {format(new Date(r.match_date), "d MMM yy")}
                 </TableCell>
                 <TableCell className="text-xs font-medium text-right px-2 py-1.5">
                   {winner.name}
