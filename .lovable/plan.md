@@ -1,74 +1,73 @@
 
-# Replace Profile Tab with Schools Directory
+# Refactor Pools Page to High-Density List Format
 
 ## Overview
-Replace the "Profile" tab in the bottom navigation with a "Schools" directory page. Users can browse, search, filter by province, and follow/unfollow schools with confirmation dialogs. Profile remains accessible via the GlobalHeader burger menu (already linked there).
+Replace the large PoolCard grid on the Pools page with a compact, table-like row layout matching the Schools directory style. Each pool becomes a single clickable row with icon, name, member count, and rank.
 
 ---
 
 ## Changes
 
-### 1. Create Schools Directory Page (`src/pages/Schools.tsx`)
+### 1. Create Pool List Row Component (`src/components/pools/PoolListRow.tsx`)
 
-A new mobile-first page with:
+A new compact row component:
 
-- **Sticky filter bar**: Debounced search input + province dropdown (reusing `saProvinces` data and existing filter patterns from Fixtures)
-- **School list**: Fetched via `useSchoolsQuery` with `select: "id, name, slug, province, emblem_url, jersey_url, icon_url"`, paginated at 20 per page using `usePagination`
-- **Client-side filtering**: Search by name and filter by province applied to the fetched list (schools are static data, so client-side filtering is efficient)
-- **Each list row**:
-  - 28px circular avatar using `getSchoolDisplayImage()` with initials fallback
-  - School name as a clickable link to `/school/:slug`
-  - Province in muted smaller text
-  - Star icon (filled yellow if followed, outline if not)
-- **Follow/unfollow logic**:
-  - Fetch `user_school_follows` for the current user on mount
-  - Fetch user's `school_id` from profile for primary school detection
-  - Clicking star opens an `AlertDialog` with contextual message
-  - Primary school star is filled but disabled with a `Tooltip` showing "Primary School"
-  - On confirm: insert/delete from `user_school_follows`, show sonner toast
-- **Pagination controls** at the bottom using existing `PaginationControls` pattern (Previous/Next buttons with item count display)
+- **Left**: 32px circular icon using `getPoolIconComponent` and `getPoolColorValue` (same as current PoolCard)
+- **Middle**: Pool name (bold, truncated) on one line
+- **Right side, two data columns**:
+  - Members: small `Users` icon + count number
+  - Rank: small `Trophy` icon + position number (or "--" if no rank data available yet)
+- **Entire row clickable** navigating to `/pool/:poolId`
+- **Hover state**: `hover:bg-muted/50` matching the Schools list rows
+- Divider lines between rows via parent `divide-y`
 
-### 2. Update Bottom Navigation (`src/components/BottomNav.tsx`)
+Props: `pool` object (id, name, icon_id, color_id, member count) + optional `userRank`
 
-- Replace the Profile button: change icon from `User` to `School` (from lucide-react), label from "Profile" to "Schools", route from `/profile` to `/schools`
-- Update `isActive` check to match `/schools`
-- Update prefetch handler to prefetch schools data for `/schools`
+### 2. Refactor Pools Page (`src/pages/Pools.tsx`)
 
-### 3. Update Routing (`src/components/AnimatedRoutes.tsx`)
+**Simplify the page significantly:**
 
-- Import the new `Schools` page eagerly (core nav page)
-- Add `/schools` to the `KEEP_ALIVE_ROUTES` array for cached navigation
-- Keep `/profile` as a secondary animated route (still accessible, just not in bottom nav)
+- **Remove**: Tournaments section, Leaderboard preview section, and all their associated state/data fetching (these are accessible elsewhere -- tournaments from Fixtures, leaderboard from the Leaderboard tab)
+- **Keep**: GlobalHeader, BottomNav, pool data fetching, join code flow, CreatePoolDialog
+- **Sticky header** with:
+  - "Your Pools" title with Trophy icon
+  - Row containing: search input (debounced, filters pools by name) + Create Pool button (compact)
+  - Join code input row (existing pattern, kept compact)
+- **Pool list**: Vertical stack of `PoolListRow` components with `divide-y` dividers
+- **Empty state**: Clean centered message with Users icon, "No pools yet" heading, and two CTAs: "Create a Pool" and join code input
 
-### 4. Update Prefetch Hook (`src/hooks/usePrefetch.ts`)
+**Data changes:**
+- Pool rank: Currently no per-pool rank data exists in the database schema. The rank column will show "--" as a placeholder. This can be wired up later when pool-level scoring is implemented.
+- Member count: Already available from the existing `pool_members(count)` join
 
-- Add a `/schools` case to `prefetchForRoute` that calls `prefetchSchools()` and `prefetchProfile()` (profile needed for follow state)
+### 3. Visual Consistency
+
+- Row height, typography, and spacing will match the Schools directory list items
+- Same `divide-y divide-border/40` pattern
+- Same `-mx-4 px-4` full-bleed hover pattern
+- Same `text-sm font-medium` for names, `text-xs text-muted-foreground` for secondary info
 
 ---
 
 ## Technical Details
 
-### Data Fetching Strategy
-- Schools list: Use `useSchoolsQuery` with `CACHE_TIMES.STATIC` (already configured)
-- User follows: Separate `useQuery` fetching all `user_school_follows` for the current user, keyed as `["user-school-follows", userId]` with `CACHE_TIMES.REFERENCE`
-- User profile `school_id`: Reuse existing profile query pattern
-
 ### Files Created
-- `src/pages/Schools.tsx` -- the full directory page
+- `src/components/pools/PoolListRow.tsx` -- compact row component
 
 ### Files Modified
-- `src/components/BottomNav.tsx` -- swap Profile for Schools
-- `src/components/AnimatedRoutes.tsx` -- add Schools to keep-alive routes, move Profile to secondary routes
-- `src/hooks/usePrefetch.ts` -- add `/schools` prefetch case
+- `src/pages/Pools.tsx` -- major simplification: remove tournaments/leaderboard sections, replace PoolCard grid with PoolListRow stack, add search filter
 
-### Components Used (existing)
-- `AlertDialog` (shadcn) for follow/unfollow confirmation
-- `Tooltip` for primary school indicator
-- `Select` for province filter
-- `Input` with search icon for search bar
-- `Skeleton` for loading states
-- `getSchoolDisplayImage` from `schoolImageUtils`
-- `saProvinces` for province filter options
-- `useDebounce` for search input
-- `usePagination` for page state
-- `toast` from sonner for success feedback
+### Existing Components Reused
+- `getPoolIconComponent`, `getPoolColorValue` from `PoolIconSelector`
+- `CreatePoolDialog` for pool creation
+- `useDebounce` for search filtering
+- `Input`, `Button` from shadcn
+- `Users`, `Trophy` icons from lucide-react
+
+### What Gets Removed from Pools.tsx
+- Tournament section and `user_tournament_follows` query
+- Leaderboard preview section and `user_scores` / `profiles_public` queries
+- `Tabs`, `TabsList`, `TabsTrigger` imports
+- `leaderboardTab`, `leaderboardPeriod`, `leaderboardData`, `userSchool`, `userProvince`, tournament state
+- `loadLeaderboardPreview` function
+- `PoolCard` import (replaced by `PoolListRow`)
