@@ -1,38 +1,30 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Calendar, Trophy, Flame, Users, Heart, HeartOff } from "lucide-react";
+import { Star, Users, Trophy } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
+import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
+import { resolveVenueName } from "@/lib/venueUtils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function SchoolProfile() {
   const { schoolSlug } = useParams();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [school, setSchool] = useState<any>(null);
   const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
   const [recentResults, setRecentResults] = useState<any[]>([]);
-  const [topUsers, setTopUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [primarySchoolId, setPrimarySchoolId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 34, g: 197, b: 94 };
-  };
+  const [followerCount, setFollowerCount] = useState(0);
+  const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
+  const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
 
   useEffect(() => {
     loadSchoolData();
@@ -78,12 +70,14 @@ export default function SchoolProfile() {
           .eq("user_id", currentUserId)
           .eq("school_id", school.id);
         setIsFollowing(false);
+        setFollowerCount(prev => Math.max(0, prev - 1));
         sonnerToast(`Unfollowed ${school.name}`);
       } else {
         await supabase
           .from("user_school_follows")
           .insert({ user_id: currentUserId, school_id: school.id });
         setIsFollowing(true);
+        setFollowerCount(prev => prev + 1);
         sonnerToast(`Now following ${school.name}`);
       }
     } catch (e: any) {
@@ -92,6 +86,39 @@ export default function SchoolProfile() {
       setFollowLoading(false);
     }
   };
+
+  const loadMatchHistory = useCallback(async (fixtures: any[]) => {
+    const map: Record<string, boolean> = {};
+    await Promise.all(
+      fixtures.map(async (f) => {
+        const aId = f.school_a_id;
+        const bId = f.school_b_id;
+        const { count } = await supabase
+          .from("fixtures")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "completed")
+          .or(`and(school_a_id.eq.${aId},school_b_id.eq.${bId}),and(school_a_id.eq.${bId},school_b_id.eq.${aId})`);
+        map[f.id] = (count ?? 0) > 0;
+      })
+    );
+    setHasHistoryMap(map);
+  }, []);
+
+  const loadPredictions = useCallback(async (fixtureIds: string[], userId: string) => {
+    if (fixtureIds.length === 0) return;
+    const { data } = await supabase
+      .from("predictions")
+      .select("fixture_id, predicted_school_id, predicted_margin")
+      .eq("user_id", userId)
+      .in("fixture_id", fixtureIds);
+    if (data) {
+      const preds: Record<string, { predictedSchoolId: string; predictedMargin: number }> = {};
+      data.forEach((p) => {
+        preds[p.fixture_id] = { predictedSchoolId: p.predicted_school_id, predictedMargin: p.predicted_margin };
+      });
+      setUserPredictions(preds);
+    }
+  }, []);
 
   const loadSchoolData = async () => {
     if (!schoolSlug) return;
@@ -111,7 +138,14 @@ export default function SchoolProfile() {
 
       const schoolId = schoolData.id;
 
-      const { data: upcomingData, error: upcomingError } = await supabase
+      // Follower count
+      const { count: fCount } = await supabase
+        .from("user_school_follows")
+        .select("id", { count: "exact", head: true })
+        .eq("school_id", schoolId);
+      setFollowerCount(fCount ?? 0);
+
+      const { data: upcomingData } = await supabase
         .from("fixtures")
         .select(`
           id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby,
@@ -125,9 +159,11 @@ export default function SchoolProfile() {
         .order("match_date", { ascending: true })
         .limit(5);
 
-      setUpcomingFixtures((upcomingData || []) as any[]);
+      const upcoming = (upcomingData || []) as any[];
+      setUpcomingFixtures(upcoming);
 
-      const { data: resultsData, error: resultsError } = await supabase
+      // Load match history map for upcoming + recent
+      const { data: resultsData } = await supabase
         .from("fixtures")
         .select(`
           id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby, score_a, score_b,
@@ -142,26 +178,16 @@ export default function SchoolProfile() {
         .order("match_date", { ascending: false })
         .limit(5);
 
-      setRecentResults((resultsData || []) as any[]);
+      const results = (resultsData || []) as any[];
+      setRecentResults(results);
 
-      const { data: topUsersData } = await supabase
-        .from("user_scores")
-        .select(`
-          season_points,
-          user_id,
-          profiles!inner(display_name, first_name, school_id)
-        `)
-        .eq("profiles.school_id", schoolData.id)
-        .order("season_points", { ascending: false })
-        .limit(5);
+      // Load history map for all displayed fixtures
+      loadMatchHistory([...upcoming, ...results]);
 
-      if (topUsersData) {
-        const formattedUsers = topUsersData.map((item: any, index) => ({
-          rank: index + 1,
-          name: item.profiles?.display_name || item.profiles?.first_name || "Anonymous",
-          points: item.season_points || 0
-        }));
-        setTopUsers(formattedUsers);
+      // Load predictions for upcoming fixtures if user is logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && upcoming.length > 0) {
+        loadPredictions(upcoming.map(f => f.id), user.id);
       }
 
     } catch (error: any) {
@@ -191,243 +217,135 @@ export default function SchoolProfile() {
     );
   }
 
-  const isDerby = (fixture: any) => {
-    const schoolA = fixture.school_a?.name;
-    const schoolB = fixture.school_b?.name;
-    return fixture.is_derby || 
-           schoolA === school.main_rival || 
-           schoolB === school.main_rival;
-  };
-
-  const primaryColor = school.primary_color || '#22C55E';
-  const secondaryColor = school.secondary_color || '#FFD700';
-  const primaryRgb = hexToRgb(primaryColor);
-  const secondaryRgb = hexToRgb(secondaryColor);
+  const isPrimarySchool = primarySchoolId === school.id;
+  const showInteractive = isFollowing || isPrimarySchool;
+  const logoSrc = school.emblem_url || school.jersey_url || school.icon_url;
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <GlobalHeader />
 
-      <div className="relative h-72 overflow-hidden border-b border-border/40">
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(135deg, rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.15) 0%, rgba(${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}, 0.15) 100%)`
-          }}
-        >
-          <div className="absolute inset-0 bg-background/85"></div>
-          <div 
-            className="absolute inset-0 opacity-5" 
-            style={{
-              backgroundImage: `repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 18px,
-                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 18px,
-                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 20px
-              ),
-              repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 80px,
-                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 80px,
-                rgb(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}) 82px
-              )`
-            }}
-          ></div>
-        </div>
-        
-        <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
-          <div className="relative mb-6">
-            <div 
-              className="w-36 h-36 rounded-2xl bg-card/90 backdrop-blur-md flex items-center justify-center border-2 overflow-hidden p-5 rotate-45 transform"
-              style={{
-                borderColor: primaryColor,
-                boxShadow: `0 0 50px rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.3)`
-              }}
-            >
-              <div className="-rotate-45 w-full h-full flex items-center justify-center">
-                {(school.emblem_url || school.jersey_url || school.icon_url) ? (
-                  <img 
-                    src={school.emblem_url || school.jersey_url || school.icon_url} 
-                    alt={`${school.name} crest`}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <span 
-                    className="text-5xl font-bold"
-                    style={{ color: primaryColor }}
-                  >
-                    {school.name.substring(0, 2).toUpperCase()}
-                  </span>
-                )}
-              </div>
-            </div>
-            {upcomingFixtures.some(f => isDerby(f)) && (
-              <div className="absolute -top-2 -right-2 w-10 h-10 bg-destructive rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                <Flame className="w-6 h-6 text-destructive-foreground" />
-              </div>
+      <div className="px-4 pt-4 pb-2 max-w-7xl mx-auto space-y-1">
+        {/* Row 1: Logo + Name + Star */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-muted border border-border/40 flex items-center justify-center overflow-hidden shrink-0">
+            {logoSrc ? (
+              <img src={logoSrc} alt={school.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold text-primary">
+                {school.name?.substring(0, 2).toUpperCase()}
+              </span>
             )}
           </div>
-          
-          <h1 className="text-4xl font-bold text-center mb-2 tracking-tight">{school.name}</h1>
-          {school.motto && (
-            <p 
-              className="text-sm italic text-center max-w-md px-4 font-medium"
-              style={{ color: secondaryColor }}
-            >
-              "{school.motto}"
-            </p>
-          )}
-          
+          <h1 className="text-lg font-bold truncate flex-1">{school.name}</h1>
           {currentUserId && (
-            <div className="mt-4">
-              {primarySchoolId === school.id ? (
-                <Badge variant="secondary" className="px-4 py-1.5">
-                  <Heart className="w-3.5 h-3.5 mr-1.5 fill-current" />
-                  Primary School
-                </Badge>
-              ) : (
-                <Button
-                  size="sm"
-                  variant={isFollowing ? "outline" : "default"}
-                  onClick={handleToggleFollow}
-                  disabled={followLoading}
-                  className="min-w-[120px]"
-                >
-                  {isFollowing ? (
-                    <>
-                      <HeartOff className="w-4 h-4 mr-1.5" />
-                      Unfollow
-                    </>
-                  ) : (
-                    <>
-                      <Heart className="w-4 h-4 mr-1.5" />
-                      Follow
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
+            isPrimarySchool ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Star className="w-5 h-5 text-primary fill-primary shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent>Primary School</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <button
+                type="button"
+                onClick={handleToggleFollow}
+                disabled={followLoading}
+                className="shrink-0 p-1 hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                <Star className={`w-5 h-5 ${isFollowing ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+              </button>
+            )
           )}
         </div>
+
+        {/* Row 2: Motto */}
+        {school.motto && (
+          <p className="text-xs italic text-muted-foreground pl-11">"{school.motto}"</p>
+        )}
+
+        {/* Row 3: Metadata */}
+        {(school.province || school.established_year) && (
+          <p className="text-xs text-muted-foreground pl-11">
+            {[school.province, school.established_year ? `Est. ${school.established_year}` : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
       </div>
 
-      <main className="px-4 py-6 space-y-6 max-w-7xl mx-auto">
-        <div className="flex flex-wrap gap-3 justify-center">
-          {school.established_year && (
-            <div className="h-12 px-5 rounded-full bg-card border border-primary/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transition-shadow">
-              <Calendar className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Established {school.established_year}</span>
+      <main className="px-4 py-4 space-y-6 max-w-7xl mx-auto">
+        {/* Impact Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-lg bg-muted/30 border border-border/40 p-4 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <Users className="w-4 h-4 text-muted-foreground" />
             </div>
-          )}
-          {school.province && (
-            <div className="h-12 px-5 rounded-full bg-card border border-accent/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(251,191,36,0.15)] transition-shadow">
-              <MapPin className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium">{school.province}</span>
+            <div className="text-3xl font-bold text-primary">{followerCount}</div>
+            <div className="text-xs text-muted-foreground">Followers</div>
+          </div>
+          <div className="rounded-lg bg-muted/30 border border-border/40 p-4 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <Trophy className="w-4 h-4 text-muted-foreground" />
             </div>
-          )}
-          {school.springboks_count !== null && (
-            <div className="h-12 px-5 rounded-full bg-card border border-primary/30 flex items-center gap-2 shadow-sm hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transition-shadow">
-              <Trophy className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium">{school.springboks_count} Springboks</span>
-            </div>
-          )}
+            <div className="text-3xl font-bold text-primary">{school.springboks_count ?? 0}</div>
+            <div className="text-xs text-muted-foreground">Springboks</div>
+          </div>
         </div>
 
-        <FixtureTable fixtures={upcomingFixtures} />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Results</CardTitle>
-            <CardDescription>Last 5 completed matches</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentResults.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">No recent results</p>
+        {/* Upcoming Fixtures */}
+        {upcomingFixtures.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming Fixtures</h2>
+            {showInteractive ? (
+              <div className="space-y-3">
+                {upcomingFixtures.map((f) => {
+                  const pred = userPredictions[f.id];
+                  return (
+                    <FixtureCard
+                      key={f.id}
+                      homeTeam={f.school_a?.name || "TBD"}
+                      awayTeam={f.school_b?.name || "TBD"}
+                      homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                      awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                      homeTeamIcon={f.school_a?.jersey_url}
+                      awayTeamIcon={f.school_b?.jersey_url}
+                      homeSchoolId={f.school_a_id}
+                      awaySchoolId={f.school_b_id}
+                      homeSchoolSlug={f.school_a?.slug}
+                      awaySchoolSlug={f.school_b?.slug}
+                      matchDate={f.match_date}
+                      time=""
+                      venue={resolveVenueName(f)}
+                      tournamentName={f.tournament?.name}
+                      matchId={f.id}
+                      isPredicted={!!pred}
+                      predictedSchoolId={pred?.predictedSchoolId}
+                      predictedMargin={pred?.predictedMargin}
+                      onPredictionMade={(schoolId, margin) => {
+                        setUserPredictions(prev => ({
+                          ...prev,
+                          [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
+                        }));
+                      }}
+                    />
+                  );
+                })}
+              </div>
             ) : (
-              <FixtureTable fixtures={recentResults} />
+              <FixtureTable fixtures={upcomingFixtures} hasHistoryMap={hasHistoryMap} />
             )}
-          </CardContent>
-        </Card>
+          </section>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Trybal Users</CardTitle>
-            <CardDescription>Best performers from {school.name}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {topUsers.map((user) => (
-                <div
-                  key={user.rank}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/40 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-sm">{user.name}</div>
-                      <div className="text-xs text-muted-foreground">Rank #{user.rank}</div>
-                    </div>
-                  </div>
-                  <div className="text-lg font-bold text-primary">
-                    {user.points} brags
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {school.main_rival && upcomingFixtures.some(f => isDerby(f)) && (
-          <Card className="border-destructive/40 bg-gradient-to-br from-destructive/10 to-destructive/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-destructive/5 rounded-full blur-3xl"></div>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 relative z-10">
-                <div className="w-10 h-10 bg-destructive/20 rounded-full flex items-center justify-center animate-pulse">
-                  <Flame className="w-6 h-6 text-destructive" />
-                </div>
-                Derby Match Alert!
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="relative z-10">
-              {upcomingFixtures.filter(f => isDerby(f)).map(derbyMatch => (
-                <div key={derbyMatch.id} className="space-y-3">
-                  <p className="text-center font-medium">
-                    The historic rivalry with <span className="font-bold text-destructive">{school.main_rival}</span> continues!
-                  </p>
-                  <div className="p-4 bg-card/60 rounded-lg border border-destructive/20">
-                    <div className="flex items-center justify-between gap-4 mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-primary overflow-hidden p-1">
-                          {derbyMatch.school_a?.icon_url && (
-                            <img src={derbyMatch.school_a.icon_url} alt="" className="w-full h-full object-contain" />
-                          )}
-                        </div>
-                        <span className="font-bold text-sm">{derbyMatch.school_a?.name}</span>
-                      </div>
-                      <span className="font-black text-muted-foreground">VS</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-right">{derbyMatch.school_b?.name}</span>
-                        <div className="w-10 h-10 rounded-full bg-background/60 flex items-center justify-center border-2 border-accent overflow-hidden p-1">
-                          {derbyMatch.school_b?.icon_url && (
-                            <img src={derbyMatch.school_b.icon_url} alt="" className="w-full h-full object-contain" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <Badge variant="outline" className="bg-background/50 border-destructive/30 text-destructive">
-                        {new Date(derbyMatch.match_date).toLocaleDateString()}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+        {/* Recent Results */}
+        {recentResults.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
+            <FixtureTable fixtures={recentResults} hasHistoryMap={hasHistoryMap} />
+          </section>
         )}
       </main>
 
