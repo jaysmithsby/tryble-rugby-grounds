@@ -49,10 +49,10 @@ export const FixturesDateSelector = ({
 
   const triggerLabel = useMemo(() => {
     if (isFullMonth) {
-      return `${FULL_MONTHS[dateRange.from.getMonth()]} ${dateRange.from.getFullYear()}`;
+      return `${MONTHS[dateRange.from.getMonth()]} ${dateRange.from.getFullYear()}`;
     }
     const fromStr = format(dateRange.from, "MMM d");
-    const toStr = format(dateRange.to, "MMM d, yyyy");
+    const toStr = format(dateRange.to, "MMM d");
     return `${fromStr} – ${toStr}`;
   }, [dateRange, isFullMonth]);
 
@@ -76,11 +76,11 @@ export const FixturesDateSelector = ({
           variant="outline"
           size="sm"
           className={cn(
-            "gap-2 font-medium text-sm shrink-0",
+            "gap-1.5 font-medium text-xs shrink-0 h-8 px-2.5",
             !isFullMonth && "text-primary border-primary/40"
           )}
         >
-          <CalendarIcon className="h-4 w-4" />
+          <CalendarIcon className="h-3.5 w-3.5" />
           {triggerLabel}
         </Button>
       </PopoverTrigger>

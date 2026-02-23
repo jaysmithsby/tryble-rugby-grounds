@@ -58,12 +58,12 @@ export const FixturesFilters = ({
       {/* Search + Date + Province in one row */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <Input
             placeholder="Search school..."
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
-            className="pl-8 h-8 text-sm"
+            className="pl-7 h-8 text-xs"
           />
           {searchQuery && (
             <button
