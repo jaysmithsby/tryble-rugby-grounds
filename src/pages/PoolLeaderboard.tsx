@@ -458,11 +458,12 @@ export const PoolLeaderboard = () => {
       </div>
 
       {/* ===== MODE TOGGLE ===== */}
-      <div className="flex gap-2 justify-center px-4 py-3">
+      <div className="flex gap-2 px-4 py-3">
         <Button
           variant={activeView === "leaderboard" ? "default" : "outline"}
           onClick={() => setActiveView("leaderboard")}
           size="sm"
+          className="flex-1"
         >
           Leaderboard
         </Button>
@@ -470,6 +471,7 @@ export const PoolLeaderboard = () => {
           variant={activeView === "fixtures" ? "default" : "outline"}
           onClick={() => setActiveView("fixtures")}
           size="sm"
+          className="flex-1"
         >
           Fixtures
         </Button>
