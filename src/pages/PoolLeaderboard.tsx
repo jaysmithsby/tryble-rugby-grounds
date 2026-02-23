@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Lock, Clock, Users } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Lock, Clock, Users, Trophy, Hash, Calendar } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -14,6 +15,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getPoolIconComponent, getPoolColorValue } from "@/components/pools/PoolIconSelector";
 import { resolveVenueName } from "@/lib/venueUtils";
 import { differenceInMinutes, format, endOfYear } from "date-fns";
@@ -35,10 +37,9 @@ type LeaderboardEntry = {
   picks: number;
 };
 
-type PoolHighlights = {
-  hilux: { name: string; points: number } | null;
-  spud: { name: string; points: number } | null;
-};
+const LEADERBOARD_PER_PAGE = 20;
+const FIXTURES_PER_PAGE = 8;
+const AVAILABLE_SEASONS = [2025, 2026];
 
 export const PoolLeaderboard = () => {
   const { poolId } = useParams();
@@ -59,12 +60,11 @@ export const PoolLeaderboard = () => {
   const [activeView, setActiveView] = useState<"leaderboard" | "fixtures">("leaderboard");
   const [selectedSeason, setSelectedSeason] = useState(2026);
   const [schoolsOpen, setSchoolsOpen] = useState(false);
+  const [seasonPopoverOpen, setSeasonPopoverOpen] = useState(false);
 
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [highlights, setHighlights] = useState<PoolHighlights>({ hilux: null, spud: null });
   const [leaderboardPage, setLeaderboardPage] = useState(1);
-  const LEADERBOARD_PER_PAGE = 20;
 
   // Fixtures state
   const [poolFixtures, setPoolFixtures] = useState<any[]>([]);
@@ -72,7 +72,6 @@ export const PoolLeaderboard = () => {
   const [fixturesPage, setFixturesPage] = useState(1);
   const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
   const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
-  const FIXTURES_PER_PAGE = 8;
 
   // School IDs resolved from pool school names
   const [poolSchoolIds, setPoolSchoolIds] = useState<string[]>([]);
@@ -94,13 +93,8 @@ export const PoolLeaderboard = () => {
     }
   }, [poolSchoolIds, dateRange, activeView]);
 
-  useEffect(() => {
-    setFixturesPage(1);
-  }, [dateRange]);
-
-  useEffect(() => {
-    setLeaderboardPage(1);
-  }, [selectedSeason]);
+  useEffect(() => { setFixturesPage(1); }, [dateRange]);
+  useEffect(() => { setLeaderboardPage(1); }, [selectedSeason]);
 
   const loadCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -115,19 +109,15 @@ export const PoolLeaderboard = () => {
     }
     try {
       const { data: schoolsData } = await supabase
-        .from("schools")
-        .select("id, name")
-        .in("name", poolSchools);
+        .from("schools").select("id, name").in("name", poolSchools);
       if (!schoolsData || schoolsData.length === 0) { setIsEditable(true); return; }
       const schoolIds = schoolsData.map(s => s.id);
       const now = new Date();
       const { data: fixtures } = await supabase
-        .from("fixtures")
-        .select("match_date")
+        .from("fixtures").select("match_date")
         .or(`school_a_id.in.(${schoolIds.join(",")}),school_b_id.in.(${schoolIds.join(",")})`)
         .gte("match_date", now.toISOString())
-        .order("match_date", { ascending: true })
-        .limit(1);
+        .order("match_date", { ascending: true }).limit(1);
       if (fixtures && fixtures.length > 0) {
         const firstMatch = new Date(fixtures[0].match_date);
         const minutesUntilMatch = differenceInMinutes(firstMatch, now);
@@ -156,46 +146,34 @@ export const PoolLeaderboard = () => {
     setLoading(true);
     try {
       const { data: poolData, error: poolError } = await supabase
-        .from("pools")
-        .select("*")
-        .eq("id", poolId)
-        .single();
+        .from("pools").select("*").eq("id", poolId).single();
       if (poolError) throw poolError;
       setPool(poolData);
 
       await checkEditableLock(poolData.schools || []);
 
-      // Resolve school names to IDs
       if (poolData.schools && poolData.schools.length > 0) {
         const { data: schoolsData } = await supabase
-          .from("schools")
-          .select("id, name")
-          .in("name", poolData.schools);
+          .from("schools").select("id, name").in("name", poolData.schools);
         setPoolSchoolIds((schoolsData || []).map(s => s.id));
       } else {
         setPoolSchoolIds([]);
       }
 
-      // Load members
       const { data: membersData, error: membersError } = await supabase
-        .from("pool_members")
-        .select("user_id, joined_at")
-        .eq("pool_id", poolId);
+        .from("pool_members").select("user_id, joined_at").eq("pool_id", poolId);
       if (membersError) throw membersError;
 
       const memberIds = membersData?.map(m => m.user_id) || [];
       if (memberIds.length === 0) {
         setMembers([]);
         setLeaderboard([]);
-        setHighlights({ hilux: null, spud: null });
         setLoading(false);
         return;
       }
 
       const { data: profilesData } = await supabase
-        .from("profiles_public")
-        .select("id, display_name, school_name")
-        .in("id", memberIds);
+        .from("profiles_public").select("id, display_name, school_name").in("id", memberIds);
 
       const profilesMap: Record<string, { display_name: string | null; school_name: string | null }> = {};
       profilesData?.forEach(p => {
@@ -218,14 +196,11 @@ export const PoolLeaderboard = () => {
 
   const loadLeaderboardData = async () => {
     if (poolSchoolIds.length === 0 || members.length === 0) return;
-
     const memberIds = members.map(m => m.user_id);
 
     try {
-      // Get fixtures where BOTH teams are pool schools
       const { data: fixturesData } = await supabase
-        .from("fixtures")
-        .select("id")
+        .from("fixtures").select("id")
         .in("school_a_id", poolSchoolIds)
         .in("school_b_id", poolSchoolIds)
         .eq("year", selectedSeason);
@@ -233,32 +208,21 @@ export const PoolLeaderboard = () => {
       const fixtureIds = (fixturesData || []).map(f => f.id);
 
       if (fixtureIds.length === 0) {
-        // No pool-scoped fixtures, show empty leaderboard
         const entries: LeaderboardEntry[] = memberIds.map(userId => ({
-          rank: 0,
-          userId,
+          rank: 0, userId,
           nickname: members.find(m => m.user_id === userId)?.display_name || "Anonymous",
-          points: 0,
-          accuracy: 0,
-          picks: 0,
+          points: 0, accuracy: 0, picks: 0,
         }));
         entries.forEach((e, i) => e.rank = i + 1);
         setLeaderboard(entries);
-        setHighlights({ hilux: null, spud: null });
         return;
       }
 
-      // RLS: Users can only see their own predictions. 
-      // For the current user, we compute scoped stats. For others, we use user_scores (global).
-      // Fetch current user's scoped predictions
       let currentUserScoped: { points: number; accuracy: number; picks: number } | null = null;
       if (currentUserId && memberIds.includes(currentUserId)) {
         const { data: myPreds } = await supabase
-          .from("predictions")
-          .select("points_earned")
-          .eq("user_id", currentUserId)
-          .in("fixture_id", fixtureIds);
-
+          .from("predictions").select("points_earned")
+          .eq("user_id", currentUserId).in("fixture_id", fixtureIds);
         if (myPreds) {
           const totalPicks = myPreds.length;
           const totalPoints = myPreds.reduce((s, p) => s + (p.points_earned || 0), 0);
@@ -271,29 +235,23 @@ export const PoolLeaderboard = () => {
         }
       }
 
-      // For all members, use user_scores as fallback (global points)
       const { data: scoresData } = await supabase
-        .from("user_scores")
-        .select("user_id, season_points, predictions_made, predictions_correct")
-        .in("user_id", memberIds)
-        .eq("season_year", selectedSeason);
+        .from("user_scores").select("user_id, season_points, predictions_made, predictions_correct")
+        .in("user_id", memberIds).eq("season_year", selectedSeason);
 
-      // Aggregate season scores per user (sum across weeks)
       const userAgg: Record<string, { points: number; picks: number; correct: number }> = {};
       scoresData?.forEach(s => {
         if (!userAgg[s.user_id]) userAgg[s.user_id] = { points: 0, picks: 0, correct: 0 };
-        userAgg[s.user_id].points = s.season_points || 0; // season_points is already cumulative
+        userAgg[s.user_id].points = s.season_points || 0;
         userAgg[s.user_id].picks += s.predictions_made || 0;
         userAgg[s.user_id].correct += s.predictions_correct || 0;
       });
 
       const entries: LeaderboardEntry[] = memberIds.map(userId => {
         const member = members.find(m => m.user_id === userId);
-        // Use scoped data for current user, global for others
         if (userId === currentUserId && currentUserScoped) {
           return {
-            rank: 0,
-            userId,
+            rank: 0, userId,
             nickname: member?.display_name || "Anonymous",
             points: currentUserScoped.points,
             accuracy: currentUserScoped.accuracy,
@@ -302,8 +260,7 @@ export const PoolLeaderboard = () => {
         }
         const agg = userAgg[userId];
         return {
-          rank: 0,
-          userId,
+          rank: 0, userId,
           nickname: member?.display_name || "Anonymous",
           points: agg?.points || 0,
           accuracy: agg?.picks ? Math.round(((agg.correct || 0) / agg.picks) * 100) : 0,
@@ -314,20 +271,6 @@ export const PoolLeaderboard = () => {
       entries.sort((a, b) => b.points - a.points);
       entries.forEach((e, i) => e.rank = i + 1);
       setLeaderboard(entries);
-
-      // Highlights
-      if (entries.length >= 2 && entries[0].points > 0) {
-        const activeEntries = entries.filter(e => e.points > 0);
-        const spud = activeEntries.length >= 2 ? activeEntries[activeEntries.length - 1] : null;
-        setHighlights({
-          hilux: { name: entries[0].nickname, points: entries[0].points },
-          spud: spud && spud.userId !== entries[0].userId ? { name: spud.nickname, points: spud.points } : null,
-        });
-      } else if (entries.length >= 1 && entries[0].points > 0) {
-        setHighlights({ hilux: { name: entries[0].nickname, points: entries[0].points }, spud: null });
-      } else {
-        setHighlights({ hilux: null, spud: null });
-      }
     } catch (error) {
       console.error("Error loading leaderboard:", error);
     }
@@ -335,7 +278,6 @@ export const PoolLeaderboard = () => {
 
   const loadFixturesData = async () => {
     if (poolSchoolIds.length === 0) return;
-
     try {
       const { data: fixturesData } = await supabase
         .from("fixtures")
@@ -352,14 +294,11 @@ export const PoolLeaderboard = () => {
 
       setPoolFixtures(fixturesData || []);
 
-      // Load predictions for current user
       if (currentUserId && fixturesData && fixturesData.length > 0) {
         const ids = fixturesData.map(f => f.id);
         const { data: preds } = await supabase
-          .from("predictions")
-          .select("fixture_id, predicted_school_id, predicted_margin")
-          .eq("user_id", currentUserId)
-          .in("fixture_id", ids);
+          .from("predictions").select("fixture_id, predicted_school_id, predicted_margin")
+          .eq("user_id", currentUserId).in("fixture_id", ids);
         if (preds) {
           const predsMap: Record<string, { predictedSchoolId: string; predictedMargin: number }> = {};
           preds.forEach(p => {
@@ -380,17 +319,14 @@ export const PoolLeaderboard = () => {
     }
   };
 
-  const getRankStyle = (rank: number) => {
-    if (rank === 1) return "bg-gradient-to-r from-yellow-600/20 to-yellow-500/10 border-yellow-600/30";
-    if (rank === 2) return "bg-gradient-to-r from-gray-400/20 to-gray-300/10 border-gray-400/30";
-    if (rank === 3) return "bg-gradient-to-r from-amber-700/20 to-amber-600/10 border-amber-700/30";
-    return "";
+  const getInitials = (name: string | null) => {
+    if (!name) return "??";
+    return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   };
 
   // Pagination
-  const filteredFixtures = useMemo(() => poolFixtures, [poolFixtures]);
-  const totalFixturePages = Math.max(1, Math.ceil(filteredFixtures.length / FIXTURES_PER_PAGE));
-  const paginatedFixtures = filteredFixtures.slice(
+  const totalFixturePages = Math.max(1, Math.ceil(poolFixtures.length / FIXTURES_PER_PAGE));
+  const paginatedFixtures = poolFixtures.slice(
     (fixturesPage - 1) * FIXTURES_PER_PAGE,
     fixturesPage * FIXTURES_PER_PAGE
   );
@@ -402,6 +338,9 @@ export const PoolLeaderboard = () => {
   );
 
   const currentUserEntry = leaderboard.find(e => e.userId === currentUserId);
+  const currentUserIndex = leaderboard.findIndex(e => e.userId === currentUserId);
+  const currentUserPage = currentUserIndex >= 0 ? Math.floor(currentUserIndex / LEADERBOARD_PER_PAGE) + 1 : -1;
+  const userOnCurrentPage = currentUserPage === leaderboardPage;
   const isAdmin = currentUserId === pool?.creator_id;
 
   const PoolIcon = pool ? getPoolIconComponent(pool.icon_id || "trophy") : null;
@@ -427,7 +366,7 @@ export const PoolLeaderboard = () => {
     <div className="min-h-screen bg-background pb-24">
       <GlobalHeader />
 
-      {/* ===== COMPACT HEADER ===== */}
+      {/* ===== COMPACT HEADER (matches SchoolProfile / Tournament) ===== */}
       <div className="px-4 pt-4 pb-2 max-w-7xl mx-auto space-y-1">
         {/* Row 1: Icon + Name + Actions */}
         <div className="flex items-center gap-3">
@@ -536,118 +475,117 @@ export const PoolLeaderboard = () => {
         </Button>
       </div>
 
-      {/* ===== HIGHLIGHTS BANNER (leaderboard only) ===== */}
-      {activeView === "leaderboard" && (
-        highlights.hilux ? (
-          <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
-            <div className="container mx-auto px-4 py-2">
-              <div className="flex items-center justify-center gap-6 text-xs flex-wrap">
-                <span>🚙 <strong>Hilux:</strong> {highlights.hilux.name} ({highlights.hilux.points} brags)</span>
-                {highlights.spud && (
-                  <span>🥔 <strong>Spud:</strong> {highlights.spud.name} ({highlights.spud.points} brags)</span>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border/40">
-            <div className="container mx-auto px-4 py-2 text-center text-xs text-muted-foreground">
-              Weekly highlights appear after matches are scored
-            </div>
-          </div>
-        )
-      )}
-
       <main className="px-4 py-4 space-y-4 max-w-7xl mx-auto">
 
         {/* ===== LEADERBOARD VIEW ===== */}
         {activeView === "leaderboard" && (
           <>
-            {/* Season Selector */}
+            {/* Header row with season popover */}
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-muted-foreground">Rankings</h2>
-              <div className="flex gap-1">
-                {[2025, 2026].map(year => (
+              <Popover open={seasonPopoverOpen} onOpenChange={setSeasonPopoverOpen}>
+                <PopoverTrigger asChild>
                   <Button
-                    key={year}
-                    variant={selectedSeason === year ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
-                    className="h-7 text-xs px-3"
-                    onClick={() => setSelectedSeason(year)}
+                    className="gap-1.5 font-medium text-xs shrink-0 h-8 px-2.5"
                   >
-                    {year}
+                    <Calendar className="h-3.5 w-3.5" />
+                    {selectedSeason} Season
                   </Button>
-                ))}
-              </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2" align="end">
+                  <div className="flex flex-col gap-1">
+                    {AVAILABLE_SEASONS.map(year => (
+                      <button
+                        key={year}
+                        onClick={() => {
+                          setSelectedSeason(year);
+                          setSeasonPopoverOpen(false);
+                        }}
+                        className={cn(
+                          "px-4 py-2 text-sm rounded-md font-medium transition-colors text-left",
+                          selectedSeason === year
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted text-foreground"
+                        )}
+                      >
+                        {year} Season
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            {/* Leaderboard Table */}
+            {/* Leaderboard Table (same as LeaderboardDetail) */}
             {paginatedLeaderboard.length > 0 ? (
-              <div className="space-y-1">
-                {/* Header */}
-                <div className="grid grid-cols-[2rem_1fr_3rem_3rem_3rem] gap-2 px-3 py-1.5 text-[10px] uppercase text-muted-foreground font-semibold">
-                  <span>#</span>
+              <div className="rounded-lg border border-border overflow-hidden">
+                {/* Table header */}
+                <div className="grid grid-cols-[2.5rem_1fr_3.5rem_3.5rem_3rem] gap-1 px-3 py-2 bg-muted/50 text-[10px] font-semibold text-muted-foreground uppercase">
+                  <span><Hash className="w-3 h-3 inline" /></span>
                   <span>User</span>
                   <span className="text-right">Pts</span>
                   <span className="text-right">Acc%</span>
                   <span className="text-right">Picks</span>
                 </div>
 
-                {paginatedLeaderboard.map((entry) => (
-                  <div
-                    key={entry.userId}
-                    className={cn(
-                      "grid grid-cols-[2rem_1fr_3rem_3rem_3rem] gap-2 px-3 py-2.5 rounded-lg border items-center",
-                      entry.userId === currentUserId ? "border-primary bg-primary/5" : "border-border/40",
-                      getRankStyle(entry.rank)
-                    )}
-                  >
-                    <div className={cn(
-                      "w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs",
-                      entry.rank <= 3 ? "bg-background/80" : "bg-muted"
-                    )}>
-                      {entry.rank}
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-sm font-medium truncate block">
-                        {entry.nickname}
-                        {entry.userId === currentUserId && (
-                          <Badge variant="secondary" className="text-[9px] h-3.5 px-1 ml-1.5 align-middle">You</Badge>
+                {/* Table rows */}
+                <div className="divide-y divide-border/40">
+                  {paginatedLeaderboard.map((entry, idx) => {
+                    const rank = (leaderboardPage - 1) * LEADERBOARD_PER_PAGE + idx + 1;
+                    const isCurrentUser = entry.userId === currentUserId;
+                    return (
+                      <div
+                        key={entry.userId}
+                        className={cn(
+                          "grid grid-cols-[2.5rem_1fr_3.5rem_3.5rem_3rem] gap-1 px-3 py-2 items-center text-sm",
+                          isCurrentUser && "bg-primary/10"
                         )}
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-right">{entry.points}</span>
-                    <span className="text-xs text-muted-foreground text-right">{entry.accuracy}%</span>
-                    <span className="text-xs text-muted-foreground text-right">{entry.picks}</span>
+                      >
+                        <span className="text-xs text-muted-foreground font-medium">{rank}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Avatar className="h-6 w-6 text-[10px]">
+                            <AvatarFallback className="bg-muted text-muted-foreground text-[10px]">
+                              {getInitials(entry.nickname)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate text-xs font-medium">{entry.nickname}</span>
+                        </div>
+                        <span className="text-right text-xs font-semibold">{entry.points}</span>
+                        <span className="text-right text-xs text-muted-foreground">{entry.accuracy}%</span>
+                        <span className="text-right text-xs text-muted-foreground">{entry.picks}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination */}
+                {totalLeaderboardPages > 1 && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-muted/30 text-xs">
+                    <Button
+                      variant="ghost" size="sm" className="h-7 text-xs"
+                      disabled={leaderboardPage === 1}
+                      onClick={() => setLeaderboardPage(p => p - 1)}
+                    >
+                      Prev
+                    </Button>
+                    <span className="text-muted-foreground">Page {leaderboardPage} of {totalLeaderboardPages}</span>
+                    <Button
+                      variant="ghost" size="sm" className="h-7 text-xs"
+                      disabled={leaderboardPage >= totalLeaderboardPages}
+                      onClick={() => setLeaderboardPage(p => p + 1)}
+                    >
+                      Next
+                    </Button>
                   </div>
-                ))}
+                )}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                No scores recorded yet for {selectedSeason}
-              </div>
-            )}
-
-            {/* Leaderboard Pagination */}
-            {totalLeaderboardPages > 1 && (
-              <div className="flex items-center justify-between mt-3">
-                <button
-                  onClick={() => setLeaderboardPage(p => Math.max(1, p - 1))}
-                  disabled={leaderboardPage === 1}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
-                </button>
-                <span className="text-xs text-muted-foreground">
-                  {leaderboardPage} / {totalLeaderboardPages}
-                </span>
-                <button
-                  onClick={() => setLeaderboardPage(p => Math.min(totalLeaderboardPages, p + 1))}
-                  disabled={leaderboardPage === totalLeaderboardPages}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                >
-                  Next <ChevronRight className="h-3.5 w-3.5" />
-                </button>
+              <div className="text-center py-16">
+                <Trophy className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />
+                <h3 className="font-semibold mb-1">No rankings yet</h3>
+                <p className="text-sm text-muted-foreground">Rankings will appear once predictions are scored.</p>
               </div>
             )}
 
@@ -733,21 +671,17 @@ export const PoolLeaderboard = () => {
       </main>
 
       {/* ===== STICKY USER FOOTER ===== */}
-      {activeView === "leaderboard" && currentUserEntry && (
-        <div className="fixed bottom-16 left-0 right-0 bg-background/95 backdrop-blur border-t border-border/40 z-40">
-          <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                {currentUserEntry.rank}
-              </div>
-              <span className="text-sm font-medium">Your Standings</span>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span><strong className="text-foreground">{currentUserEntry.points}</strong> pts</span>
-              <span>{currentUserEntry.accuracy}% acc</span>
-              <span>{currentUserEntry.picks} picks</span>
-            </div>
+      {activeView === "leaderboard" && currentUserEntry && !userOnCurrentPage && (
+        <div className="fixed bottom-16 left-0 right-0 bg-background/95 backdrop-blur border-t border-border px-4 py-2 flex items-center justify-between z-40">
+          <div className="text-xs">
+            <span className="font-semibold">Your Standings: </span>
+            <span className="text-muted-foreground">
+              Rank #{currentUserEntry.rank} · {currentUserEntry.accuracy}% · {currentUserEntry.points} pts
+            </span>
           </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setLeaderboardPage(currentUserPage)}>
+            Jump
+          </Button>
         </div>
       )}
 
