@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Star, School } from "lucide-react";
+import GlobalHeader from "@/components/GlobalHeader";
+import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 import { usePagination } from "@/hooks/usePagination";
@@ -194,6 +196,7 @@ export default function Schools() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <GlobalHeader />
       {/* Sticky filter bar */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/40 px-4 py-3 space-y-2">
         <div className="flex items-center gap-2">
@@ -381,6 +384,7 @@ export default function Schools() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BottomNav />
     </div>
   );
 }
