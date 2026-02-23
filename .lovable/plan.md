@@ -1,41 +1,116 @@
 
-# Add Collapsible Head-to-Head History to FixtureCard
+
+# Consolidate FixtureCard + FixtureTable into FixtureRow
 
 ## Overview
-Add a chevron and expandable `MatchHistory` section to `FixtureCard`, using the same conditional logic as `FixtureTable` -- only show the chevron and allow expansion when historical match data exists between the two schools.
+Create a single `FixtureRow` component that replaces both `FixtureCard` and `FixtureTable`'s internal row components. This eliminates logic drift by centralizing alphabetical sorting, history detection, prediction states, and collapsible expansion in one place. Two visual variants (`card` and `table`) cover all use cases.
 
-## Changes
+## New File: `src/components/fixtures/FixtureRow.tsx`
 
-### File: `src/components/fixtures/FixtureCard.tsx`
+A unified component with these responsibilities:
 
-**New props:**
-- `hasHistory?: boolean` -- optional pre-computed flag (from parent like SchoolProfile). When omitted, the component auto-detects by querying completed fixtures between the two school IDs (same pattern as `FixtureTableRow`).
+### Props (FixtureRowProps)
+- `fixture`: A `Fixture` object (reuse the existing interface from FixtureTable -- `id`, `match_date`, `venue_type`, `venue_id`, `school_a_id`, `school_b_id`, `school_a`, `school_b`, `tournament`)
+- `variant`: `'card' | 'table'` (default `'table'`)
+- `isPredicted?`: boolean
+- `predictedSchoolId?`: string
+- `predictedMargin?`: number
+- `onPredictionMade?`: `(schoolId: string, margin: number) => void`
+- `matchId?`: string
+- `appliesTo?`: string[]
+- `hasHistory?`: boolean (pre-computed override)
+- `priority?`: boolean (for image loading priority in card variant)
 
-**New imports:**
-- `useEffect` added to existing `useState` import
-- `ChevronDown` from lucide-react
-- `MatchHistory` from `./MatchHistory`
-- `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from `@/components/ui/collapsible`
-- `supabase` from `@/integrations/supabase/client`
-- `cn` from `@/lib/utils`
+### Core Logic (shared across both variants)
+1. **Alphabetical sorting** via `sortSchoolsAlpha` -- always display schools A-Z regardless of DB order
+2. **History auto-detection** via a single `useEffect` querying completed fixtures (skip if `hasHistory` prop provided)
+3. **canExpand** computed from `hasHistory` prop or `autoHasHistory` state
+4. **Prediction state**: derive `predictedSchoolName` from `predictedSchoolId` matching left/right school
+5. **PredictionDialog** rendered only when `onPredictionMade` is provided; card click opens dialog when `!isPredicted`
+6. **School navigation** via `navigate(/school/{slug})` on jersey click with `e.stopPropagation()`
+7. **Date format**: `format(new Date(fixture.match_date), "EEE d MMM")`
+8. **Venue**: `resolveVenueName(fixture)`
 
-**New state:**
-- `historyOpen: boolean` (default false) -- controls collapsible
-- `autoHasHistory: boolean | null` (default null) -- auto-detected history existence
+### Variant: `table` (high-density row)
+- Desktop: renders a `TableRow` with three cells (Date+venue, Match grid, Chevron)
+- Mobile: renders a compact bordered card (same as current `MobileFixtureCard`)
+- Center "vs" area shows: "vs" (default), "Pick needed" (if `onPredictionMade && !isPredicted`), or Lock + prediction summary (if `isPredicted`)
+- Chevron only shown when `canExpand` is true
+- Collapsible wraps the row; expanded content is a `MatchHistory` in `bg-muted/30`
 
-**New `useEffect`** (same pattern as `FixtureTable`):
-- Skip if `hasHistory` prop is provided
-- Query `fixtures` table for completed matches between `homeSchoolId` and `awaySchoolId`
-- Set `autoHasHistory` based on count > 0
+### Variant: `card` (gradient card)
+- Wrapped in `Card` with `bg-gradient-card` styling
+- Header row: date + venue left, chevron or lock icon right
+- Tournament badge if applicable
+- Teams row with `size="md"` jerseys
+- Center area: VS / Pick needed / Locked prediction
+- `CollapsibleContent` below card with `MatchHistory`
 
-**Computed value:**
-- `canExpand = hasHistory !== undefined ? hasHistory : autoHasHistory === true`
+## Modified File: `src/components/fixtures/FixtureTable.tsx`
+- Remove `FixtureTableRow`, `MobileFixtureCard`, `SchoolBlock`, and `sortSchoolsAlpha` internal components
+- Import `FixtureRow` from `./FixtureRow`
+- Keep `FixtureTable` as the outer container that handles search filtering, the desktop `Table` wrapper with header, and the mobile list
+- Desktop: map filtered fixtures to `<FixtureRow variant="table" fixture={f} hasHistory={hasHistoryMap?.[f.id]} />`
+- Mobile: same but rendered in a `div` wrapper instead of table body
+- Export the `Fixture` and `FixtureSchool` interfaces from this file (or from FixtureRow)
 
-**UI changes:**
-- Wrap the `Card` in a `Collapsible` component (controlled by `historyOpen`)
-- Add a chevron row at the bottom of the card (inside the card, below the teams row): a centered `ChevronDown` icon that rotates 180 degrees when open, only rendered when `canExpand` is true
-- Chevron click calls `e.stopPropagation()` to avoid triggering the prediction dialog
-- Below the `Card`, render `CollapsibleContent` containing `MatchHistory` with `leftSchoolId={homeSchoolId}` and `rightSchoolId={awaySchoolId}`, styled with `bg-muted/30 rounded-b-lg border border-t-0 border-border/40 -mt-1` (matching the mobile fixture card pattern from `FixtureTable`)
+## Modified File: `src/components/fixtures/FixtureCard.tsx`
+- Convert to a thin wrapper that maps the existing flat props into a `Fixture`-shaped object and renders `<FixtureRow variant="card" ... />`
+- This preserves backward compatibility so `Home.tsx`, `Tournament.tsx`, `SchoolProfile.tsx`, and `FixtureListCard.tsx` don't need immediate refactoring
+- All logic (history detection, prediction, collapsible) is delegated to `FixtureRow`
 
-### No other files modified
-The `FixtureCard` already receives `homeSchoolId` and `awaySchoolId` props, so parents don't need changes.
+## Modified File: `src/components/fixtures/FixtureListCard.tsx`
+- No changes needed -- it already wraps `FixtureCard` which will delegate to `FixtureRow`
+
+## Consumer Pages (no changes needed)
+- `Home.tsx`, `Tournament.tsx`, `SchoolProfile.tsx`, `Fixtures.tsx` -- all continue using `FixtureCard` or `FixtureTable` with the same props; the consolidation is internal
+
+---
+
+## Technical Details
+
+### FixtureRow internal structure
+
+```text
+FixtureRow
+  |
+  +-- sortSchoolsAlpha(fixture) --> [left, right, leftIsA]
+  +-- useEffect: auto-detect history (query completed fixtures)
+  +-- canExpand = hasHistory ?? autoHasHistory
+  +-- predictedSchoolName = match predictedSchoolId to left/right
+  |
+  +-- if variant === 'card':
+  |     PredictionDialog (conditional)
+  |     Collapsible > Card > header + teams + center state
+  |     CollapsibleContent > MatchHistory
+  |
+  +-- if variant === 'table':
+  |     Desktop: Collapsible > TableRow > cells + center state
+  |              CollapsibleContent > tr > td > MatchHistory
+  |     Mobile:  Collapsible > div card > header + teams + center state
+  |              CollapsibleContent > MatchHistory
+```
+
+### SchoolBlock sub-component
+Extracted as a shared internal component in `FixtureRow.tsx`, accepting `school`, `isHome`, `onNavigate`, and `size` ('sm' for table, 'md' for card).
+
+### Center area rendering (shared function)
+A helper renders the center VS/prediction area based on `isPredicted`, `onPredictionMade`, `predictedSchoolName`, and `predictedMargin` -- used by both variants.
+
+### FixtureCard wrapper mapping
+The wrapper constructs a `Fixture` object from flat props:
+```text
+fixture = {
+  id: matchId,
+  match_date: matchDate,
+  venue_type: null,
+  venue_id: null,
+  school_a_id: homeSchoolId,
+  school_b_id: awaySchoolId,
+  school_a: { id, name, slug, jersey_url, province: null },
+  school_b: { id, name, slug, jersey_url, province: null },
+  tournament: tournamentName ? { id: '', name: tournamentName } : null
+}
+```
+The venue is passed separately since the card variant receives a pre-resolved venue string.
+
