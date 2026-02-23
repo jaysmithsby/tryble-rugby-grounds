@@ -1,136 +1,128 @@
 
 
-# Pool Page Refactor -- High-Density Professional Layout
+# Box-and-Whisker: Switch from Accuracy to Points Efficiency
 
-## Overview
+## What Changes
 
-Refactor `PoolLeaderboard.tsx` to match the compact, professional header style used on School Profile and Tournament pages. Replace the current card-heavy layout with a unified header, a Leaderboard/Fixtures mode toggle, scoped scoring, and season filtering.
-
----
-
-## 1. Compact Header (matching SchoolProfile / Tournament pattern)
-
-Replace the current large icon + card-based header with the same `px-4 pt-4 pb-2 space-y-1` layout used on those pages:
-
-- **Row 1**: `[32px pool icon circle] [Pool Name (text-lg font-bold)] [Share2 icon button] [Pen/Edit icon button if creator]`
-  - Share icon triggers `PoolInvite` dialog (reuse existing component but change trigger from button to icon)
-  - Edit icon triggers `EditPoolDialog` (change trigger from "Edit Pool" button to a small pen icon)
-- **Row 2 (metadata)**: `pl-11 text-xs text-muted-foreground` -- "Code: {invite_code} (copyable) . {members.length} Participants"
-  - Invite code has a tiny copy-to-clipboard action on click
-- **Collapsible "Schools in Pool"**: A `Collapsible` component below the metadata showing the pool's schools as a flex-wrapped list of `Badge` components. Collapsed by default with a `ChevronDown` trigger labeled "Schools in Pool ({count})".
-
-Remove the separate Members card, Invite Friends card, and Pool Schools card from the main content area -- their functionality is absorbed into the header and collapsible.
+The Box-and-Whisker chart on the **Leaderboard Detail** page will be updated to show **Points Efficiency** (average brags earned per prediction) instead of Accuracy percentage. The same chart will also be added to the **Pool Leaderboard** page.
 
 ---
 
-## 2. Mode Toggle: Leaderboard | Fixtures
+## 1. Shared BoxWhiskerChart Component
 
-Add a two-button toggle row (similar to the existing weekly/season toggle) directly below the header:
+Extract the chart into a reusable component at `src/components/ui/BoxWhiskerChart.tsx` so both pages can use it.
+
+### Updated Data Model
+
+- Rename `userAccuracy` to `userValue` in the stats type
+- Add a `maxValue` field for dynamic axis scaling (instead of hardcoded 0-100%)
+- Add a `unit` field (e.g., `"pts"`) for label formatting
+
+### Dynamic Scaling
+
+Currently the SVG maps values to positions assuming a 0-100 range. The new version will:
+- Use `maxValue` from the dataset (the highest average points found) to scale the axis
+- Position formula changes from `(value / 100) * 360` to `(value / maxValue) * 360`
+- Labels show values like `2.4 pts` instead of `65%`
+
+### Visual Elements (unchanged structure)
+
+- Whiskers: min to max range
+- IQR box: Q1 to Q3
+- Median line
+- "You" triangle marker
+- Bottom legend: Min, Q1, Median, Q3, Max values
+
+### Title and Subtext
+
+- Title: **"Points Efficiency Distribution"**
+- Subtext below title: *"Avg brags earned per pick. Higher = precise winner and margin picks."*
+
+---
+
+## 2. LeaderboardDetail.tsx Changes
+
+### Data Calculation
+
+The `ScoreRow` type gains a new field: `efficiency` (replacing the role of `accuracy` in the chart).
 
 ```
-[Leaderboard] [Fixtures]
+efficiency = season_points / predictions_made
 ```
 
-- Default view: **Leaderboard**
-- State: `activeView: "leaderboard" | "fixtures"`
+This is already calculable from the existing `user_scores` data -- no new queries needed.
+
+### BoxWhisker Stats Computation
+
+- Build array of `efficiency` values from all rows
+- Find current user's efficiency
+- Pass to the shared `BoxWhiskerChart`
+
+### Header Stat Update
+
+Keep the "Avg Accuracy" stat in the header as-is (it remains useful metadata). The chart alone switches to efficiency.
 
 ---
 
-## 3. Scoped Leaderboard View
+## 3. PoolLeaderboard.tsx Changes
 
-### Season Selector
-- Add a year selector (simple dropdown or button group: 2025, 2026) above the leaderboard table. Default to current year (2026).
-- State: `selectedSeason: number`
+### Add the Chart
 
-### Scoped Points Calculation
-The critical change: instead of reading from `user_scores` (which tracks global points), compute pool-scoped points client-side:
+Import the shared `BoxWhiskerChart` component and render it in the Leaderboard view, between the season selector and the rankings table.
 
-1. Resolve pool school names to school IDs via `schools` table
-2. Fetch all `fixtures` where both `school_a_id` and `school_b_id` are in the pool's school set, filtered by `year = selectedSeason`
-3. Fetch `predictions` for those fixture IDs, filtered to pool member user IDs
-4. Sum `points_earned` per user to get scoped points
-5. Compute accuracy as `(predictions with points_earned > 0) / total predictions * 100`
-6. Compute picks count per user
+### Data Calculation
 
-### Table Layout
-High-density table rows (not cards):
+For pool members, compute efficiency from the existing leaderboard entries:
 
-| Rank | User | Pts | Acc% | Picks |
-|------|------|-----|------|-------|
+```
+efficiency = entry.points / entry.picks  (where picks > 0)
+```
 
-- Current user row highlighted with `bg-primary/10`
-- Top 3 ranks get subtle gradient backgrounds (reuse existing `getRankStyle`)
-- Pagination: 20 rows per page (matching LeaderboardDetail)
-
-### Sticky Footer
-A fixed bottom bar (above BottomNav) showing the current user's rank, points, accuracy, and a "Jump to My Page" button if their row isn't visible.
-
----
-
-## 4. Pool Fixtures View
-
-When the "Fixtures" tab is active:
-
-- **FixturesDateSelector** for date range filtering (reuse existing component, default to 2026 season)
-- Fetch all fixtures involving the pool's schools (where `school_a_id` OR `school_b_id` is in pool school set)
-- Render using `FixtureCard` component (card variant of `FixtureRow`, with prediction interactivity enabled)
-- Pagination: 8 fixtures per page (matching School/Tournament pages)
-- Include navigation controls with page indicators
-
----
-
-## 5. Highlights Banner
-
-Keep the existing Hilux/Spud banner but scope it to pool-scoped data from the leaderboard calculation. Move it below the mode toggle so it only shows when in Leaderboard view.
+Find current user's efficiency and pass to the chart.
 
 ---
 
 ## Technical Details
 
+### Files Created
+
+- **`src/components/ui/BoxWhiskerChart.tsx`** -- Extracted and updated chart component with dynamic scaling and "Points Efficiency" labeling
+
 ### Files Modified
 
-**`src/pages/PoolLeaderboard.tsx`** -- Major rewrite:
-- Replace header with compact layout matching SchoolProfile
-- Add `activeView` state for Leaderboard/Fixtures toggle
-- Add `selectedSeason` state for year filtering
-- Replace `loadPoolData` scoring logic with scoped calculation:
-  - Resolve school names to IDs
-  - Query fixtures where BOTH teams are pool schools
-  - Query predictions for those fixtures and pool members
-  - Aggregate points, accuracy, picks per user
-- Add fixtures loading and rendering section
-- Add sticky user footer bar
-- Remove separate Members, Invite, Schools cards
+- **`src/pages/LeaderboardDetail.tsx`**:
+  - Remove inline `BoxWhiskerChart` and `BoxWhiskerStats` type
+  - Import shared component
+  - Add `efficiency` field to `ScoreRow`
+  - Update `boxStats` computation to use efficiency values
+  - Pass dynamic `maxValue` to chart
 
-**`src/components/pools/EditPoolDialog.tsx`** -- Minor:
-- Export a variant that accepts an external trigger (icon button) instead of rendering its own trigger, OR accept a `triggerElement` prop
+- **`src/pages/PoolLeaderboard.tsx`**:
+  - Import shared `BoxWhiskerChart`
+  - Compute efficiency stats from leaderboard entries
+  - Render chart in Leaderboard view above the rankings table
 
-**`src/components/pools/PoolInvite.tsx`** -- Minor:
-- Accept an optional `triggerElement` prop so the Pool page can use an icon button as trigger instead of the default "Share Pool" button
+### Component Props
 
-### Data Flow
+```typescript
+type BoxWhiskerStats = {
+  min: number;
+  max: number;
+  q1: number;
+  median: number;
+  q3: number;
+  userValue: number | null;  // renamed from userAccuracy
+  maxValue: number;          // new: for dynamic axis scaling
+};
 
-```text
-Pool Page Load
-  |
-  +-- Fetch pool (name, schools, invite_code, icon, color, creator_id)
-  +-- Fetch pool_members (user_ids + profiles)
-  +-- Resolve school names -> school IDs
-  |
-  [Leaderboard View]
-  |  +-- Fetch fixtures WHERE school_a_id IN pool_schools AND school_b_id IN pool_schools AND year = season
-  |  +-- Fetch predictions WHERE fixture_id IN those fixtures AND user_id IN member_ids
-  |  +-- Client-side aggregation: sum points, compute accuracy, rank
-  |
-  [Fixtures View]
-     +-- Fetch fixtures WHERE school_a_id IN pool_schools OR school_b_id IN pool_schools
-     +-- Filter by date range
-     +-- Paginate at 8/page
-     +-- Render FixtureCard with prediction interactivity
+// BoxWhiskerChart accepts { stats: BoxWhiskerStats }
 ```
 
-### Key Constraints
-- Pool-scoped leaderboard only counts fixtures where BOTH teams are pool schools (not just one)
-- The `predictions` table has RLS restricting users to their own predictions, but admins can see all -- so the scoped aggregation query needs to use `user_scores` or a different approach. Since users can only read their own predictions, the leaderboard will need to rely on `user_scores` data filtered by week, OR the page computes only the current user's scoped stats and shows other users from `user_scores`. This is a practical limitation of RLS.
-- Given the RLS constraint, the initial implementation will use `user_scores` for other members (global points) and display a note that scoped scoring requires a backend function. A follow-up migration can add a `pool_user_scores` materialized view or edge function for true scoping.
+### Scaling Logic
 
+```typescript
+const scale = stats.maxValue > 0 ? stats.maxValue : 1;
+const toPos = (val: number) => 20 + (val / scale) * 360;
+```
+
+Labels formatted as `{value.toFixed(1)} pts` instead of `{value.toFixed(0)}%`.
