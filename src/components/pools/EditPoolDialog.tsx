@@ -64,6 +64,7 @@ interface EditPoolDialogProps {
   isEditable: boolean;
   lockReason?: string;
   onPoolUpdated: () => void;
+  triggerElement?: React.ReactNode;
 }
 
 export const EditPoolDialog = ({
@@ -71,6 +72,7 @@ export const EditPoolDialog = ({
   isEditable,
   lockReason,
   onPoolUpdated,
+  triggerElement,
 }: EditPoolDialogProps) => {
   const [open, setOpen] = useState(false);
   const [poolName, setPoolName] = useState(pool.name);
@@ -164,10 +166,12 @@ export const EditPoolDialog = ({
       setOpen(isOpen);
     }}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings className="w-4 h-4 mr-2" />
-          Edit Pool
-        </Button>
+        {triggerElement || (
+          <Button variant="outline" size="sm">
+            <Settings className="w-4 h-4 mr-2" />
+            Edit Pool
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-sm max-h-[80vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-0">

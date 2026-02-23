@@ -7,9 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 interface PoolInviteProps {
   poolName: string;
   inviteCode: string;
+  triggerElement?: React.ReactNode;
 }
 
-export const PoolInvite = ({ poolName, inviteCode }: PoolInviteProps) => {
+export const PoolInvite = ({ poolName, inviteCode, triggerElement }: PoolInviteProps) => {
   const { toast } = useToast();
   const inviteUrl = `${window.location.origin}/join-pool/${inviteCode}`;
   const shareMessage = `🏉 Join my Trybal pool "${poolName}"!\n\nUse code: ${inviteCode}\nor click: ${inviteUrl}`;
@@ -73,10 +74,12 @@ export const PoolInvite = ({ poolName, inviteCode }: PoolInviteProps) => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
-          <Share2 className="w-4 h-4 mr-2" />
-          Share Pool
-        </Button>
+        {triggerElement || (
+          <Button variant="outline" size="sm" className="w-full">
+            <Share2 className="w-4 h-4 mr-2" />
+            Share Pool
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
