@@ -36,6 +36,7 @@ export interface Fixture {
 interface FixtureTableProps {
   fixtures: Fixture[];
   searchQuery?: string;
+  hasHistoryMap?: Record<string, boolean>;
 }
 
 function sortSchoolsAlpha(fixture: Fixture): [FixtureSchool, FixtureSchool, boolean] {
@@ -47,7 +48,7 @@ function sortSchoolsAlpha(fixture: Fixture): [FixtureSchool, FixtureSchool, bool
   return [fixture.school_b, fixture.school_a, false];
 }
 
-export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) => {
+export const FixtureTable = ({ fixtures, searchQuery = "", hasHistoryMap }: FixtureTableProps) => {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return fixtures;
     const q = searchQuery.toLowerCase();
@@ -79,14 +80,14 @@ export const FixtureTable = ({ fixtures, searchQuery = "" }: FixtureTableProps) 
           </TableHeader>
           <TableBody>
             {filtered.map((fixture) => (
-              <FixtureTableRow key={fixture.id} fixture={fixture} />
+              <FixtureTableRow key={fixture.id} fixture={fixture} hasHistoryMap={hasHistoryMap} />
             ))}
           </TableBody>
         </Table>
       </div>
       <div className="sm:hidden space-y-2">
         {filtered.map((fixture) => (
-          <MobileFixtureCard key={fixture.id} fixture={fixture} />
+          <MobileFixtureCard key={fixture.id} fixture={fixture} hasHistoryMap={hasHistoryMap} />
         ))}
       </div>
     </>
@@ -119,43 +120,54 @@ const SchoolBlock = ({
   </button>
 );
 
-const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
+const FixtureTableRow = ({ fixture, hasHistoryMap }: { fixture: Fixture; hasHistoryMap?: Record<string, boolean> }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const [left, right, leftIsA] = sortSchoolsAlpha(fixture);
+  const canExpand = !hasHistoryMap || hasHistoryMap[fixture.id] !== false;
 
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
     navigate(`/school/${slug}`);
   };
 
+  const rowContent = (
+    <TableRow className={cn("hover:bg-muted/50", canExpand && "cursor-pointer")}>
+      <TableCell className="text-sm align-middle">
+        <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
+        {(() => { const v = resolveVenueName(fixture); return v !== "TBD" ? <span className="text-muted-foreground ml-2 text-xs">{v}</span> : null; })()}
+        {fixture.tournament && fixture.venue_type !== "tournament" && (
+          <span className="text-[10px] text-muted-foreground ml-1">
+            ({fixture.tournament.name})
+          </span>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
+          <SchoolBlock school={left} isHome={leftIsA} onNavigate={handleSchoolClick} />
+          <div className="flex items-center justify-center">
+            <span className="text-sm font-semibold text-muted-foreground">vs</span>
+          </div>
+          <SchoolBlock school={right} isHome={!leftIsA} onNavigate={handleSchoolClick} />
+        </div>
+      </TableCell>
+      <TableCell className="align-middle">
+        {canExpand && (
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+        )}
+      </TableCell>
+    </TableRow>
+  );
+
+  if (!canExpand) {
+    return rowContent;
+  }
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} asChild>
       <>
         <CollapsibleTrigger asChild>
-          <TableRow className="cursor-pointer hover:bg-muted/50">
-            <TableCell className="text-sm align-middle">
-              <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
-              {(() => { const v = resolveVenueName(fixture); return v !== "TBD" ? <span className="text-muted-foreground ml-2 text-xs">{v}</span> : null; })()}
-              {fixture.tournament && fixture.venue_type !== "tournament" && (
-                <span className="text-[10px] text-muted-foreground ml-1">
-                  ({fixture.tournament.name})
-                </span>
-              )}
-            </TableCell>
-            <TableCell>
-              <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
-                <SchoolBlock school={left} isHome={leftIsA} onNavigate={handleSchoolClick} />
-                <div className="flex items-center justify-center">
-                  <span className="text-sm font-semibold text-muted-foreground">vs</span>
-                </div>
-                <SchoolBlock school={right} isHome={!leftIsA} onNavigate={handleSchoolClick} />
-              </div>
-            </TableCell>
-            <TableCell className="align-middle">
-              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-            </TableCell>
-          </TableRow>
+          {rowContent}
         </CollapsibleTrigger>
         <CollapsibleContent asChild>
           <tr>
@@ -169,38 +181,49 @@ const FixtureTableRow = ({ fixture }: { fixture: Fixture }) => {
   );
 };
 
-const MobileFixtureCard = ({ fixture }: { fixture: Fixture }) => {
+const MobileFixtureCard = ({ fixture, hasHistoryMap }: { fixture: Fixture; hasHistoryMap?: Record<string, boolean> }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const [left, right, leftIsA] = sortSchoolsAlpha(fixture);
+  const canExpand = !hasHistoryMap || hasHistoryMap[fixture.id] !== false;
 
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
     navigate(`/school/${slug}`);
   };
 
+  const cardContent = (
+    <div className={cn("border border-border/40 rounded-lg p-3 hover:bg-muted/50 transition-colors", canExpand && "cursor-pointer")}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs">
+         <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
+          {(() => { const v = resolveVenueName(fixture); return v !== "TBD" ? <span className="text-muted-foreground ml-2">{v}</span> : null; })()}
+          {fixture.tournament && fixture.venue_type !== "tournament" && (
+            <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
+          )}
+        </span>
+        {canExpand && (
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+        )}
+      </div>
+      <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
+        <SchoolBlock school={left} isHome={leftIsA} onNavigate={handleSchoolClick} />
+        <div className="flex items-center justify-center">
+          <span className="text-sm font-semibold text-muted-foreground">vs</span>
+        </div>
+        <SchoolBlock school={right} isHome={!leftIsA} onNavigate={handleSchoolClick} />
+      </div>
+    </div>
+  );
+
+  if (!canExpand) {
+    return cardContent;
+  }
+
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger asChild>
-        <div className="border border-border/40 rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs">
-             <span className="font-bold">{format(new Date(fixture.match_date), "EEE d MMM")}</span>
-              {(() => { const v = resolveVenueName(fixture); return v !== "TBD" ? <span className="text-muted-foreground ml-2">{v}</span> : null; })()}
-              {fixture.tournament && fixture.venue_type !== "tournament" && (
-                <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
-              )}
-            </span>
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-          </div>
-          <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-2">
-            <SchoolBlock school={left} isHome={leftIsA} onNavigate={handleSchoolClick} />
-            <div className="flex items-center justify-center">
-              <span className="text-sm font-semibold text-muted-foreground">vs</span>
-            </div>
-            <SchoolBlock school={right} isHome={!leftIsA} onNavigate={handleSchoolClick} />
-          </div>
-        </div>
+        {cardContent}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="bg-muted/30 rounded-b-lg border border-t-0 border-border/40 -mt-1">
