@@ -1,125 +1,136 @@
 
 
-# Unified Discovery Page: Schools + Tournaments
+# SchoolProfile Refactor: High-Density Professional Layout
 
 ## Overview
-Refactor the Schools page into a dual-mode Discovery page with a toggle to switch between browsing Schools and Tournaments. The tournament list reuses the same high-density row layout and includes a follow-star system using `user_tournament_follows`.
+Replace the large hero banner with a compact inline header, add follower/Springbok stat cards, and conditionally render interactive `FixtureCard` (for followers) vs read-only `FixtureTable` (for non-followers). Make fixture row expansion conditional on existing match history.
 
 ---
 
 ## Changes
 
-### 1. Rename Schools Page to Discovery (`src/pages/Schools.tsx`)
+### 1. Header Refactor (SchoolProfile.tsx)
 
-Transform in-place (keep the same file to minimize routing changes):
+Remove the entire 72-line hero banner (`h-72` gradient block with rotated diamond logo, large title, etc.) and replace with a compact layout:
 
-- **Mode toggle**: Add a two-button toggle (`Schools` | `Tournaments`) at the top of the sticky filter bar, styled identically to the `FixturesFilters` toggle (two `Button` components, `variant="default"` for active, `variant="outline"` for inactive, each `flex-1`, `size="sm"`).
-- **Header icon/title**: Changes based on mode -- `School` icon + "Schools" vs `Trophy` icon + "Tournaments".
-- **Province filter**: Visible in both modes (tournaments also have a `province` column).
-- **Search placeholder**: Dynamically changes -- "Search schools..." / "Search tournaments...".
+**Row 1**: `[32px circular logo] [School Name (font-bold text-lg, truncate)] [Follow Star button]`
+- Logo: circular `w-8 h-8` showing `emblem_url || jersey_url || icon_url`, or 2-letter fallback
+- Follow star: reuses `Star` icon (filled when following, outline when not), same toggle logic as current follow button
+- If primary school: filled star with tooltip "Primary School" (non-interactive)
 
-When mode is `"schools"`, render the existing school list (unchanged).
+**Row 2 (motto)**: `text-xs italic text-muted-foreground` -- only renders if `school.motto` exists
 
-When mode is `"tournaments"`, render the new tournament list.
+**Row 3 (metadata)**: Inline `text-xs text-muted-foreground` -- province and established year separated by a dot
+- Example: "Western Cape . Est. 1905"
 
-### 2. Tournament List View (within Schools.tsx)
+### 2. Impact Stats Section
 
-A list of tournaments fetched from the `tournaments` table with the same `divide-y` row pattern as schools:
+Below the header, a `grid grid-cols-2 gap-4` section with two stat blocks:
 
-**Row layout per tournament:**
-- **Left**: 28px `Trophy` icon in a muted circle (matching school avatar sizing)
-- **Middle**: Tournament name (bold, truncated) on line 1, venue + date info on line 2 (`text-xs text-muted-foreground`)
-  - Date line: "Starts Mar 12" for upcoming, "Ended Feb 8" for past
-- **Right**: Follow star (same pattern as school stars, using `user_tournament_follows`)
-- **Entire row clickable**: navigates to `/tournament/:id`
+- **Followers**: Large number + "Followers" label. Count fetched via `user_school_follows` aggregate query.
+- **Springboks**: Large number + "Springboks" label. From `school.springboks_count`.
 
-**Sorting logic:**
-- Primary: Tournaments where `start_date >= today` OR `end_date >= today` (active/upcoming) come first, ordered by `start_date` ascending
-- Secondary: Past tournaments (`end_date < today`) at the bottom, ordered by `end_date` descending
-- This sorting is done client-side after fetching all active tournaments
+Styling: Each block is a `rounded-lg bg-muted/30 border border-border/40 p-4 text-center` with the number in `text-3xl font-bold text-primary` and label in `text-xs text-muted-foreground`.
 
-**Follow system:**
-- Query `user_tournament_follows` for the current user
-- Star click opens the same `AlertDialog` pattern as school follows
-- Follow/unfollow inserts/deletes from `user_tournament_follows`
-- Toast feedback: "Now following [Tournament Name]" / "Unfollowed [Tournament Name]"
+### 3. Conditional Fixture Display
 
-**Pagination:** Same `usePagination` hook, 20 per page
+**New state**: `followerCount` (number), already have `isFollowing`.
 
-### 3. Update Bottom Nav Label (`src/components/BottomNav.tsx`)
+**If user follows this school (or it's their primary school)**:
+- Render upcoming fixtures using `FixtureCard` components (interactive, with prediction dialog)
+- Map fixture data to `FixtureCard` props (homeTeam, awayTeam, jerseys, matchId, etc.)
 
-- Change the last nav item label from "Schools" to "Discover"
-- Keep the `School` icon (or optionally switch to `Compass` -- keeping `School` for now to be minimal)
-- Route stays `/schools` to avoid breaking links
+**If user does NOT follow**:
+- Render upcoming fixtures using `FixtureTable` (read-only, informational rows)
 
-### 4. Update AnimatedRoutes Keep-Alive (`src/components/AnimatedRoutes.tsx`)
+### 4. Expandable Row Conditional on Match History
 
-No changes needed -- the `/schools` route is already in the keep-alive list and renders the same `Schools` component.
+Modify `FixtureTable.tsx` to accept an optional `hasHistoryMap` prop:
+- Type: `Record<string, boolean>` mapping fixture ID to whether match history exists
+- When provided, rows with `hasHistoryMap[fixture.id] === false` disable the collapsible trigger (no chevron, no click handler)
+- Default behavior (no prop): all rows are expandable as before (backward compatible)
 
-### 5. Home Feed Integration (already done)
+**Data fetching**: In `SchoolProfile.tsx`, after fetching upcoming fixtures, run a batch query to check for historical matches between each pair of schools. Build the `hasHistoryMap` and pass it to `FixtureTable`.
 
-The `useHomeFixtures` hook already:
-- Fetches `user_tournament_follows` for the current user
-- Queries fixtures matching those tournament IDs within a 7-day window
-- Merges them into `upcomingFixtures` with deduplication
-- These fixtures are interactive with the prediction dialog
+### 5. Remove Derby Banner & Top Users Card
 
-No changes needed to the home page or `useHomeFixtures`.
+Remove the large "Derby Match Alert!" card and the "Top Trybal Users" card to keep the page focused and clean. The derby indicator can be a small `Flame` badge on the fixture row instead.
+
+Remove the "Recent Results" card wrapper -- render recent results directly using `FixtureTable` with a section heading.
 
 ---
 
 ## Technical Details
 
 ### Files Modified
-- `src/pages/Schools.tsx` -- Add mode toggle state, tournament fetching query, tournament list rendering, tournament follow logic
-- `src/components/BottomNav.tsx` -- Change label from "Schools" to "Discover"
+- `src/pages/SchoolProfile.tsx` -- Complete layout overhaul (header, stats, conditional fixtures)
+- `src/components/fixtures/FixtureTable.tsx` -- Add optional `hasHistoryMap` prop for conditional expansion
 
-### No New Files Created
-
-### Tournament Query
+### Follower Count Query
 ```text
-supabase.from("tournaments")
-  .select("id, name, venue, province, start_date, end_date, is_active, logo_url")
-  .eq("is_active", true)
-  .order("start_date", { ascending: true })
+supabase.from("user_school_follows")
+  .select("id", { count: "exact", head: true })
+  .eq("school_id", schoolId)
 ```
+Returns the count in the response `count` field without fetching rows.
 
-### Client-Side Sorting
+### Match History Existence Check
+For each upcoming fixture, query completed fixtures between the two school IDs:
 ```text
-const now = new Date();
-const upcoming = tournaments.filter(t => new Date(t.end_date) >= now)
-  .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-const past = tournaments.filter(t => new Date(t.end_date) < now)
-  .sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
-const sorted = [...upcoming, ...past];
+// Batch: for each fixture pair (school_a_id, school_b_id)
+supabase.from("fixtures")
+  .select("id", { count: "exact", head: true })
+  .eq("status", "completed")
+  .or(`and(school_a_id.eq.${aId},school_b_id.eq.${bId}),and(school_a_id.eq.${bId},school_b_id.eq.${aId})`)
 ```
+Build `hasHistoryMap[fixtureId] = count > 0`.
 
-### Tournament Follow Queries
+### FixtureTable Changes
 ```text
-// Fetch follows
-supabase.from("user_tournament_follows")
-  .select("tournament_id")
-  .eq("user_id", userId)
-
-// Follow
-supabase.from("user_tournament_follows")
-  .insert({ user_id, tournament_id })
-
-// Unfollow
-supabase.from("user_tournament_follows")
-  .delete()
-  .eq("user_id", userId)
-  .eq("tournament_id", tournamentId)
+interface FixtureTableProps {
+  fixtures: Fixture[];
+  searchQuery?: string;
+  hasHistoryMap?: Record<string, boolean>;  // NEW optional prop
+}
 ```
+In `FixtureTableRow` and `MobileFixtureCard`:
+- If `hasHistoryMap` is provided and `hasHistoryMap[fixture.id] === false`, render without `Collapsible` wrapper (or disable the trigger)
+- Hide the chevron icon for non-expandable rows
 
-### State Additions to Schools.tsx
-- `mode: "schools" | "tournaments"` (default: "schools")
-- Tournament data query (React Query)
-- Tournament follows query (React Query)
-- `dialogTournament` state for follow/unfollow confirmation (reuses the same AlertDialog, extended to handle both schools and tournaments)
+### FixtureCard Mapping (for followed school fixtures)
+Each upcoming fixture maps to a `FixtureCard` with:
+- `homeTeam` / `awayTeam` from `fixture.school_a.name` / `fixture.school_b.name`
+- `homeTeamShort` / `awayTeamShort` from first 3 chars
+- `homeTeamIcon` / `awayTeamIcon` from jersey_url
+- `homeSchoolId` / `awaySchoolId` from school IDs
+- `homeSchoolSlug` / `awaySchoolSlug` from slugs
+- `matchDate` from `fixture.match_date`
+- `venue` resolved via `resolveVenueName`
+- `tournamentName` from `fixture.tournament?.name`
+- `matchId` from `fixture.id`
+- Prediction state fetched from user's existing predictions for these fixture IDs
 
-### Shared AlertDialog
-The existing `AlertDialog` will be generalized to handle both types:
-- `dialogTarget: { type: "school" | "tournament"; id: string; name: string; isFollowed: boolean } | null`
-- `handleConfirmFollow` branches on `dialogTarget.type` to call the correct table
+### New State in SchoolProfile
+- `followerCount: number` (default 0)
+- `hasHistoryMap: Record<string, boolean>` (default {})
+- `userPredictions: Record<string, { predictedSchoolId: string; predictedMargin: number }>` (for FixtureCard prediction state)
 
+### Sections Removed
+- Hero banner (72-line gradient + diamond logo + large title)
+- Derby Match Alert card
+- Top Trybal Users card
+- Card wrapper around Recent Results
+
+### Final Page Structure
+```text
+[GlobalHeader]
+[Compact Header Row: Logo + Name + Star]
+[Motto line]
+[Metadata line: Province . Est. Year]
+[Stats Grid: Followers | Springboks]
+[Section: "Upcoming Fixtures"]
+  [FixtureCard (if following) OR FixtureTable (if not)]
+[Section: "Recent Results"]
+  [FixtureTable with hasHistoryMap]
+[BottomNav]
+```
