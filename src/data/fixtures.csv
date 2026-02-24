@@ -1,4 +1,4 @@
-id,festival_id,home_school_id,away_school_id,sport,match_date,venue,status,home_score,away_score,created_at,updated_at,season,year
+id,home_school_id,away_school_id,sport,match_date,venue,status,home_score,away_score,created_at,updated_at,season,year
 00cf8da8-04df-4560-b913-12ee8a6bcc85,,1ec5e7bc-8d20-4f56-808d-6eef53ad2452,6b0f35fe-c4b2-43fd-bbfc-0a71f6c5b52a,Rugby,2026-03-27 15:00:00+00,NMI Toyota Noord-Suid,holding,,,2025-10-03 18:49:37.154727+00,2025-10-03 18:49:37.154727+00,2026,2026
 01f8cdb2-7800-464b-8840-2f82de1589e4,,d96bf1a9-7889-4842-b536-7bc038fcc6f5,8588d541-2543-47a5-b78d-d80b9a6dcd5e,Rugby,2026-08-15 15:00:00+00,Away,holding,,,2025-10-03 18:58:35.757122+00,2025-10-03 18:58:35.757122+00,2026,2026
 0234e7d6-cddf-44a7-942c-b309eeb1448f,,9fec13be-079f-463b-b91d-ce2426dd2123,d97bb430-fb82-4b85-8b0d-59d0f65dfc40,Rugby,2026-06-20 15:00:00+00,Away,holding,,,2025-10-03 19:34:09.104019+00,2025-10-03 19:34:09.104019+00,2026,2026

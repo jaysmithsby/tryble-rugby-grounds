@@ -65,8 +65,8 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
               }
 
               let tournamentId = null;
-              if (row.festival_id || row.tournament_id) {
-                const tournamentValue = row.tournament_id || row.festival_id;
+              if (row.tournament_id) {
+                const tournamentValue = row.tournament_id;
                 const isTournamentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tournamentValue);
                 
                 if (isTournamentUuid) {
@@ -97,7 +97,6 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
                 season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
                 year: row.year ? parseInt(row.year) : new Date().getFullYear(),
                 tournament_id: tournamentId,
-                festival_id: null,
                 round_name: row.round_name || null,
                 is_derby: row.is_derby === 'true' || row.is_derby === true || false,
                 is_visible: true,
