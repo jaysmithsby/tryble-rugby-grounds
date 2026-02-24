@@ -2,81 +2,91 @@
 
 ## Overview
 
-The current flow is broken: the Discover page lists tournaments and navigates to `/tournament/{tournaments.id}`, but the Tournament profile page expects an edition ID. We need to introduce a year-based edition selector so users can browse editions of a tournament.
+Fix tournament fixture display by aligning the data model: use `tournament_id` (which references `tournament_editions.id`) consistently, drop the deprecated `festival_id` column, and auto-set date filters from edition dates.
 
 ## Changes
 
-### 1. Discover Page (`src/pages/Schools.tsx`)
+### 1. Database Migration: Drop `festival_id`
 
-**Current**: Clicking a tournament navigates to `/tournament/{tournament.id}` (the parent tournament ID).
+Create a migration to remove the `festival_id` column from the `fixtures` table. This column is unused -- all tournament linking now goes through `tournament_id` which references `tournament_editions.id`.
 
-**Change**: Keep this navigation as-is. The Tournament page will handle resolving editions.
+```sql
+ALTER TABLE public.fixtures DROP COLUMN IF EXISTS festival_id;
+```
 
-### 2. Tournament Profile Page (`src/pages/Tournament.tsx`)
+### 2. Fix `Tournament.tsx` -- Fixture Query
 
-**Current**: Accepts a single ID param, tries it as edition first, then tournament. Queries fixtures with that ID directly.
+**Problem**: `fetchFixtures` queries `tournament:tournaments(id, name)` (the parent tournaments table) and filters by `.eq("tournament_id", editionId)`. The join is wrong -- the FK points to `tournament_editions`, not `tournaments`.
 
-**New behavior**:
-- When the URL contains a `tournaments.id` (parent), fetch all editions for that tournament and display a **year selector** (e.g., tabs or dropdown showing 2024, 2025, 2026).
-- Default to the most recent/active edition.
-- When a year is selected, load that edition's metadata (venue, host, sponsors, participating schools) and its fixtures (where `fixtures.tournament_id = edition.id`).
-- When the URL contains a `tournament_editions.id` directly (e.g., from a deep link), resolve the parent tournament, load all editions, and pre-select the matching year.
+**Fix** (lines 240-249): Remove the `tournament:tournaments(id, name)` join from the select statement entirely. The tournament name is already available via `tournamentName` state. The `.eq("tournament_id", editionId)` filter is correct since `fixtures.tournament_id` references `tournament_editions.id`.
 
-**Specific code changes**:
-- Add state for `editions` (array of all editions for this tournament) and `selectedEditionId`.
-- In `fetchTournament`:
-  - First try as edition ID; if found, fetch sibling editions via `tournament_id`.
-  - If not found as edition, treat as parent tournament ID and fetch all editions.
-  - Default-select the most recent active edition (or latest by year).
-- Add a year selector UI (compact pill/tab bar) below the tournament name.
-- `fetchFixtures` uses the selected `edition.id` as the `tournament_id` filter.
+```typescript
+const { data, error } = await supabase
+  .from("fixtures")
+  .select(`
+    id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby, score_a, score_b,
+    school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
+    school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province)
+  `)
+  .eq("tournament_id", editionId)
+  .order("match_date", { ascending: true });
+```
 
-### 3. Year Selector UI
+### 3. Fix `Tournament.tsx` -- Auto-Set Date Range from Edition
 
-A compact row of year pills (e.g., `2025 | 2026`) displayed below the tournament header. Selecting a year swaps the edition metadata and reloads fixtures for that edition.
+**Problem**: `dateRange` is hardcoded to 2026 (line 71), hiding fixtures from other years.
 
-### 4. Follows
+**Fix**: Add a `useEffect` that updates `dateRange` whenever `selectedEdition` changes:
+- If the edition has valid `start_date` and `end_date`, use those.
+- Otherwise, default to Jan 1 -- Dec 31 of the edition's `year`.
 
-Follows remain on `tournaments.id` (the parent), not edition-specific. No change needed here since the `user_tournament_follows` table already references `tournament_id` (parent).
+```typescript
+useEffect(() => {
+  if (!selectedEdition) return;
+  const start = new Date(selectedEdition.start_date);
+  const end = new Date(selectedEdition.end_date);
+  if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+    setDateRange({ from: start, to: end });
+  } else {
+    setDateRange({
+      from: new Date(selectedEdition.year, 0, 1),
+      to: endOfYear(new Date(selectedEdition.year, 0, 1)),
+    });
+  }
+}, [selectedEdition]);
+```
 
-## Technical Details
+Also remove the hardcoded 2026 initial value, replacing it with a sensible default (current year).
 
-### Files to modify
+### 4. Fix `useFixturesData.ts` -- Query and Types
+
+**Problem**: The `FixtureWithSchools` interface references `tournament_edition` but the Supabase query joins as `tournament_edition:tournament_editions(id, tournament:tournaments(id, name))`. This is correct for the Fixtures page since it needs the tournament name. However, `festival_id` should not appear anywhere.
+
+**Changes**:
+- Confirm the existing query already uses `tournament_id` (it does via `.eq("tournament_id", ...)` implicitly through `tournament_editions`).
+- No `festival_id` references exist in this file -- no changes needed here.
+
+### 5. Fix `Fixtures.tsx` -- Tournament Name Mapping
+
+**Problem**: The `FixtureListCard` receives `fixture.tournament_edition?.tournament` but this may be `null` if the join doesn't resolve.
+
+**Fix**: The existing mapping on line 166 (`fixture.tournament_edition?.tournament ?? null`) is correct. No change needed -- the query in `useFixturesData` already fetches `tournament_edition:tournament_editions(id, tournament:tournaments(id, name))` which correctly traverses edition -> parent tournament.
+
+### 6. Clean Up `ImportFixturesButton.tsx`
+
+Remove `festival_id: null` from the insert payload (line 100) since the column will no longer exist after the migration.
+
+### 7. Clean Up CSV Files
+
+The CSV headers in `src/data/fixtures.csv` and `src/data/fixtures_rows.csv` contain `festival_id`. These are static data files -- update headers to remove the column.
+
+## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/Tournament.tsx` | Add editions state, year selector, edition-aware data loading |
-| `src/pages/Schools.tsx` | No changes needed (already navigates with parent tournament ID) |
-
-### Data flow
-
-```text
-/tournament/:id
-       |
-       v
-  Is it an edition ID?
-  YES --> get tournament_id from edition, fetch all editions
-  NO  --> treat as tournament ID, fetch all editions
-       |
-       v
-  Show year selector with all editions
-  Default to latest active edition
-       |
-       v
-  Load selected edition metadata + fixtures
-```
-
-### Edition query
-```typescript
-const { data: editions } = await supabase
-  .from("tournament_editions")
-  .select("*")
-  .eq("tournament_id", parentTournamentId)
-  .order("year", { ascending: false });
-```
-
-### Fixture query (unchanged logic, but uses edition ID)
-```typescript
-.eq("tournament_id", selectedEditionId)
-```
+| `supabase/migrations/` | New migration: drop `festival_id` column |
+| `src/pages/Tournament.tsx` | Remove tournament join from fixture query; auto-set dateRange from edition; fix hardcoded 2026 |
+| `src/components/admin/ImportFixturesButton.tsx` | Remove `festival_id: null` from insert payload |
+| `src/data/fixtures.csv` | Remove `festival_id` from header |
+| `src/data/fixtures_rows.csv` | Remove `festival_id` from header |
 
