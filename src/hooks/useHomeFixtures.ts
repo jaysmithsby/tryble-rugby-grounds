@@ -47,14 +47,15 @@ const FIXTURE_SELECT = `
   school_b_id,
   school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url),
   school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url),
-  tournament:tournaments!fixtures_tournament_id_fkey(name)
+  tournament_edition:tournament_editions!fixtures_tournament_id_fkey(id, tournament:tournaments!tournament_editions_tournament_id_fkey(name))
 `;
 
 function mapFixture(f: any): FixtureWithSchools {
   // Resolve venue name from venue_type + venue_id / tournament
   let venue = 'TBD';
-  if (f.venue_type === 'tournament' && f.tournament?.name) {
-    venue = f.tournament.name;
+  const tournamentName = f.tournament_edition?.tournament?.name ?? null;
+  if (f.venue_type === 'tournament' && tournamentName) {
+    venue = tournamentName;
   } else if (f.venue_type === 'school' && f.venue_id) {
     if (f.school_a && f.venue_id === f.school_a.id) venue = f.school_a.name;
     else if (f.school_b && f.venue_id === f.school_b.id) venue = f.school_b.name;
@@ -71,7 +72,7 @@ function mapFixture(f: any): FixtureWithSchools {
     venue_type: f.venue_type ?? null,
     venue_id: f.venue_id ?? null,
     tournament_id: f.tournament_id ?? null,
-    tournament_name: f.tournament?.name ?? null,
+    tournament_name: tournamentName,
     school_a: f.school_a as FixtureWithSchools["school_a"],
     school_b: f.school_b as FixtureWithSchools["school_b"],
   };
@@ -249,6 +250,16 @@ export function useHomeFixtures({
     queryFn: async () => {
       const tournamentIds = tournamentData?.tournamentIds || [];
       if (tournamentIds.length === 0) return [];
+
+      // Look up edition IDs for followed tournaments
+      const { data: editions } = await supabase
+        .from("tournament_editions" as any)
+        .select("id")
+        .in("tournament_id", tournamentIds)
+        .eq("is_active", true);
+      const editionIds = ((editions || []) as any[]).map((e: any) => e.id);
+      if (editionIds.length === 0) return [];
+
       const now = effectiveDate.toISOString();
       const { data, error } = await supabase
         .from("fixtures")
@@ -256,7 +267,7 @@ export function useHomeFixtures({
         .eq("is_visible", true)
         .eq("status", "upcoming")
         .eq("year", seasonYear)
-        .in("tournament_id", tournamentIds)
+        .in("tournament_id", editionIds)
         .gte("match_date", now)
         .lte("match_date", sevenDaysFromNow.toISOString())
         .order("match_date", { ascending: true })

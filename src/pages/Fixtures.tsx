@@ -218,7 +218,7 @@ const Fixtures = () => {
                     status: fixture.status,
                     school_a: fixture.school_a,
                     school_b: fixture.school_b,
-                    tournament: fixture.tournament,
+                    tournament: fixture.tournament_edition?.tournament ?? null,
                   }}
                   isPredicted={!!predictionsMap[fixture.id]}
                   userPrediction={predictionsMap[fixture.id]}
