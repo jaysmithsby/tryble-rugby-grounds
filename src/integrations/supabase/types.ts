@@ -810,34 +810,55 @@ export type Database = {
         Row: {
           created_at: string
           end_date: string
+          format_notes: string | null
+          host_school: string | null
           id: string
           is_active: boolean | null
+          logo_url: string | null
           participating_schools: string[] | null
+          province: string | null
+          sponsor_logo_url: string | null
+          sponsor_name: string | null
           start_date: string
           tournament_id: string
           updated_at: string
+          venue: string | null
           year: number
         }
         Insert: {
           created_at?: string
           end_date: string
+          format_notes?: string | null
+          host_school?: string | null
           id?: string
           is_active?: boolean | null
+          logo_url?: string | null
           participating_schools?: string[] | null
+          province?: string | null
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
           start_date: string
           tournament_id: string
           updated_at?: string
+          venue?: string | null
           year: number
         }
         Update: {
           created_at?: string
           end_date?: string
+          format_notes?: string | null
+          host_school?: string | null
           id?: string
           is_active?: boolean | null
+          logo_url?: string | null
           participating_schools?: string[] | null
+          province?: string | null
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
           start_date?: string
           tournament_id?: string
           updated_at?: string
+          venue?: string | null
           year?: number
         }
         Relationships: [
@@ -853,42 +874,21 @@ export type Database = {
       tournaments: {
         Row: {
           created_at: string
-          format_notes: string | null
-          host_school: string
           id: string
-          logo_url: string | null
           name: string
-          province: string | null
-          sponsor_logo_url: string | null
-          sponsor_name: string | null
           updated_at: string
-          venue: string
         }
         Insert: {
           created_at?: string
-          format_notes?: string | null
-          host_school: string
           id?: string
-          logo_url?: string | null
           name: string
-          province?: string | null
-          sponsor_logo_url?: string | null
-          sponsor_name?: string | null
           updated_at?: string
-          venue: string
         }
         Update: {
           created_at?: string
-          format_notes?: string | null
-          host_school?: string
           id?: string
-          logo_url?: string | null
           name?: string
-          province?: string | null
-          sponsor_logo_url?: string | null
-          sponsor_name?: string | null
           updated_at?: string
-          venue?: string
         }
         Relationships: []
       }

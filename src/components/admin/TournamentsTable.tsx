@@ -21,12 +21,6 @@ import {
 export interface Tournament {
   id: string;
   name: string;
-  host_school: string;
-  venue: string;
-  province: string | null;
-  format_notes: string | null;
-  sponsor_name: string | null;
-  sponsor_logo_url: string | null;
 }
 
 export interface TournamentEdition {
@@ -37,6 +31,13 @@ export interface TournamentEdition {
   end_date: string;
   participating_schools: string[];
   is_active: boolean;
+  host_school: string | null;
+  venue: string | null;
+  province: string | null;
+  format_notes: string | null;
+  logo_url: string | null;
+  sponsor_name: string | null;
+  sponsor_logo_url: string | null;
 }
 
 interface TournamentsTableProps {
@@ -108,9 +109,9 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
   };
 
   const provinces = useMemo(() => {
-    const unique = [...new Set(tournaments.map(t => t.province).filter(Boolean))];
+    const unique = [...new Set(editions.map(e => e.province).filter(Boolean))];
     return unique.sort() as string[];
-  }, [tournaments]);
+  }, [editions]);
 
   const editionsByTournament = useMemo(() => {
     const map = new Map<string, TournamentEdition[]>();
@@ -125,16 +126,19 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
   const filteredTournaments = useMemo(() => {
     return tournaments.filter((t) => {
       const q = debouncedSearch.toLowerCase();
+      const tEditions = editionsByTournament.get(t.id) || [];
       const matchesSearch = !debouncedSearch ||
         t.name.toLowerCase().includes(q) ||
-        t.host_school.toLowerCase().includes(q) ||
-        t.venue.toLowerCase().includes(q) ||
-        t.province?.toLowerCase().includes(q) ||
-        t.sponsor_name?.toLowerCase().includes(q);
-      const matchesProvince = provinceFilter === "all" || t.province === provinceFilter;
+        tEditions.some(e =>
+          e.host_school?.toLowerCase().includes(q) ||
+          e.venue?.toLowerCase().includes(q) ||
+          e.province?.toLowerCase().includes(q) ||
+          e.sponsor_name?.toLowerCase().includes(q)
+        );
+      const matchesProvince = provinceFilter === "all" || tEditions.some(e => e.province === provinceFilter);
       return matchesSearch && matchesProvince;
     });
-  }, [tournaments, debouncedSearch, provinceFilter]);
+  }, [tournaments, debouncedSearch, provinceFilter, editionsByTournament]);
 
   const clearFilters = () => { setSearchQuery(""); setProvinceFilter("all"); };
 
@@ -170,10 +174,8 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
             <TableRow>
               <TableHead className="w-8"></TableHead>
               <TableHead>Tournament Name</TableHead>
-              <TableHead>Host School</TableHead>
-              <TableHead>Venue</TableHead>
               <TableHead>Editions</TableHead>
-              <TableHead>Sponsor</TableHead>
+              <TableHead colSpan={3}></TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -212,18 +214,8 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
                           {tournament.name}
                         </button>
                       </TableCell>
-                      <TableCell>{tournament.host_school}</TableCell>
-                      <TableCell>{tournament.venue}{tournament.province && `, ${tournament.province}`}</TableCell>
                       <TableCell>{tournamentEditions.length} edition(s)</TableCell>
-                      <TableCell>
-                        {tournament.sponsor_logo_url ? (
-                          <img src={tournament.sponsor_logo_url} alt={tournament.sponsor_name || "Sponsor"} className="h-8 object-contain" />
-                        ) : tournament.sponsor_name ? (
-                          <span className="text-sm">{tournament.sponsor_name}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        )}
-                      </TableCell>
+                      <TableCell colSpan={3}></TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           {onAddEdition && (
@@ -244,19 +236,19 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
                     {isExpanded && tournamentEditions.map((edition) => (
                       <TableRow key={edition.id} className="bg-muted/30">
                         <TableCell></TableCell>
-                        <TableCell className="pl-8 text-sm text-muted-foreground">
-                          ↳ {edition.year} Edition
+                      <TableCell className="pl-8 text-sm text-muted-foreground">
+                          ↳ {edition.year} — {edition.host_school || "No host"}, {edition.venue || "No venue"}{edition.province && ` · ${edition.province}`}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {format(new Date(edition.start_date), "MMM d")} – {format(new Date(edition.end_date), "MMM d, yyyy")}
+                          {format(new Date(edition.start_date), "MMM d")} – {format(new Date(edition.end_date), "MMM d, yyyy")} · {edition.participating_schools.length} schools
+                          {edition.sponsor_name && ` · ${edition.sponsor_name}`}
                         </TableCell>
-                        <TableCell className="text-sm">{edition.participating_schools.length} schools</TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${edition.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                             {edition.is_active ? "Active" : "Inactive"}
                           </span>
                         </TableCell>
-                        <TableCell></TableCell>
+                        <TableCell colSpan={2}></TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {onEditEdition && (

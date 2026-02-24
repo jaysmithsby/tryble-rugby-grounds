@@ -10,18 +10,28 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
+import { saProvinces } from "@/data/saProvinces";
 
 const formSchema = z.object({
   year: z.coerce.number().min(2000).max(2100),
   start_date: z.string().min(1, "Start date is required"),
   end_date: z.string().min(1, "End date is required"),
+  host_school: z.string().optional(),
+  venue: z.string().optional(),
+  province: z.string().optional(),
+  format_notes: z.string().optional(),
+  sponsor_name: z.string().optional(),
   participating_schools: z.array(z.string()).default([]),
   is_active: z.boolean().default(true),
 });
@@ -37,21 +47,31 @@ interface EditEditionDialogProps {
 export function EditEditionDialog({ open, onOpenChange, edition, tournamentName, onSuccess }: EditEditionDialogProps) {
   const [schools, setSchools] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [sponsorLogoUrl, setSponsorLogoUrl] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { year: new Date().getFullYear(), start_date: "", end_date: "", participating_schools: [], is_active: true },
+    defaultValues: { year: new Date().getFullYear(), start_date: "", end_date: "", host_school: "", venue: "", province: "", format_notes: "", sponsor_name: "", participating_schools: [], is_active: true },
   });
 
   useEffect(() => {
     if (open && edition) {
       fetchSchools();
+      setSponsorLogoUrl(edition.sponsor_logo_url || "");
+      setLogoUrl(edition.logo_url || "");
       form.reset({
         year: edition.year,
         start_date: new Date(edition.start_date).toISOString().slice(0, 16),
         end_date: new Date(edition.end_date).toISOString().slice(0, 16),
+        host_school: edition.host_school || "",
+        venue: edition.venue || "",
+        province: edition.province || "",
+        format_notes: edition.format_notes || "",
+        sponsor_name: edition.sponsor_name || "",
         participating_schools: edition.participating_schools || [],
         is_active: edition.is_active ?? true,
       });
@@ -68,6 +88,23 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
     return schools.filter((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [schools, searchQuery]);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, bucket: string, setter: (url: string) => void) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setUploading(true);
+    try {
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split(".").pop()}`;
+      const { error } = await supabase.storage.from(bucket).upload(fileName, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      setter(publicUrl);
+    } catch {
+      toast({ title: "Upload Failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!edition?.id) return;
     setLoading(true);
@@ -76,6 +113,13 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
         year: values.year,
         start_date: values.start_date,
         end_date: values.end_date,
+        host_school: values.host_school || null,
+        venue: values.venue || null,
+        province: values.province || null,
+        format_notes: values.format_notes || null,
+        sponsor_name: values.sponsor_name || null,
+        sponsor_logo_url: sponsorLogoUrl || null,
+        logo_url: logoUrl || null,
         participating_schools: values.participating_schools,
         is_active: values.is_active,
       }).eq("id", edition.id);
@@ -107,6 +151,49 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
                 <FormField control={form.control} name="end_date" render={({ field }) => (
                   <FormItem><FormLabel>End Date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+              </div>
+
+              <FormField control={form.control} name="host_school" render={({ field }) => (
+                <FormItem><FormLabel>Host School / Organizer</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="venue" render={({ field }) => (
+                  <FormItem><FormLabel>Venue</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="province" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Province</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger></FormControl>
+                      <SelectContent className="z-[100]">
+                        {saProvinces.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <FormField control={form.control} name="format_notes" render={({ field }) => (
+                <FormItem><FormLabel>Format Notes</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <div className="space-y-4 border-t border-border pt-4">
+                <h3 className="text-sm font-medium">Sponsorship & Branding</h3>
+                <FormField control={form.control} name="sponsor_name" render={({ field }) => (
+                  <FormItem><FormLabel>Sponsor Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <div className="space-y-2">
+                  <FormLabel>Sponsor Logo</FormLabel>
+                  <Input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "tournament-sponsors", setSponsorLogoUrl)} disabled={uploading} />
+                  {sponsorLogoUrl && <img src={sponsorLogoUrl} alt="Sponsor" className="h-12 object-contain rounded border border-border p-1 mt-1" />}
+                </div>
+                <div className="space-y-2">
+                  <FormLabel>Tournament Logo</FormLabel>
+                  <Input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "tournament-sponsors", setLogoUrl)} disabled={uploading} />
+                  {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 object-contain rounded border border-border p-1 mt-1" />}
+                </div>
               </div>
 
               <FormField control={form.control} name="participating_schools" render={({ field }) => (

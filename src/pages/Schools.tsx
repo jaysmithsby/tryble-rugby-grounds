@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Star, School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
-import { format } from "date-fns";
+
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,9 +54,6 @@ interface SchoolRow {
 interface TournamentRow {
   id: string;
   name: string;
-  venue: string;
-  province: string | null;
-  logo_url: string | null;
 }
 
 type DiscoveryMode = "schools" | "tournaments";
@@ -138,7 +135,7 @@ export default function Schools() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tournaments")
-        .select("id, name, venue, province, logo_url")
+        .select("id, name")
         .order("name");
       if (error) throw error;
       return (data || []) as TournamentRow[];
@@ -177,11 +174,8 @@ export default function Schools() {
       const q = debouncedSearch.toLowerCase();
       list = list.filter((t) => t.name.toLowerCase().includes(q));
     }
-    if (province !== "all") {
-      list = list.filter((t) => t.province === province);
-    }
     return list;
-  }, [sortedTournaments, debouncedSearch, province]);
+  }, [sortedTournaments, debouncedSearch]);
 
   // ── Filtered schools ──
   const filteredSchools = useMemo(() => {
@@ -280,10 +274,6 @@ export default function Schools() {
       .join("")
       .slice(0, 2)
       .toUpperCase();
-
-  const getTournamentDateLabel = (_t: TournamentRow) => {
-    return "";
-  };
 
   const isLoading = mode === "schools" ? schoolsLoading : tournamentsLoading;
 
@@ -459,7 +449,6 @@ export default function Schools() {
           <ul className="divide-y divide-border/40">
             {(pageItems as TournamentRow[]).map((tournament) => {
               const isFollowed = tournamentFollowedSet.has(tournament.id);
-              const dateLabel = getTournamentDateLabel(tournament);
 
               return (
                 <li
@@ -476,9 +465,6 @@ export default function Schools() {
                   >
                     <p className="text-sm font-medium text-foreground truncate">
                       {tournament.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {tournament.venue} · {dateLabel}
                     </p>
                   </button>
 
