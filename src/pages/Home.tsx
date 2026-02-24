@@ -180,7 +180,7 @@ const Home = () => {
 
         <div className="space-y-4">
           <h2 className="text-lg font-bold px-1">Upcoming Matches</h2>
-          {fixturesLoading ? (
+          {(fixturesLoading || !profileLoaded) ? (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">Loading fixtures...</p>
             </div>
