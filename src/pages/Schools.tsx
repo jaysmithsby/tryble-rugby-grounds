@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Star, School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { startOfYear, endOfYear } from "date-fns";
 
 import GlobalHeader from "@/components/GlobalHeader";
 import { BottomNav } from "@/components/BottomNav";
@@ -12,6 +13,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { CACHE_TIMES } from "@/lib/queryConfig";
 import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 import { saProvinces } from "@/data/saProvinces";
+import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -73,6 +75,11 @@ export default function Schools() {
   const [mode, setMode] = useState<DiscoveryMode>("schools");
   const [search, setSearch] = useState("");
   const [province, setProvince] = useState<string>("all");
+  const now = new Date();
+  const [tournamentDateRange, setTournamentDateRange] = useState({
+    from: startOfYear(now),
+    to: endOfYear(now),
+  });
   const debouncedSearch = useDebounce(search, 300);
   const pagination = usePagination(1, PAGE_SIZE);
 
@@ -143,6 +150,19 @@ export default function Schools() {
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
+  // ── Tournament editions (for year filtering) ──
+  const { data: tournamentEditions = [] } = useQuery({
+    queryKey: ["all-tournament-editions-years"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tournament_editions")
+        .select("tournament_id, year");
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: CACHE_TIMES.REFERENCE,
+  });
+
   // ── Tournament follows ──
   const { data: tournamentFollows = [] } = useQuery({
     queryKey: ["user-tournament-follows", user?.id],
@@ -168,14 +188,29 @@ export default function Schools() {
     return [...tournaments].sort((a, b) => a.name.localeCompare(b.name));
   }, [tournaments]);
 
+  // ── Tournament IDs that have editions in the selected year range ──
+  const tournamentIdsInRange = useMemo(() => {
+    const fromYear = tournamentDateRange.from.getFullYear();
+    const toYear = tournamentDateRange.to.getFullYear();
+    const ids = new Set<string>();
+    for (const e of tournamentEditions) {
+      if (e.year >= fromYear && e.year <= toYear) {
+        ids.add(e.tournament_id);
+      }
+    }
+    return ids;
+  }, [tournamentEditions, tournamentDateRange]);
+
   const filteredTournaments = useMemo(() => {
     let list = sortedTournaments;
+    // Filter by year range
+    list = list.filter((t) => tournamentIdsInRange.has(t.id));
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       list = list.filter((t) => t.name.toLowerCase().includes(q));
     }
     return list;
-  }, [sortedTournaments, debouncedSearch]);
+  }, [sortedTournaments, debouncedSearch, tournamentIdsInRange]);
 
   // ── Filtered schools ──
   const filteredSchools = useMemo(() => {
@@ -201,7 +236,7 @@ export default function Schools() {
   // Reset to page 1 on filter/mode change
   useMemo(() => {
     pagination.goToPage(1);
-  }, [debouncedSearch, province, mode]);
+  }, [debouncedSearch, province, mode, tournamentDateRange]);
 
   const pageItems = useMemo(
     () => activeList.slice(pagination.from, pagination.to + 1),
@@ -323,19 +358,26 @@ export default function Schools() {
               className="pl-9 h-9"
             />
           </div>
-          <Select value={province} onValueChange={setProvince}>
-            <SelectTrigger className="w-[140px] h-9">
-              <SelectValue placeholder="Province" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Provinces</SelectItem>
-              {saProvinces.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {mode === "schools" ? (
+            <Select value={province} onValueChange={setProvince}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Province" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Provinces</SelectItem>
+                {saProvinces.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <FixturesDateSelector
+              dateRange={tournamentDateRange}
+              onDateRangeChange={setTournamentDateRange}
+            />
+          )}
         </div>
       </div>
 
