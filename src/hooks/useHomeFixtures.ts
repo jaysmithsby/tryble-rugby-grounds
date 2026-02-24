@@ -7,6 +7,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CACHE_TIMES } from "@/lib/queryConfig";
 
+export interface UpcomingTournament {
+  id: string;
+  name: string;
+  startDate: string;
+  venue: string | null;
+  province: string | null;
+}
+
 export interface FixtureWithSchools {
   id: string;
   match_date: string;
@@ -94,6 +102,7 @@ interface UseHomeFixturesResult {
   hasNoPools: boolean;
   fixturesLoading: boolean;
   predictionsMap: Record<string, { schoolId: string; margin: number }>;
+  upcomingTournaments: UpcomingTournament[];
 }
 
 export function useHomeFixtures({
@@ -255,6 +264,46 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
+  const fourteenDaysFromNow = new Date(effectiveDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+  const { data: upcomingTournaments = [] } = useQuery({
+    queryKey: ["home-upcoming-tournaments", tournamentData?.tournamentIds, effectiveDateStr],
+    queryFn: async () => {
+      const tournamentIds = tournamentData?.tournamentIds || [];
+      if (tournamentIds.length === 0) return [];
+
+      const { data: editions, error } = await supabase
+        .from("tournament_editions")
+        .select("id, start_date, venue, province, tournament_id, tournament:tournaments!tournament_editions_tournament_id_fkey(id, name)")
+        .in("tournament_id", tournamentIds)
+        .eq("is_active", true)
+        .gte("start_date", effectiveDate.toISOString())
+        .lte("start_date", fourteenDaysFromNow.toISOString())
+        .order("start_date", { ascending: true });
+
+      if (error) { console.error("Error fetching upcoming tournaments:", error); return []; }
+
+      // Deduplicate by parent tournament id, keeping earliest edition
+      const seen = new Set<string>();
+      const result: UpcomingTournament[] = [];
+      for (const e of (editions || []) as any[]) {
+        const parentId = (e.tournament as any)?.id ?? e.tournament_id;
+        if (seen.has(parentId)) continue;
+        seen.add(parentId);
+        result.push({
+          id: parentId,
+          name: (e.tournament as any)?.name ?? "Tournament",
+          startDate: e.start_date,
+          venue: e.venue ?? null,
+          province: e.province ?? null,
+        });
+      }
+      return result;
+    },
+    enabled: (tournamentData?.tournamentIds?.length ?? 0) > 0,
+    staleTime: CACHE_TIMES.REFERENCE,
+  });
+
   const mergedUpcomingFixtures = useMemo(() => {
     const seenIds = new Set<string>();
     const all: FixtureWithSchools[] = [];
@@ -302,5 +351,6 @@ export function useHomeFixtures({
     hasNoPools,
     fixturesLoading,
     predictionsMap,
+    upcomingTournaments,
   };
 }
