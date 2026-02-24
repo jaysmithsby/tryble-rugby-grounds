@@ -21,7 +21,7 @@ interface FixtureWithSchools {
   school_b_id: string;
   school_a: FixtureSchool;
   school_b: FixtureSchool;
-  tournament: { id: string; name: string } | null;
+  tournament_edition: { id: string; tournament: { id: string; name: string } | null } | null;
 }
 
 interface UserPrediction {
@@ -86,7 +86,7 @@ export const useFixturesData = ({
           school_b_id,
           school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
           school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
-          tournament:tournaments(id, name)
+          tournament_edition:tournament_editions(id, tournament:tournaments(id, name))
         `)
         .eq("is_visible", true)
         .gte("match_date", startDate)
