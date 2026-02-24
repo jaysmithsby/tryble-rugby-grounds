@@ -122,7 +122,6 @@ export type Database = {
       fixtures: {
         Row: {
           created_at: string
-          festival_id: string | null
           id: string
           is_derby: boolean | null
           is_visible: boolean | null
@@ -144,7 +143,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          festival_id?: string | null
           id?: string
           is_derby?: boolean | null
           is_visible?: boolean | null
@@ -166,7 +164,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          festival_id?: string | null
           id?: string
           is_derby?: boolean | null
           is_visible?: boolean | null

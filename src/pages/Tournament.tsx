@@ -68,7 +68,7 @@ export default function Tournament() {
   // Filters
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState({ from: new Date(2026, 0, 1), to: endOfYear(new Date(2026, 0, 1)) });
+  const [dateRange, setDateRange] = useState({ from: new Date(new Date().getFullYear(), 0, 1), to: endOfYear(new Date()) });
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [fixturesPage, setFixturesPage] = useState(1);
 
@@ -110,12 +110,26 @@ export default function Tournament() {
     }
   }, [tournamentId]);
 
-  // ── When selected edition changes, reload fixtures ──
+  // ── When selected edition changes, reload fixtures and update date range ──
   useEffect(() => {
     if (selectedEditionId) {
       fetchFixtures(selectedEditionId);
     }
   }, [selectedEditionId]);
+
+  useEffect(() => {
+    if (!selectedEdition) return;
+    const start = new Date(selectedEdition.start_date);
+    const end = new Date(selectedEdition.end_date);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      setDateRange({ from: start, to: end });
+    } else {
+      setDateRange({
+        from: new Date(selectedEdition.year, 0, 1),
+        to: endOfYear(new Date(selectedEdition.year, 0, 1)),
+      });
+    }
+  }, [selectedEdition]);
 
   const resolveTournament = async () => {
     setLoading(true);
@@ -240,10 +254,9 @@ export default function Tournament() {
       const { data, error } = await supabase
         .from("fixtures")
         .select(`
-          id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby,
+          id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby, score_a, score_b,
           school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
-          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
-          tournament:tournaments(id, name)
+          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province)
         `)
         .eq("tournament_id", editionId)
         .order("match_date", { ascending: true });

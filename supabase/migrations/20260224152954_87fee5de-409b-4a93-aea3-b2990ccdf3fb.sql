@@ -1,0 +1,1 @@
+ALTER TABLE public.fixtures DROP COLUMN IF EXISTS festival_id;
