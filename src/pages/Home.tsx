@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HomeCarousel } from "@/components/home/HomeCarousel";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
-import { Users } from "lucide-react";
+import { Users, Trophy, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
@@ -37,6 +37,7 @@ const Home = () => {
     hasNoPools,
     fixturesLoading,
     predictionsMap: dbPredictions,
+    upcomingTournaments,
   } = useHomeFixtures({
     userId: user?.id || null,
     
@@ -234,6 +235,31 @@ const Home = () => {
             </div>
           )}
         </div>
+
+        {upcomingTournaments.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-lg font-bold px-1">Upcoming Tournaments</h2>
+            <div className="divide-y divide-border/40">
+              {upcomingTournaments.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => navigate(`/tournament/${t.id}`)}
+                  className="w-full flex items-center gap-3 py-3 px-1 text-left hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  <Trophy className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground truncate">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Starts {format(new Date(t.startDate), "EEE d MMM")}
+                      {t.venue ? ` · ${t.venue}` : t.province ? ` · ${t.province}` : ""}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         
       </main>
