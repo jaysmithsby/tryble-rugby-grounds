@@ -1,50 +1,43 @@
 
 
-## Overview
+## Add Upcoming Tournaments Below Upcoming Matches
 
-Clean up `Home.tsx` and its supporting hook by removing unused imports, dead code, and unnecessary dynamic logic. The page is already fairly stable — this is a pruning pass.
+### What it does
+When you follow a tournament and it has an edition starting within the next 14 days, a simple list of tournament names appears below the "Upcoming Matches" section. Tapping a tournament navigates to its profile page. No cards — just clean rows matching the style of the fixtures section heading.
 
-## Changes
+### Changes
 
-### 1. Remove Unused Imports and Destructured Values in `Home.tsx`
+**1. `src/hooks/useHomeFixtures.ts`** — Add query and return value
 
-The following are imported but never used in the rendered JSX:
+- Add `UpcomingTournament` interface: `{ id: string; name: string; startDate: string; venue: string | null; province: string | null }`
+- Add a new `useQuery` that depends on the existing `tournamentData.tournamentIds`, fetching `tournament_editions` with `start_date` in the next 14 days, joined to `tournaments` for the name
+- Add `upcomingTournaments: UpcomingTournament[]` to `UseHomeFixturesResult` and the return object
 
-| Import | Status |
-|--------|--------|
-| `MessageCircle`, `Award` from lucide-react | Unused — remove |
-| `Card`, `CardContent` | Unused — remove |
-| `RecentFixtureCard` | Imported but never rendered — remove |
-| `SchoolScoreSubmission` | Imported but never rendered — remove |
-| `buildWhatsAppUrl` | Unused — remove |
-| `handleSignOut` (destructured from `useHomeAuth`) | Never called — stop destructuring it |
+**2. `src/pages/Home.tsx`** — Render list below Upcoming Matches
 
-`Users` from lucide-react IS used (in the "No Pools" empty state), so it stays.
+- Import `Trophy` and `ChevronRight` from lucide-react
+- Destructure `upcomingTournaments` from the hook
+- After the "Upcoming Matches" `div` (after line 236), render:
 
-### 2. Make Hero Headlines Static
+```text
+Upcoming Tournaments        (h2, same style as "Upcoming Matches")
 
-Replace the `getHeroHeadline()` / `getHeroSubline()` functions (which change based on `isDerbyWeek` and `hasSchoolFixture`) with a single static heading. This eliminates layout shifts as fixture data loads.
+  Trophy icon  Tournament Name           >
+               Starts Sat 8 Mar · Venue
+  ─────────────────────────────────────
+  Trophy icon  Another Tournament        >
+               Starts Sun 9 Mar · Province
+```
 
-**Before**: Three possible headline states driven by fixture data.
-**After**: A single static headline: "For the Badge." with subline "Back your school. Call the score."
+- Each row is a simple flex row with `onClick={() => navigate(\`/tournament/\${t.id}\`)}` and a cursor-pointer
+- Trophy icon (h-4 w-4 text-primary), name in font-semibold, date + venue in text-xs text-muted-foreground, chevron-right on the far side
+- Rows separated by a subtle border-b, no card wrapper
+- Section only renders when `upcomingTournaments.length > 0`
 
-Also remove `isDerbyWeek` and `hasSchoolFixture` variables since they only fed the hero functions.
-
-### 3. Remove Unused Return Values from `useHomeFixtures`
-
-In `src/hooks/useHomeFixtures.ts`:
-- `recentFixtures` is returned but never consumed in `Home.tsx` — remove the query and return value.
-- `tournamentFixtures` is returned but never consumed — remove from the return value (the data is still merged into `upcomingFixtures` internally, so keep the query).
-- Remove `userSchoolName` from the `UseHomeFixturesParams` interface since it's noted as unused inside the hook.
-
-### 4. Remove Unused Comment Block
-
-Delete the `{/* MVP: Full Time score reporting... */}` comment that references hidden features.
-
-## Files Modified
+### Files modified
 
 | File | Change |
 |------|--------|
-| `src/pages/Home.tsx` | Remove unused imports, static hero, remove dead destructuring |
-| `src/hooks/useHomeFixtures.ts` | Remove `recentFixtures` query, trim unused params/returns |
+| `src/hooks/useHomeFixtures.ts` | New query for upcoming editions, new interface, new return field |
+| `src/pages/Home.tsx` | Import Trophy/ChevronRight, render tournament list section |
 
