@@ -1,43 +1,74 @@
 
 
-## Add Upcoming Tournaments Below Upcoming Matches
+## Add Springboks Table and School Profile Integration
 
-### What it does
-When you follow a tournament and it has an edition starting within the next 14 days, a simple list of tournament names appears below the "Upcoming Matches" section. Tapping a tournament navigates to its profile page. No cards — just clean rows matching the style of the fixtures section heading.
+### Overview
+Create a `springboks` database table, seed it with the CSV data (64 players), then add a collapsible Springboks list at the bottom of each school profile page. The Springboks count in the header becomes clickable -- tapping it scrolls to and opens the collapsible section.
 
-### Changes
-
-**1. `src/hooks/useHomeFixtures.ts`** — Add query and return value
-
-- Add `UpcomingTournament` interface: `{ id: string; name: string; startDate: string; venue: string | null; province: string | null }`
-- Add a new `useQuery` that depends on the existing `tournamentData.tournamentIds`, fetching `tournament_editions` with `start_date` in the next 14 days, joined to `tournaments` for the name
-- Add `upcomingTournaments: UpcomingTournament[]` to `UseHomeFixturesResult` and the return object
-
-**2. `src/pages/Home.tsx`** — Render list below Upcoming Matches
-
-- Import `Trophy` and `ChevronRight` from lucide-react
-- Destructure `upcomingTournaments` from the hook
-- After the "Upcoming Matches" `div` (after line 236), render:
+### Step 1: Create the `springboks` table (migration)
 
 ```text
-Upcoming Tournaments        (h2, same style as "Upcoming Matches")
+Columns:
+  id          UUID  PK  default gen_random_uuid()
+  cap_number  INTEGER  NOT NULL  (the "#" column)
+  player_name TEXT  NOT NULL
+  debut_year  INTEGER  NOT NULL
+  high_school TEXT  NOT NULL  (display name, kept for players with no school_id)
+  school_id   UUID  NULLABLE  FK -> schools(id)
+  matric_year TEXT  NULLABLE  (some values like "2010-11")
+  craven_week TEXT  NULLABLE
+  sa_schools  TEXT  NULLABLE
+  created_at  TIMESTAMPTZ  default now()
 
-  Trophy icon  Tournament Name           >
-               Starts Sat 8 Mar · Venue
-  ─────────────────────────────────────
-  Trophy icon  Another Tournament        >
-               Starts Sun 9 Mar · Province
+RLS:
+  SELECT -> true (public data)
+  INSERT/UPDATE/DELETE -> admin only
 ```
 
-- Each row is a simple flex row with `onClick={() => navigate(\`/tournament/\${t.id}\`)}` and a cursor-pointer
-- Trophy icon (h-4 w-4 text-primary), name in font-semibold, date + venue in text-xs text-muted-foreground, chevron-right on the far side
-- Rows separated by a subtle border-b, no card wrapper
-- Section only renders when `upcomingTournaments.length > 0`
+Matric, Craven Week, and SA Schools are stored as TEXT because some values contain ranges like "2010-11" or "N/A".
 
-### Files modified
+### Step 2: Seed the data (insert tool)
 
-| File | Change |
+Insert all 64 rows from the CSV. Empty School ID values become NULL. "N/A" values for matric/craven_week/sa_schools are stored as NULL.
+
+### Step 3: Create `SpringboksTable` component
+
+New file: `src/components/school/SpringboksTable.tsx`
+
+- Accepts `schoolId: string` prop
+- Fetches from `springboks` table where `school_id = schoolId`, ordered by `cap_number DESC`
+- Uses the same Table/TableBody/TableRow/TableCell components as `RecentResultsTable`
+- 3-column layout: `Cap # | Player | Debut`
+- Clean, compact rows matching the results table style
+- Paginated at 5 per page using `usePagination`
+- Shows empty state "No Springboks on record." if none
+
+### Step 4: Update `SchoolProfile.tsx`
+
+- Import `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from the existing collapsible UI component
+- Import `SpringboksTable`
+- Add a `useRef` for the Springboks section and state `springboksOpen` (boolean, default false)
+- Make the Trophy/Springboks count in the header a clickable button that:
+  - Sets `springboksOpen(true)`
+  - Scrolls the ref into view with smooth scrolling
+- Add a new collapsible section at the bottom of `<main>` (after Recent Results):
+
+```text
+  [Collapsible]
+    [CollapsibleTrigger] "Springboks (count)" with chevron
+    [CollapsibleContent]
+      <SpringboksTable schoolId={school.id} />
+  [/Collapsible]
+```
+
+- The springboks_count in the header now comes from the actual count of rows in the springboks table (or falls back to `school.springboks_count` until loaded)
+
+### Files
+
+| File | Action |
 |------|--------|
-| `src/hooks/useHomeFixtures.ts` | New query for upcoming editions, new interface, new return field |
-| `src/pages/Home.tsx` | Import Trophy/ChevronRight, render tournament list section |
+| Migration SQL | Create `springboks` table with RLS |
+| Insert SQL | Seed 64 rows from CSV |
+| `src/components/school/SpringboksTable.tsx` | New component |
+| `src/pages/SchoolProfile.tsx` | Add collapsible section + clickable count |
 
