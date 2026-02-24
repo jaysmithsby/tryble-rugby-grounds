@@ -482,7 +482,7 @@ export default function Tournament() {
                   </PopoverContent>
                 </Popover>
               )}
-              <FixturesDateSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
+              
             </div>
 
             {/* Fixture cards */}
