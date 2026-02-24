@@ -74,7 +74,7 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
       if (editionsRes.error) throw editionsRes.error;
 
       setTournaments(tournamentsRes.data || []);
-      setEditions((editionsRes.data || []) as TournamentEdition[]);
+      setEditions((editionsRes.data || []) as unknown as TournamentEdition[]);
     } catch (error) {
       console.error("Error fetching tournaments:", error);
       toast({ title: "Failed to Load Tournaments", description: "Could not retrieve tournament data.", variant: "destructive" });

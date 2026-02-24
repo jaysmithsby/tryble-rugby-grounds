@@ -10,10 +10,10 @@ interface Tournament {
   name: string;
   host_school: string;
   venue: string;
-  participating_schools: string[] | null;
   logo_url: string | null;
   follower_count?: number;
   isUserSchool?: boolean;
+  editionSchoolCount?: number;
 }
 
 interface StepTournamentProps {
@@ -33,26 +33,39 @@ const StepTournament = ({ schoolName, userId, onNext, onSkip }: StepTournamentPr
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
-        // Fetch active tournaments
+        // Fetch tournaments
         const { data: tournamentsData, error } = await supabase
           .from("tournaments")
           .select("*")
-          .eq("is_active", true)
-          .order("start_date", { ascending: true });
+          .order("name");
 
         if (error) throw error;
 
-        // Sort tournaments: user's school first, then by participating schools count
+        // Fetch active editions to get participating schools info
+        const { data: editionsData } = await supabase
+          .from("tournament_editions" as any)
+          .select("tournament_id, participating_schools")
+          .eq("is_active", true);
+
+        const editionsMap = new Map<string, string[]>();
+        ((editionsData || []) as any[]).forEach((e: any) => {
+          editionsMap.set(e.tournament_id, e.participating_schools || []);
+        });
+
         const sorted = (tournamentsData || [])
-          .map((t) => ({
-            ...t,
-            isUserSchool: t.participating_schools?.includes(schoolName) || t.host_school === schoolName,
-            follower_count: 0, // Could fetch actual count if needed
-          }))
+          .map((t) => {
+            const schools = editionsMap.get(t.id) || [];
+            return {
+              ...t,
+              isUserSchool: schools.includes(schoolName) || t.host_school === schoolName,
+              follower_count: 0,
+              editionSchoolCount: schools.length,
+            };
+          })
           .sort((a, b) => {
             if (a.isUserSchool && !b.isUserSchool) return -1;
             if (!a.isUserSchool && b.isUserSchool) return 1;
-            return (b.participating_schools?.length || 0) - (a.participating_schools?.length || 0);
+            return (b.editionSchoolCount || 0) - (a.editionSchoolCount || 0);
           });
 
         setTournaments(sorted);
@@ -96,7 +109,6 @@ const StepTournament = ({ schoolName, userId, onNext, onSkip }: StepTournamentPr
         description: "You'll see fixtures from this tournament.",
       });
 
-      // Auto-advance after a short delay
       setTimeout(onNext, 500);
     } catch (error: any) {
       toast({
@@ -178,7 +190,7 @@ const StepTournament = ({ schoolName, userId, onNext, onSkip }: StepTournamentPr
                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          {tournament.participating_schools?.length || 0} schools
+                          {tournament.editionSchoolCount || 0} schools
                         </span>
                       </div>
                     </div>
