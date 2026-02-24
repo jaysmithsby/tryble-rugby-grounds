@@ -8,9 +8,7 @@ import { cn } from "@/lib/utils";
 interface Tournament {
   id: string;
   name: string;
-  host_school: string;
-  venue: string;
-  logo_url: string | null;
+  logo_url?: string | null;
   follower_count?: number;
   isUserSchool?: boolean;
   editionSchoolCount?: number;
@@ -53,11 +51,13 @@ const StepTournament = ({ schoolName, userId, onNext, onSkip }: StepTournamentPr
         });
 
         const sorted = (tournamentsData || [])
-          .map((t) => {
+          .map((t: any) => {
             const schools = editionsMap.get(t.id) || [];
             return {
-              ...t,
-              isUserSchool: schools.includes(schoolName) || t.host_school === schoolName,
+              id: t.id,
+              name: t.name,
+              logo_url: null as string | null,
+              isUserSchool: schools.includes(schoolName),
               follower_count: 0,
               editionSchoolCount: schools.length,
             };

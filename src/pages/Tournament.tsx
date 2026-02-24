@@ -29,14 +29,14 @@ import { resolveVenueName } from "@/lib/venueUtils";
 interface Tournament {
   id: string;
   name: string;
-  host_school: string;
-  venue: string;
-  province: string | null;
-  format_notes: string | null;
-  sponsor_name: string | null;
-  sponsor_logo_url: string | null;
-  logo_url: string | null;
-  // Edition-level fields (loaded separately)
+  // Edition-level fields
+  host_school?: string | null;
+  venue?: string | null;
+  province?: string | null;
+  format_notes?: string | null;
+  sponsor_name?: string | null;
+  sponsor_logo_url?: string | null;
+  logo_url?: string | null;
   start_date?: string;
   end_date?: string;
   participating_schools?: string[];
@@ -176,13 +176,21 @@ export default function Tournament() {
           .single();
         if (tError) throw tError;
         setTournament({
-          ...tData,
+          id: tData.id,
+          name: tData.name,
+          host_school: edition.host_school,
+          venue: edition.venue,
+          province: edition.province,
+          format_notes: edition.format_notes,
+          sponsor_name: edition.sponsor_name,
+          sponsor_logo_url: edition.sponsor_logo_url,
+          logo_url: edition.logo_url,
           start_date: edition.start_date,
           end_date: edition.end_date,
           participating_schools: edition.participating_schools || [],
           is_active: edition.is_active,
           edition_id: edition.id,
-        } as Tournament);
+        });
       } else {
         // Fallback: try as tournament ID directly
         const { data, error } = await supabase
@@ -191,7 +199,7 @@ export default function Tournament() {
           .eq("id", tournamentId)
           .single();
         if (error) throw error;
-        setTournament(data as Tournament);
+        setTournament({ id: data.id, name: data.name });
       }
     } catch (error) {
       console.error("Error fetching tournament:", error);
