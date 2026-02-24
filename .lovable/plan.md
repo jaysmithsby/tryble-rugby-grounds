@@ -2,91 +2,49 @@
 
 ## Overview
 
-Fix tournament fixture display by aligning the data model: use `tournament_id` (which references `tournament_editions.id`) consistently, drop the deprecated `festival_id` column, and auto-set date filters from edition dates.
+Clean up `Home.tsx` and its supporting hook by removing unused imports, dead code, and unnecessary dynamic logic. The page is already fairly stable — this is a pruning pass.
 
 ## Changes
 
-### 1. Database Migration: Drop `festival_id`
+### 1. Remove Unused Imports and Destructured Values in `Home.tsx`
 
-Create a migration to remove the `festival_id` column from the `fixtures` table. This column is unused -- all tournament linking now goes through `tournament_id` which references `tournament_editions.id`.
+The following are imported but never used in the rendered JSX:
 
-```sql
-ALTER TABLE public.fixtures DROP COLUMN IF EXISTS festival_id;
-```
+| Import | Status |
+|--------|--------|
+| `MessageCircle`, `Award` from lucide-react | Unused — remove |
+| `Card`, `CardContent` | Unused — remove |
+| `RecentFixtureCard` | Imported but never rendered — remove |
+| `SchoolScoreSubmission` | Imported but never rendered — remove |
+| `buildWhatsAppUrl` | Unused — remove |
+| `handleSignOut` (destructured from `useHomeAuth`) | Never called — stop destructuring it |
 
-### 2. Fix `Tournament.tsx` -- Fixture Query
+`Users` from lucide-react IS used (in the "No Pools" empty state), so it stays.
 
-**Problem**: `fetchFixtures` queries `tournament:tournaments(id, name)` (the parent tournaments table) and filters by `.eq("tournament_id", editionId)`. The join is wrong -- the FK points to `tournament_editions`, not `tournaments`.
+### 2. Make Hero Headlines Static
 
-**Fix** (lines 240-249): Remove the `tournament:tournaments(id, name)` join from the select statement entirely. The tournament name is already available via `tournamentName` state. The `.eq("tournament_id", editionId)` filter is correct since `fixtures.tournament_id` references `tournament_editions.id`.
+Replace the `getHeroHeadline()` / `getHeroSubline()` functions (which change based on `isDerbyWeek` and `hasSchoolFixture`) with a single static heading. This eliminates layout shifts as fixture data loads.
 
-```typescript
-const { data, error } = await supabase
-  .from("fixtures")
-  .select(`
-    id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, is_derby, score_a, score_b,
-    school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
-    school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province)
-  `)
-  .eq("tournament_id", editionId)
-  .order("match_date", { ascending: true });
-```
+**Before**: Three possible headline states driven by fixture data.
+**After**: A single static headline: "For the Badge." with subline "Back your school. Call the score."
 
-### 3. Fix `Tournament.tsx` -- Auto-Set Date Range from Edition
+Also remove `isDerbyWeek` and `hasSchoolFixture` variables since they only fed the hero functions.
 
-**Problem**: `dateRange` is hardcoded to 2026 (line 71), hiding fixtures from other years.
+### 3. Remove Unused Return Values from `useHomeFixtures`
 
-**Fix**: Add a `useEffect` that updates `dateRange` whenever `selectedEdition` changes:
-- If the edition has valid `start_date` and `end_date`, use those.
-- Otherwise, default to Jan 1 -- Dec 31 of the edition's `year`.
+In `src/hooks/useHomeFixtures.ts`:
+- `recentFixtures` is returned but never consumed in `Home.tsx` — remove the query and return value.
+- `tournamentFixtures` is returned but never consumed — remove from the return value (the data is still merged into `upcomingFixtures` internally, so keep the query).
+- Remove `userSchoolName` from the `UseHomeFixturesParams` interface since it's noted as unused inside the hook.
 
-```typescript
-useEffect(() => {
-  if (!selectedEdition) return;
-  const start = new Date(selectedEdition.start_date);
-  const end = new Date(selectedEdition.end_date);
-  if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-    setDateRange({ from: start, to: end });
-  } else {
-    setDateRange({
-      from: new Date(selectedEdition.year, 0, 1),
-      to: endOfYear(new Date(selectedEdition.year, 0, 1)),
-    });
-  }
-}, [selectedEdition]);
-```
+### 4. Remove Unused Comment Block
 
-Also remove the hardcoded 2026 initial value, replacing it with a sensible default (current year).
-
-### 4. Fix `useFixturesData.ts` -- Query and Types
-
-**Problem**: The `FixtureWithSchools` interface references `tournament_edition` but the Supabase query joins as `tournament_edition:tournament_editions(id, tournament:tournaments(id, name))`. This is correct for the Fixtures page since it needs the tournament name. However, `festival_id` should not appear anywhere.
-
-**Changes**:
-- Confirm the existing query already uses `tournament_id` (it does via `.eq("tournament_id", ...)` implicitly through `tournament_editions`).
-- No `festival_id` references exist in this file -- no changes needed here.
-
-### 5. Fix `Fixtures.tsx` -- Tournament Name Mapping
-
-**Problem**: The `FixtureListCard` receives `fixture.tournament_edition?.tournament` but this may be `null` if the join doesn't resolve.
-
-**Fix**: The existing mapping on line 166 (`fixture.tournament_edition?.tournament ?? null`) is correct. No change needed -- the query in `useFixturesData` already fetches `tournament_edition:tournament_editions(id, tournament:tournaments(id, name))` which correctly traverses edition -> parent tournament.
-
-### 6. Clean Up `ImportFixturesButton.tsx`
-
-Remove `festival_id: null` from the insert payload (line 100) since the column will no longer exist after the migration.
-
-### 7. Clean Up CSV Files
-
-The CSV headers in `src/data/fixtures.csv` and `src/data/fixtures_rows.csv` contain `festival_id`. These are static data files -- update headers to remove the column.
+Delete the `{/* MVP: Full Time score reporting... */}` comment that references hidden features.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `supabase/migrations/` | New migration: drop `festival_id` column |
-| `src/pages/Tournament.tsx` | Remove tournament join from fixture query; auto-set dateRange from edition; fix hardcoded 2026 |
-| `src/components/admin/ImportFixturesButton.tsx` | Remove `festival_id: null` from insert payload |
-| `src/data/fixtures.csv` | Remove `festival_id` from header |
-| `src/data/fixtures_rows.csv` | Remove `festival_id` from header |
+| `src/pages/Home.tsx` | Remove unused imports, static hero, remove dead destructuring |
+| `src/hooks/useHomeFixtures.ts` | Remove `recentFixtures` query, trim unused params/returns |
 
