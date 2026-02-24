@@ -80,7 +80,6 @@ function mapFixture(f: any): FixtureWithSchools {
 
 interface UseHomeFixturesParams {
   userId: string | null;
-  userSchoolName: string | null;
   userSchoolId: string | null;
   effectiveDate: Date;
   weekendStart: Date;
@@ -91,17 +90,14 @@ interface UseHomeFixturesParams {
 
 interface UseHomeFixturesResult {
   upcomingFixtures: FixtureWithSchools[];
-  recentFixtures: FixtureWithSchools[];
   userSchoolFixture: FixtureWithSchools | null;
   hasNoPools: boolean;
   fixturesLoading: boolean;
-  tournamentFixtures: FixtureWithSchools[];
   predictionsMap: Record<string, { schoolId: string; margin: number }>;
 }
 
 export function useHomeFixtures({
   userId,
-  userSchoolName,
   userSchoolId,
   effectiveDate,
   weekendStart,
@@ -187,27 +183,7 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
-  const { data: recentFixtures = [], isLoading: recentLoading } = useQuery({
-    queryKey: ["home-recent-fixtures", seasonYear, effectiveDateStr],
-    queryFn: async () => {
-      const now = effectiveDate.toISOString();
-      const sevenDaysAgo = new Date(effectiveDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
-        .from("fixtures")
-        .select(FIXTURE_SELECT)
-        .eq("is_visible", true)
-        .eq("status", "completed")
-        .eq("year", seasonYear)
-        .gte("match_date", sevenDaysAgo)
-        .lte("match_date", now)
-        .order("match_date", { ascending: false })
-        .limit(10);
-      if (error) { console.error("Error fetching recent fixtures:", error); return []; }
-      return (data || []).map(mapFixture);
-    },
-    enabled: !!userId && profileLoaded,
-    staleTime: CACHE_TIMES.DYNAMIC,
-  });
+
 
   const { data: userSchoolFixture = null } = useQuery({
     queryKey: ["home-user-school-fixture", userSchoolId, weekendStartStr, weekendEndStr, seasonYear],
@@ -318,15 +294,13 @@ export function useHomeFixtures({
     return map;
   }, [dbPredictions]);
 
-  const fixturesLoading = upcomingLoading || recentLoading || tournamentLoading;
+  const fixturesLoading = upcomingLoading || tournamentLoading;
 
   return {
     upcomingFixtures: mergedUpcomingFixtures,
-    recentFixtures,
     userSchoolFixture,
     hasNoPools,
     fixturesLoading,
-    tournamentFixtures: rawTournamentFixtures,
     predictionsMap,
   };
 }

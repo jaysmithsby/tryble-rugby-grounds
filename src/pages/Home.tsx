@@ -6,20 +6,15 @@ import GlobalHeader from "@/components/GlobalHeader";
 import trybalLogo from "@/assets/trybal-logo.png";
 
 import { supabase } from "@/integrations/supabase/client";
-import { SchoolScoreSubmission } from "@/components/scores/SchoolScoreSubmission";
 import { HomeCarousel } from "@/components/home/HomeCarousel";
-import { WeeklySummaryWidget } from "@/components/home/WeeklySummaryWidget";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
-import { RecentFixtureCard } from "@/components/home/RecentFixtureCard";
 import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
-import { MessageCircle, Award, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 import { useHomeAuth } from "@/hooks/useHomeAuth";
 import { useHomeFixtures } from "@/hooks/useHomeFixtures";
-import { buildWhatsAppUrl } from "@/lib/constants";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -34,19 +29,17 @@ const Home = () => {
     userSchoolName,
     userSchoolId,
     userDisplayName,
-    handleSignOut,
   } = useHomeAuth();
 
   const {
     upcomingFixtures,
-    recentFixtures,
     userSchoolFixture,
     hasNoPools,
     fixturesLoading,
     predictionsMap: dbPredictions,
   } = useHomeFixtures({
     userId: user?.id || null,
-    userSchoolName, // Note: This parameter is unused in useHomeFixtures, but keeping it for now to match interface
+    
     userSchoolId,
     effectiveDate,
     weekendStart: weekendRange.start,
@@ -111,19 +104,6 @@ const Home = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
-  const isDerbyWeek = userSchoolFixture?.is_derby === true;
-  const hasSchoolFixture = !!userSchoolFixture;
-
-  const getHeroHeadline = () => {
-    if (isDerbyWeek) return "It's Derby Week.";
-    if (hasSchoolFixture) return "This Saturday. It Matters.";
-    return "For the Badge.";
-  };
-
-  const getHeroSubline = () => {
-    if (hasSchoolFixture) return "Your school. Your rivals. Your prediction.";
-    return "Back your school. Call the score.";
-  };
 
   if (loading) {
     return (
@@ -144,8 +124,8 @@ const Home = () => {
             {userSchoolName ? (
               <div className="space-y-0.5">
                 <p className="text-base font-bold text-primary">{userSchoolName}</p>
-                <p className="text-sm text-muted-foreground">
-                  Hey {userDisplayName || 'Fan'}.{hasSchoolFixture ? " Your boys play Saturday." : ""}
+              <p className="text-sm text-muted-foreground">
+                  Hey {userDisplayName || 'Fan'}.
                 </p>
               </div>
             ) : (
@@ -163,10 +143,10 @@ const Home = () => {
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <div className="space-y-1.5">
           <h1 className="text-3xl md:text-4xl font-black text-foreground leading-tight">
-            {getHeroHeadline()}
+            For the Badge.
           </h1>
           <p className="text-base text-muted-foreground">
-            {getHeroSubline()}
+            Back your school. Call the score.
           </p>
           <p className="text-xs text-muted-foreground/70">
             No betting. Just bragging rights.
@@ -254,7 +234,7 @@ const Home = () => {
           )}
         </div>
 
-        {/* MVP: Full Time score reporting, SchoolScoreSubmission, and scorekeeper card hidden */}
+        
       </main>
 
       <BottomNav />
