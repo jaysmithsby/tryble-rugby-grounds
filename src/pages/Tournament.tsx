@@ -32,14 +32,16 @@ interface Tournament {
   host_school: string;
   venue: string;
   province: string | null;
-  start_date: string;
-  end_date: string;
   format_notes: string | null;
-  participating_schools: string[];
   sponsor_name: string | null;
   sponsor_logo_url: string | null;
   logo_url: string | null;
-  is_active: boolean;
+  // Edition-level fields (loaded separately)
+  start_date?: string;
+  end_date?: string;
+  participating_schools?: string[];
+  is_active?: boolean;
+  edition_id?: string;
 }
 
 const FIXTURES_PER_PAGE = 8;
@@ -158,14 +160,39 @@ export default function Tournament() {
 
   const fetchTournament = async () => {
     try {
-      const { data, error } = await supabase
-        .from("tournaments")
+      // tournamentId could be an edition ID — try edition first, then tournament
+      const { data: editionData } = await supabase
+        .from("tournament_editions" as any)
         .select("*")
         .eq("id", tournamentId)
         .single();
 
-      if (error) throw error;
-      setTournament(data);
+      if (editionData) {
+        const edition = editionData as any;
+        const { data: tData, error: tError } = await supabase
+          .from("tournaments")
+          .select("*")
+          .eq("id", edition.tournament_id)
+          .single();
+        if (tError) throw tError;
+        setTournament({
+          ...tData,
+          start_date: edition.start_date,
+          end_date: edition.end_date,
+          participating_schools: edition.participating_schools || [],
+          is_active: edition.is_active,
+          edition_id: edition.id,
+        } as Tournament);
+      } else {
+        // Fallback: try as tournament ID directly
+        const { data, error } = await supabase
+          .from("tournaments")
+          .select("*")
+          .eq("id", tournamentId)
+          .single();
+        if (error) throw error;
+        setTournament(data as Tournament);
+      }
     } catch (error) {
       console.error("Error fetching tournament:", error);
       toast({

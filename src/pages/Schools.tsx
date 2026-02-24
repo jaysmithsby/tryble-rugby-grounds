@@ -56,9 +56,6 @@ interface TournamentRow {
   name: string;
   venue: string;
   province: string | null;
-  start_date: string;
-  end_date: string;
-  is_active: boolean | null;
   logo_url: string | null;
 }
 
@@ -141,9 +138,8 @@ export default function Schools() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tournaments")
-        .select("id, name, venue, province, start_date, end_date, is_active, logo_url")
-        .eq("is_active", true)
-        .order("start_date", { ascending: true });
+        .select("id, name, venue, province, logo_url")
+        .order("name");
       if (error) throw error;
       return (data || []) as TournamentRow[];
     },
@@ -172,14 +168,7 @@ export default function Schools() {
 
   // ── Sorted & filtered tournaments ──
   const sortedTournaments = useMemo(() => {
-    const now = new Date();
-    const upcoming = tournaments
-      .filter((t) => new Date(t.end_date) >= now)
-      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-    const past = tournaments
-      .filter((t) => new Date(t.end_date) < now)
-      .sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
-    return [...upcoming, ...past];
+    return [...tournaments].sort((a, b) => a.name.localeCompare(b.name));
   }, [tournaments]);
 
   const filteredTournaments = useMemo(() => {
@@ -292,13 +281,8 @@ export default function Schools() {
       .slice(0, 2)
       .toUpperCase();
 
-  const getTournamentDateLabel = (t: TournamentRow) => {
-    const now = new Date();
-    const start = new Date(t.start_date);
-    const end = new Date(t.end_date);
-    if (end < now) return `Ended ${format(end, "MMM d")}`;
-    if (start > now) return `Starts ${format(start, "MMM d")}`;
-    return `Live · Ends ${format(end, "MMM d")}`;
+  const getTournamentDateLabel = (_t: TournamentRow) => {
+    return "";
   };
 
   const isLoading = mode === "schools" ? schoolsLoading : tournamentsLoading;

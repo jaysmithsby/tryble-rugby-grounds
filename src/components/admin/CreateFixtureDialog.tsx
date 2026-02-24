@@ -146,11 +146,28 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
 
   const fetchTournaments = async () => {
     try {
-      const { data, error } = await supabase
-        .from("tournaments")
-        .select("id, name")
+      // Fetch active tournament editions with their tournament names
+      const { data: editionsData, error: editionsError } = await supabase
+        .from("tournament_editions" as any)
+        .select("id, tournament_id, year")
         .eq("is_active", true)
-        .order("start_date", { ascending: false });
+        .order("year", { ascending: false });
+
+      if (editionsError) throw editionsError;
+
+      // Fetch tournament names
+      const { data: tournamentsData, error: tournamentsError } = await supabase
+        .from("tournaments")
+        .select("id, name");
+
+      if (tournamentsError) throw tournamentsError;
+
+      const tournamentMap = new Map((tournamentsData || []).map((t: any) => [t.id, t.name]));
+      const data = ((editionsData || []) as any[]).map((e: any) => ({
+        id: e.id,
+        name: `${tournamentMap.get(e.tournament_id) || "Unknown"} ${e.year}`,
+      }));
+      const error = null;
 
       if (error) throw error;
       setTournaments(data || []);
