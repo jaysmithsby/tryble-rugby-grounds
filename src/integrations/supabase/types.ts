@@ -205,7 +205,7 @@ export type Database = {
             foreignKeyName: "fixtures_tournament_id_fkey"
             columns: ["tournament_id"]
             isOneToOne: false
-            referencedRelation: "tournaments"
+            referencedRelation: "tournament_editions"
             referencedColumns: ["id"]
           },
         ]
@@ -806,55 +806,87 @@ export type Database = {
           },
         ]
       }
-      tournaments: {
+      tournament_editions: {
         Row: {
           created_at: string
           end_date: string
+          id: string
+          is_active: boolean | null
+          participating_schools: string[] | null
+          start_date: string
+          tournament_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          participating_schools?: string[] | null
+          start_date: string
+          tournament_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          participating_schools?: string[] | null
+          start_date?: string
+          tournament_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_editions_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          created_at: string
           format_notes: string | null
           host_school: string
           id: string
-          is_active: boolean | null
           logo_url: string | null
           name: string
-          participating_schools: string[] | null
           province: string | null
           sponsor_logo_url: string | null
           sponsor_name: string | null
-          start_date: string
           updated_at: string
           venue: string
         }
         Insert: {
           created_at?: string
-          end_date: string
           format_notes?: string | null
           host_school: string
           id?: string
-          is_active?: boolean | null
           logo_url?: string | null
           name: string
-          participating_schools?: string[] | null
           province?: string | null
           sponsor_logo_url?: string | null
           sponsor_name?: string | null
-          start_date: string
           updated_at?: string
           venue: string
         }
         Update: {
           created_at?: string
-          end_date?: string
           format_notes?: string | null
           host_school?: string
           id?: string
-          is_active?: boolean | null
           logo_url?: string | null
           name?: string
-          participating_schools?: string[] | null
           province?: string | null
           sponsor_logo_url?: string | null
           sponsor_name?: string | null
-          start_date?: string
           updated_at?: string
           venue?: string
         }
