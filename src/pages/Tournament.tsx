@@ -336,10 +336,12 @@ export default function Tournament() {
 
         {/* Row 3: Metadata */}
         <div className="flex items-center gap-4 pl-11 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" />
-            {format(new Date(tournament.start_date), "MMM d")} – {format(new Date(tournament.end_date), "MMM d, yyyy")}
-          </span>
+          {tournament.start_date && tournament.end_date && !isNaN(new Date(tournament.start_date).getTime()) && !isNaN(new Date(tournament.end_date).getTime()) && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              {format(new Date(tournament.start_date), "MMM d")} – {format(new Date(tournament.end_date), "MMM d, yyyy")}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
             {participatingSchools.length} Schools
