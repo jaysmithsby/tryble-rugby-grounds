@@ -250,7 +250,7 @@ const Home = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{t.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Starts {format(new Date(t.startDate), "EEE d MMM")}
+                      {new Date(t.startDate) <= new Date() ? "Live" : `Starts ${format(new Date(t.startDate), "EEE d MMM")}`}
                       {t.venue ? ` · ${t.venue}` : t.province ? ` · ${t.province}` : ""}
                     </p>
                   </div>

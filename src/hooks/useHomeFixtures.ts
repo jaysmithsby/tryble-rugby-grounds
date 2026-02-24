@@ -277,8 +277,8 @@ export function useHomeFixtures({
         .select("id, start_date, venue, province, tournament_id, tournament:tournaments!tournament_editions_tournament_id_fkey(id, name)")
         .in("tournament_id", tournamentIds)
         .eq("is_active", true)
-        .gte("start_date", effectiveDate.toISOString())
         .lte("start_date", fourteenDaysFromNow.toISOString())
+        .gte("end_date", effectiveDate.toISOString())
         .order("start_date", { ascending: true });
 
       if (error) { console.error("Error fetching upcoming tournaments:", error); return []; }
