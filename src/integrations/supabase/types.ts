@@ -803,6 +803,53 @@ export type Database = {
           },
         ]
       }
+      springboks: {
+        Row: {
+          cap_number: number
+          craven_week: string | null
+          created_at: string
+          debut_year: number
+          high_school: string
+          id: string
+          matric_year: string | null
+          player_name: string
+          sa_schools: string | null
+          school_id: string | null
+        }
+        Insert: {
+          cap_number: number
+          craven_week?: string | null
+          created_at?: string
+          debut_year: number
+          high_school: string
+          id?: string
+          matric_year?: string | null
+          player_name: string
+          sa_schools?: string | null
+          school_id?: string | null
+        }
+        Update: {
+          cap_number?: number
+          craven_week?: string | null
+          created_at?: string
+          debut_year?: number
+          high_school?: string
+          id?: string
+          matric_year?: string | null
+          player_name?: string
+          sa_schools?: string | null
+          school_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "springboks_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tournament_editions: {
         Row: {
           created_at: string

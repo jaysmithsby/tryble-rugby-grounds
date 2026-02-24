@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Users, Trophy, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Users, Trophy, Search, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
@@ -14,6 +14,8 @@ import { resolveVenueName } from "@/lib/venueUtils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { SpringboksTable } from "@/components/school/SpringboksTable";
 
 import { startOfYear, endOfYear, format } from "date-fns";
 
@@ -31,6 +33,9 @@ export default function SchoolProfile() {
   const [followerCount, setFollowerCount] = useState(0);
   const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
   const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
+  const [springboksCount, setSpringboksCount] = useState<number | null>(null);
+  const [springboksOpen, setSpringboksOpen] = useState(false);
+  const springboksRef = useRef<HTMLDivElement>(null);
 
   // Search & month nav state
   const [searchQuery, setSearchQuery] = useState("");
@@ -299,10 +304,17 @@ export default function SchoolProfile() {
             <Users className="w-3.5 h-3.5" />
             {followerCount} Followers
           </span>
-          <span className="flex items-center gap-1">
+          <button
+            type="button"
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            onClick={() => {
+              setSpringboksOpen(true);
+              setTimeout(() => springboksRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+            }}
+          >
             <Trophy className="w-3.5 h-3.5" />
-            {school.springboks_count ?? 0} Springboks
-          </span>
+            {springboksCount ?? school.springboks_count ?? 0} Springboks
+          </button>
         </div>
       </div>
 
@@ -435,6 +447,21 @@ export default function SchoolProfile() {
         <section>
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
           <RecentResultsTable schoolId={school.id} />
+        </section>
+
+        {/* Springboks */}
+        <section ref={springboksRef}>
+          <Collapsible open={springboksOpen} onOpenChange={setSpringboksOpen}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full py-2 group">
+              <h2 className="text-sm font-semibold text-muted-foreground">
+                Springboks ({springboksCount ?? school.springboks_count ?? 0})
+              </h2>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${springboksOpen ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SpringboksTable schoolId={school.id} onCountLoaded={setSpringboksCount} />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
       </main>
 
