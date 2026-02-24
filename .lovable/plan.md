@@ -1,199 +1,142 @@
 
 
-# Streamlined Brags Scoring System
+# Tournament Editions: Splitting Recurring Tournaments from Yearly Instances
 
 ## Overview
 
-Replace the current two-step scoring flow (manual RPC + rollup into `user_scores`) with a single source of truth: the `predictions` table. All leaderboard data will be derived live from `predictions` joined with `fixtures`, eliminating sync issues entirely.
+Currently the `tournaments` table mixes the permanent identity of a tournament (name, host, venue, province, sponsor) with year-specific data (dates, participating schools, active status). This means the "Kearsney Easter Festival" gets re-created every year as a separate row.
+
+The fix: split into two tables so the tournament entity persists and each year gets its own "edition" row with that year's specific dates and schools.
 
 ---
 
-## 1. Database Migration
+## 1. New Data Model
 
-### Create: Auto-Scoring Trigger
+### `tournaments` table (stays, but simplified)
 
-A trigger on the `fixtures` table that fires whenever `score_a` or `score_b` is updated. It automatically runs the brags calculation for all predictions on that fixture -- no admin button press needed for point calculation.
+Holds the permanent identity of each tournament. Fields that stay:
 
-**Brags rules (unchanged):**
-- Correct winner: 4 brags
-- Correct winner + within 7 margin: 5 brags
-- Correct winner + exact margin: 6 brags
-- Wrong winner + within 7 margin: 1 brag
-- Wrong winner + far off: 0 brags
+- `id`, `name`, `host_school`, `venue`, `province`, `format_notes`
+- `logo_url`, `sponsor_name`, `sponsor_logo_url`
+- `created_at`, `updated_at`
 
-### Create: `get_leaderboard_stats` RPC
+Fields removed (moved to editions):
 
-A `SECURITY DEFINER` function that aggregates directly from `predictions` joined with `fixtures`:
+- `start_date`, `end_date` -- these are per-edition
+- `participating_schools` -- varies year to year
+- `is_active` -- replaced by whether an edition exists for the current year
 
-```
-Returns per user:
-  - user_id
-  - total_brags (SUM of points_earned)
-  - picks_made (COUNT of scored predictions)
-  - picks_correct (COUNT where points_earned >= 4)
-  - avg_efficiency (total_brags / picks_made)
-```
+### New table: `tournament_editions`
 
-Parameters: `p_season_year` (integer), optional `p_school_id` (uuid, for school-scoped leaderboards).
-
-Sorting: total_brags DESC, avg_efficiency DESC, picks_correct DESC.
-
-### Create: `get_user_season_stats` RPC
-
-A lightweight function for the Profile/Pools pages to get a single user's stats:
+One row per tournament per year.
 
 ```
-Returns:
-  - total_brags
-  - picks_made
-  - picks_correct
-  - accuracy_pct
-  - global_rank (via window function)
-  - school_rank (via window function)
+tournament_editions
+  id                    uuid (PK, default gen_random_uuid())
+  tournament_id         uuid (FK -> tournaments.id, NOT NULL)
+  year                  integer (NOT NULL)
+  start_date            timestamptz (NOT NULL)
+  end_date              timestamptz (NOT NULL)
+  participating_schools text[] (default '{}')
+  is_active             boolean (default true)
+  created_at            timestamptz (default now())
+  updated_at            timestamptz (default now())
+
+  UNIQUE(tournament_id, year)
 ```
 
-### Drop Tables
+### Fixtures FK change
 
-Remove `user_scores` and `school_scores` after all frontend references are migrated.
+The `fixtures.tournament_id` currently points to `tournaments.id`. It will be changed to point to `tournament_editions.id` instead, since a fixture belongs to a specific year's edition, not the abstract tournament.
 
-### Keep Existing
+### User follows
 
-The `calculate_prediction_points` RPC stays (used by the trigger internally and as manual admin fallback). The `rollup_week_scores` and `process_fixtures_in_range` RPCs can be dropped since the trigger handles scoring and the RPC handles aggregation.
+`user_tournament_follows.tournament_id` stays pointing to `tournaments.id` -- users follow the tournament itself, not a specific edition. This means they automatically see all editions.
 
 ---
 
-## 2. Frontend Changes
+## 2. Database Migration
 
-### LeaderboardDetail.tsx
+This migration will be presented for your manual review and approval before execution.
 
-- Replace `user_scores` query with call to `get_leaderboard_stats` RPC
-- Remove deduplication logic (RPC returns one row per user)
-- Feed efficiency values from RPC directly into BoxWhiskerChart
-- Keep season selector and pagination unchanged
+### Step-by-step:
 
-### Leaderboard.tsx
-
-- **Global tab**: Call `get_leaderboard_stats` with season year, limit 50
-- **School tab**: Derive school rankings by grouping `get_leaderboard_stats` results by school (via `profiles_public.school_name`), or create a small `get_school_leaderboard_stats` helper RPC
-- Remove all `user_scores` and `school_scores` references
-
-### PoolLeaderboard.tsx
-
-- Replace `user_scores` query (lines 239-249) with `get_leaderboard_stats` filtered to pool member IDs
-- The pool-scoped predictions query for current user stays as-is (it already reads `predictions` directly)
-
-### Pools.tsx
-
-- Replace `user_scores` rank query with call to `get_user_season_stats` RPC for the current user's global/school rank
-
-### useUserStats.ts
-
-- Replace `user_scores` query with `get_user_season_stats` RPC
-- Remove streak logic dependency on user_scores (streak already reads predictions directly)
-
-### Admin: TestingCenter.tsx
-
-- **Simplify "Process Week"**: Remove the `rollup_week_scores` step entirely. The button now only calls `calculate_prediction_points` per fixture (as a manual re-run fallback). The trigger handles this automatically going forward.
-- **Remove "Reset Scores"** option (no `user_scores` table to clear). Replace with a note that scores are derived live.
-
-### Admin: UsersTable.tsx
-
-- Replace `user_scores` query with a direct count from `predictions` for each user (predictions_made, predictions with points > 0)
-
-### Admin: UserActivityDialog.tsx
-
-- Replace `user_scores` history with predictions summary grouped by week
+1. Create `tournament_editions` table with RLS policies (same pattern as tournaments: admins CRUD, everyone can SELECT)
+2. Migrate existing data: for each row in `tournaments`, create a corresponding `tournament_editions` row carrying over `start_date`, `end_date`, `participating_schools`, and `is_active`
+3. Update `fixtures.tournament_id` FK: drop old FK, add new FK pointing to `tournament_editions.id`, update existing fixture rows to reference the new edition IDs
+4. Drop the moved columns (`start_date`, `end_date`, `participating_schools`, `is_active`) from `tournaments`
+5. Add `updated_at` trigger on `tournament_editions`
 
 ---
 
-## 3. Technical Details
+## 3. Frontend Changes
 
-### Files Created
-- None (all changes are modifications + DB migration)
+### Admin: TournamentsTable.tsx
+
+- The main table shows **tournaments** (the permanent entity)
+- Expandable row or sub-table shows editions for each tournament
+- Each edition row shows: year, dates, school count, active status
+- "New Tournament" creates the entity; "Add Edition" creates a yearly instance under it
+
+### Admin: CreateTournamentDialog.tsx
+
+- Split into two dialogs:
+  - **CreateTournamentDialog**: Name, host school, venue, province, format notes, sponsor info (permanent fields only)
+  - **CreateEditionDialog**: Year, start date, end date, participating schools, active status
+
+### Admin: EditTournamentDialog.tsx
+
+- Similarly split: editing the tournament entity vs editing a specific edition
+
+### Admin: CreateFixtureDialog.tsx / EditFixtureDialog.tsx
+
+- Tournament selector now shows editions (e.g., "Kearsney Easter Festival 2026") instead of raw tournament names
+- The `tournament_id` written to fixtures references the edition ID
+
+### Tournament.tsx (public profile page)
+
+- Route stays `/tournament/:id` but the `id` now refers to a `tournament_editions` row
+- Header pulls tournament name/sponsor from the parent `tournaments` row via join
+- Dates and participating schools come from the edition
+- Could add a year selector to browse past editions
+
+### StepTournament.tsx (signup flow)
+
+- Queries `tournaments` table (the entity) for the follow action -- unchanged conceptually
+- Shows edition info (dates, schools) from the current year's edition for display
+
+### Schools.tsx
+
+- Tournament listing pulls from `tournaments` joined with current year's edition for dates/schools
+
+### useHomeFixtures.ts / venueUtils.ts
+
+- The fixture join `tournament:tournaments(id, name)` changes to `tournament_edition:tournament_editions(id, tournament:tournaments(id, name))` or similar nested join to get the tournament name through the edition
+
+---
+
+## 4. Technical Details
 
 ### Files Modified
-- **Database migration** (1 migration with trigger, 2 RPCs, table drops)
-- `src/pages/LeaderboardDetail.tsx`
-- `src/pages/Leaderboard.tsx`
-- `src/pages/PoolLeaderboard.tsx`
-- `src/pages/Pools.tsx`
-- `src/hooks/useUserStats.ts`
-- `src/components/admin/TestingCenter.tsx`
-- `src/components/admin/UsersTable.tsx`
-- `src/components/admin/UserActivityDialog.tsx`
 
-### Trigger Design
+- **Database migration** (1 migration: new table, data migration, FK update, column drops)
+- `src/components/admin/TournamentsTable.tsx` -- show tournaments + editions
+- `src/components/admin/CreateTournamentDialog.tsx` -- entity-only fields
+- `src/components/admin/EditTournamentDialog.tsx` -- entity-only fields
+- New: `src/components/admin/CreateEditionDialog.tsx`
+- New: `src/components/admin/EditEditionDialog.tsx`
+- `src/components/admin/CreateFixtureDialog.tsx` -- edition selector
+- `src/components/admin/EditFixtureDialog.tsx` -- edition selector
+- `src/pages/Tournament.tsx` -- join through edition to tournament
+- `src/components/auth/signup-steps/StepTournament.tsx` -- query adjustment
+- `src/pages/Schools.tsx` -- query adjustment
+- `src/hooks/useHomeFixtures.ts` -- join adjustment
+- `src/lib/venueUtils.ts` -- minor adjustment
+- `src/components/admin/HistoricalFixturesUpload.tsx` -- edition reference
 
-```sql
-CREATE OR REPLACE FUNCTION public.auto_score_fixture()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  -- uses same brags logic as calculate_prediction_points
-BEGIN
-  -- Only fire when scores change from NULL to a value
-  IF (NEW.score_a IS NOT NULL AND NEW.score_b IS NOT NULL)
-     AND (OLD.score_a IS NULL OR OLD.score_b IS NULL
-          OR NEW.score_a != OLD.score_a OR NEW.score_b != OLD.score_b)
-  THEN
-    PERFORM calculate_prediction_points(NEW.id);
-  END IF;
-  RETURN NEW;
-END;
-$$;
+### Data Integrity
 
-CREATE TRIGGER trg_auto_score_fixture
-AFTER UPDATE ON public.fixtures
-FOR EACH ROW
-EXECUTE FUNCTION public.auto_score_fixture();
-```
-
-### RPC: get_leaderboard_stats
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_leaderboard_stats(
-  p_season_year integer,
-  p_school_id uuid DEFAULT NULL
-)
-RETURNS TABLE(
-  user_id uuid,
-  total_brags bigint,
-  picks_made bigint,
-  picks_correct bigint,
-  avg_efficiency numeric
-)
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-  SELECT
-    p.user_id,
-    COALESCE(SUM(p.points_earned), 0) as total_brags,
-    COUNT(*) as picks_made,
-    COUNT(*) FILTER (WHERE p.points_earned >= 4) as picks_correct,
-    CASE WHEN COUNT(*) > 0
-      THEN ROUND(COALESCE(SUM(p.points_earned), 0)::numeric / COUNT(*), 2)
-      ELSE 0
-    END as avg_efficiency
-  FROM predictions p
-  JOIN fixtures f ON p.fixture_id = f.id
-  WHERE f.year = p_season_year
-    AND p.points_earned IS NOT NULL
-    AND (p_school_id IS NULL OR p.user_id IN (
-      SELECT id FROM profiles WHERE school_id = p_school_id
-    ))
-  GROUP BY p.user_id
-  ORDER BY total_brags DESC, avg_efficiency DESC, picks_correct DESC
-$$;
-```
-
-### Impact on Existing Data
-
-- The 1 prediction currently in the database will continue to work -- its `points_earned` is already set
-- The trigger ensures future fixture score entries automatically calculate brags
-- No data migration needed since we're reading from `predictions` which already has the data
+- All existing tournament data is preserved via the migration
+- Existing fixtures maintain their links (IDs are remapped to edition IDs)
+- User follows remain on the tournament entity level
 
