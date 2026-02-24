@@ -229,7 +229,8 @@ const Home = () => {
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
-              <p className="text-muted-foreground">No matches this week.</p>
+              <p className="text-lg font-semibold mb-1">No Predictions Open</p>
+              <p className="text-sm text-muted-foreground">Check back closer to match day.</p>
             </div>
           )}
         </div>
