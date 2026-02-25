@@ -28,11 +28,14 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const [pendingMaps, setPendingMaps] = useState<LookupMaps | null>(null);
   const [pendingRows, setPendingRows] = useState<CsvFixtureRow[]>([]);
 
-  const showResult = (inserted: number, errorCount: number) => {
-    if (inserted === 0 && errorCount > 0) {
+  const showResult = (inserted: number, skipped: number, errorCount: number) => {
+    if (inserted === 0 && errorCount > 0 && skipped === 0) {
       toast({ title: "Import Failed", description: `${errorCount} error(s). Check console for details.`, variant: "destructive" });
     } else {
-      toast({ title: "Import Complete", description: `${inserted} fixture(s) imported.${errorCount > 0 ? ` ${errorCount} error(s) — see console.` : ""}` });
+      const parts = [`${inserted} inserted`];
+      if (skipped > 0) parts.push(`${skipped} skipped (duplicates)`);
+      if (errorCount > 0) parts.push(`${errorCount} error(s) — see console`);
+      toast({ title: "Import Complete", description: parts.join(", ") });
     }
     if (inserted > 0) onSuccess?.();
   };
@@ -51,9 +54,9 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
 
           if (analysis.importResult) {
             // No unknowns — imported immediately
-            const { inserted, errors } = analysis.importResult;
+            const { inserted, skipped, errors } = analysis.importResult;
             if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
-            showResult(inserted, errors.length);
+            showResult(inserted, skipped, errors.length);
           } else {
             // Unknowns found — show mapping dialog
             setUnknownSchools(analysis.unknownSchools);
@@ -82,9 +85,9 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
     setMappingOpen(false);
     setLoading(true);
     try {
-      const { inserted, errors } = await applyMappingsAndImport(mappings, pendingMaps!, pendingRows);
+      const { inserted, skipped, errors } = await applyMappingsAndImport(mappings, pendingMaps!, pendingRows);
       if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
-      showResult(inserted, errors.length);
+      showResult(inserted, skipped, errors.length);
     } catch (error: any) {
       console.error("Import error:", error);
       toast({ title: "Import Failed", description: error.message, variant: "destructive" });

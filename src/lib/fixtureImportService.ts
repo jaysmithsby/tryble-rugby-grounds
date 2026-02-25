@@ -42,6 +42,7 @@ export interface ImportError {
 
 export interface ImportResult {
   inserted: number;
+  skipped: number;
   errors: ImportError[];
 }
 
@@ -232,6 +233,14 @@ function mapRow(
   return { fixture, errors };
 }
 
+// ── Fingerprint helper ──────────────────────────────────────────────────────
+
+function getFixtureFingerprint(schoolAId: string, schoolBId: string, matchDate: string): string {
+  const [lo, hi] = [schoolAId, schoolBId].sort();
+  const day = matchDate.substring(0, 10); // YYYY-MM-DD
+  return `${lo}|${hi}|${day}`;
+}
+
 // ── Batch insert ────────────────────────────────────────────────────────────
 
 async function insertFixtures(fixtures: FixtureInsert[]): Promise<number> {
@@ -248,11 +257,41 @@ async function insertFixtures(fixtures: FixtureInsert[]): Promise<number> {
   return inserted;
 }
 
+// ── DB dedup lookup ─────────────────────────────────────────────────────────
+
+async function fetchExistingFingerprints(fixtures: FixtureInsert[]): Promise<Set<string>> {
+  const dates = [...new Set(fixtures.map((f) => f.match_date.substring(0, 10)))];
+  if (dates.length === 0) return new Set();
+
+  // Query fixtures in the date range and fingerprint client-side
+  const sortedDates = [...dates].sort();
+  const minDate = sortedDates[0] + "T00:00:00Z";
+  const maxDate = sortedDates[sortedDates.length - 1] + "T23:59:59Z";
+
+  const { data, error } = await supabase
+    .from("fixtures")
+    .select("school_a_id, school_b_id, match_date")
+    .gte("match_date", minDate)
+    .lte("match_date", maxDate);
+
+  if (error) {
+    console.warn("DB dedup query failed, skipping DB dedup:", error.message);
+    return new Set();
+  }
+
+  const set = new Set<string>();
+  for (const row of data ?? []) {
+    set.add(getFixtureFingerprint(row.school_a_id, row.school_b_id, row.match_date));
+  }
+  return set;
+}
+
 // ── Import core (shared) ────────────────────────────────────────────────────
 
 function runImport(rows: CsvFixtureRow[], maps: LookupMaps): { validFixtures: FixtureInsert[]; allErrors: ImportError[] } {
   const validFixtures: FixtureInsert[] = [];
   const allErrors: ImportError[] = [];
+  const seenFingerprints = new Map<string, number>(); // fingerprint → first row number
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -260,7 +299,17 @@ function runImport(rows: CsvFixtureRow[], maps: LookupMaps): { validFixtures: Fi
 
     const { fixture, errors } = mapRow(row, i, maps);
     allErrors.push(...errors);
-    if (fixture) validFixtures.push(fixture);
+
+    if (fixture) {
+      const fp = getFixtureFingerprint(fixture.school_a_id, fixture.school_b_id, fixture.match_date);
+      const firstRow = seenFingerprints.get(fp);
+      if (firstRow !== undefined) {
+        allErrors.push({ row: i + 1, message: `Duplicate of row ${firstRow} within CSV (same schools and date)` });
+      } else {
+        seenFingerprints.set(fp, i + 1);
+        validFixtures.push(fixture);
+      }
+    }
   }
 
   return { validFixtures, allErrors };
@@ -289,9 +338,19 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
   // If no unknowns, import immediately
   if (unknownSchools.length === 0) {
     const { validFixtures, allErrors } = runImport(rows, maps);
+    const existingFps = await fetchExistingFingerprints(validFixtures);
+    const newFixtures = validFixtures.filter((f) => {
+      const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
+      if (existingFps.has(fp)) {
+        allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
+        return false;
+      }
+      return true;
+    });
+    const skipped = validFixtures.length - newFixtures.length;
     let inserted = 0;
-    if (validFixtures.length > 0) inserted = await insertFixtures(validFixtures);
-    return { unknownSchools: [], allSchools, maps, rows, importResult: { inserted, errors: allErrors } };
+    if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
+    return { unknownSchools: [], allSchools, maps, rows, importResult: { inserted, skipped, errors: allErrors } };
   }
 
   return { unknownSchools: unknownSchools.sort(), allSchools, maps, rows };
@@ -332,8 +391,18 @@ export async function applyMappingsAndImport(
 
   // Run the import
   const { validFixtures, allErrors } = runImport(rows, maps);
+  const existingFps = await fetchExistingFingerprints(validFixtures);
+  const newFixtures = validFixtures.filter((f) => {
+    const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
+    if (existingFps.has(fp)) {
+      allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
+      return false;
+    }
+    return true;
+  });
+  const skipped = validFixtures.length - newFixtures.length;
   let inserted = 0;
-  if (validFixtures.length > 0) inserted = await insertFixtures(validFixtures);
+  if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
 
-  return { inserted, errors: allErrors };
+  return { inserted, skipped, errors: allErrors };
 }
