@@ -692,6 +692,7 @@ export type Database = {
       }
       schools: {
         Row: {
+          alias: Json | null
           archived_at: string | null
           contact_email: string | null
           contact_name: string | null
@@ -726,6 +727,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          alias?: Json | null
           archived_at?: string | null
           contact_email?: string | null
           contact_name?: string | null
@@ -760,6 +762,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          alias?: Json | null
           archived_at?: string | null
           contact_email?: string | null
           contact_name?: string | null
