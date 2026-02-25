@@ -1,101 +1,90 @@
 
 
-## Fixture Import with School Alias Learning
+## Add Two-Layer Duplicate Prevention to Fixture Import
 
 ### Overview
 
-Replace the current fixture import with a two-phase system: first detect unknown school names and let the admin map them via a modal, then persist those mappings as aliases in the database and proceed with the import. This eliminates guesswork and teaches the system permanently.
+Add fingerprint-based deduplication to `fixtureImportService.ts` so that duplicate fixtures are caught both within a single CSV upload and against the existing database. No new files needed -- all changes are encapsulated in the service and the button component's toast message.
 
-### Phase 1: Database Migration
+### Fingerprint Logic
 
-Add an `alias` column to the `schools` table:
-
-```sql
-ALTER TABLE public.schools ADD COLUMN alias jsonb DEFAULT '[]'::jsonb;
-```
-
-No RLS changes needed -- the existing admin UPDATE policy covers writing to this column.
-
-### Phase 2: Service Rewrite -- `src/lib/fixtureImportService.ts`
-
-**Updated lookup prefetch:**
-- Fetch `schools` with `id, name, main_rival, alias`
-- Build `schoolNameToId` map that indexes BOTH `name` AND every string in the `alias` array (all lowercase/trimmed)
-- Keep existing tournament/edition map logic unchanged
-
-**New two-step public API:**
+A new helper function `getFixtureFingerprint`:
 
 ```typescript
-// Step 1: Parse CSV and identify unknown schools
-export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<AnalysisResult>
-// Returns: { unknownSchools: string[], allSchools: SchoolOption[], maps: LookupMaps, rows: CsvFixtureRow[] }
-
-// Step 2: Apply mappings then import
-export async function applyMappingsAndImport(
-  mappings: Record<string, string>,  // unknownName → schoolId
-  maps: LookupMaps,
-  rows: CsvFixtureRow[]
-): Promise<ImportResult>
+function getFixtureFingerprint(schoolAId: string, schoolBId: string, matchDate: string): string {
+  const [lo, hi] = [schoolAId, schoolBId].sort();
+  const day = matchDate.substring(0, 10); // YYYY-MM-DD
+  return `${lo}|${hi}|${day}`;
+}
 ```
 
-**`analyzeFixturesCsv`:**
-1. Pre-fetch lookups (including alias)
-2. Scan all rows, collect every unique school name (from `school_a_name`, `school_b_name`, `venue_school`) not found in the map
-3. If no unknowns, proceed directly to mapping and import, return result
-4. If unknowns exist, return the list plus the full school roster for dropdown population
+Sorting the two IDs ensures `A vs B` and `B vs A` produce the same fingerprint. Truncating to date ignores time differences.
 
-**`applyMappingsAndImport`:**
-1. For each mapping entry, UPDATE the school's `alias` column: `alias = alias || '["Unknown Name"]'::jsonb`
-2. Refresh the lookup maps (re-add the new aliases to `schoolNameToId`)
-3. Run the existing `mapRow` logic for all rows
-4. Batch insert valid fixtures
-5. Return `{ inserted, errors }`
+### Layer 1: Intra-CSV Deduplication (in `runImport`)
 
-**Existing logic preserved:** `mapRow`, `insertFixtures`, derby logic, venue logic, status computation, tournament edition resolution -- all unchanged.
+- Maintain a `Map<string, number>` mapping fingerprint to the first row number that produced it.
+- After `mapRow` succeeds, compute the fingerprint. If already in the map, skip the fixture and log: `"Row X: Duplicate of row Y within CSV (same schools and date)"`.
+- Otherwise, add the fingerprint and keep the fixture.
 
-### Phase 3: New Modal Component -- `src/components/admin/SchoolMappingDialog.tsx`
+### Layer 2: Database Deduplication (new `fetchExistingFingerprints`)
 
-A dialog that:
-- Receives `unknownSchools: string[]` and `allSchools: { id: string; name: string }[]`
-- Renders a scrollable list, each row showing the unknown CSV name and a searchable Combobox (using existing `cmdk` / Command component) to pick a school
-- "Confirm Mapping" button is disabled until all unknowns are mapped
-- On confirm, calls the parent callback with the mapping `Record<string, string>`
+A new async function that:
+1. Collects all unique `YYYY-MM-DD` date strings from the valid fixtures.
+2. Queries `fixtures` using `LEAST(school_a_id, school_b_id)` / `GREATEST(school_a_id, school_b_id)` and `match_date::date = ANY($dates)` in a single query -- leveraging the existing `idx_fixtures_mirror_pair_date` index.
+3. Returns a `Set<string>` of fingerprints already in the database.
+
+This check runs after `runImport` produces valid fixtures but before the batch insert. Any fixture matching a DB fingerprint is filtered out and logged: `"Skipped: Fixture already exists in database (date YYYY-MM-DD)"`.
+
+### Updated `ImportResult` Interface
+
+```typescript
+export interface ImportResult {
+  inserted: number;
+  skipped: number;    // NEW -- count of duplicates removed
+  errors: ImportError[];
+}
+```
+
+### Updated Toast in `ImportFixturesButton.tsx`
+
+The `showResult` function will display the skipped count:
+
+```
+"Inserted 50, Skipped 5 (duplicates), 0 Errors"
+```
+
+### Execution Flow
 
 ```text
-┌─────────────────────────────────────────────┐
-│  Map Unknown Schools                        │
-│                                             │
-│  "St John's College"  → [Search school ▼]   │
-│  "Maritzburg Coll"    → [Search school ▼]   │
-│  "DHS"                → [Search school ▼]   │
-│                                             │
-│              [Cancel]  [Confirm Mapping]    │
-└─────────────────────────────────────────────┘
+CSV rows
+  │
+  ▼
+runImport()          ← Layer 1: intra-CSV dedup via fingerprint Set
+  │
+  ▼
+validFixtures[]
+  │
+  ▼
+fetchExistingFingerprints()   ← Layer 2: single DB query using LEAST/GREATEST
+  │
+  ▼
+filter out DB duplicates
+  │
+  ▼
+insertFixtures()     ← only truly new fixtures
+  │
+  ▼
+ImportResult { inserted, skipped, errors }
 ```
-
-### Phase 4: Rewrite `ImportFixturesButton.tsx`
-
-The component orchestrates the flow:
-
-1. User selects CSV file → PapaParse extracts rows
-2. Call `analyzeFixturesCsv(rows)`
-3. If unknowns found → open `SchoolMappingDialog`, pass unknowns + school list
-4. On confirm mapping → call `applyMappingsAndImport(mappings, maps, rows)`
-5. If no unknowns → import proceeds immediately
-6. Show success/error toasts with counts
-
-State managed: `loading`, `mappingDialogOpen`, `unknownSchools`, `allSchools`, `pendingMaps`, `pendingRows`
 
 ### Files Changed
 
-| File | Action |
+| File | Change |
 |---|---|
-| Database: `schools.alias` column | Migration (ADD COLUMN) |
-| `src/lib/fixtureImportService.ts` | Rewrite with alias support + two-step API |
-| `src/components/admin/SchoolMappingDialog.tsx` | New file |
-| `src/components/admin/ImportFixturesButton.tsx` | Rewrite to orchestrate analysis → mapping → import |
+| `src/lib/fixtureImportService.ts` | Add `getFixtureFingerprint`, intra-CSV dedup in `runImport`, new `fetchExistingFingerprints`, filter before insert, add `skipped` to `ImportResult` |
+| `src/components/admin/ImportFixturesButton.tsx` | Update `showResult` to display skipped count in toast |
 
-### No Other Files Affected
+### No other files affected
 
-The `Admin.tsx` page already renders `<ImportFixturesButton onSuccess={handleFixtureChange} />` -- no changes needed there.
+The `SchoolMappingDialog`, `Admin.tsx`, and all other components remain unchanged. Deduplication is fully encapsulated in the service layer.
 
