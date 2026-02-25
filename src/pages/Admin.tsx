@@ -9,6 +9,7 @@ import { CreateFixtureDialog } from "@/components/admin/CreateFixtureDialog";
 import { EditFixtureDialog } from "@/components/admin/EditFixtureDialog";
 import { ImportFixturesButton } from "@/components/admin/ImportFixturesButton";
 import { HistoricalFixturesUpload } from "@/components/admin/HistoricalFixturesUpload";
+import { CleanupFixturesButton } from "@/components/admin/CleanupFixturesButton";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BottomNav } from "@/components/BottomNav";
 
@@ -106,6 +107,7 @@ export default function Admin() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <ImportFixturesButton onSuccess={handleFixtureChange} />
+            <CleanupFixturesButton onSuccess={handleFixtureChange} />
             <Button 
               variant="outline" 
               onClick={() => setHistoricalDialogOpen(true)} 

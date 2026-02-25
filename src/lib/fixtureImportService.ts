@@ -358,6 +358,16 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
 
 // ── Public API: Step 2 — Apply mappings & import ────────────────────────────
 
+// ── Public API: Cleanup duplicates ──────────────────────────────────────────
+
+export async function cleanupExistingDuplicates(): Promise<number> {
+  const { data, error } = await supabase.rpc("delete_duplicate_fixtures");
+  if (error) throw new Error(`Cleanup failed: ${error.message}`);
+  return (data as number) ?? 0;
+}
+
+// ── Public API: Step 2 — Apply mappings & import ────────────────────────────
+
 export async function applyMappingsAndImport(
   mappings: Record<string, string>,
   maps: LookupMaps,
