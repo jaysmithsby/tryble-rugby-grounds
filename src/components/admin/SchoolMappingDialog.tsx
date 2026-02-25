@@ -72,7 +72,7 @@ export function SchoolMappingDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
+        <div className="overflow-y-auto max-h-[50vh] -mx-6 px-6">
           <div className="space-y-3 py-2">
             {unknownSchools.map((name) => (
               <div
@@ -132,7 +132,7 @@ export function SchoolMappingDialog({
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
