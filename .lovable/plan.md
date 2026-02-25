@@ -1,74 +1,155 @@
 
 
-## Add Springboks Table and School Profile Integration
+## Rewrite Fixture CSV Import: Clean, Modular Implementation
 
 ### Overview
-Create a `springboks` database table, seed it with the CSV data (64 players), then add a collapsible Springboks list at the bottom of each school profile page. The Springboks count in the header becomes clickable -- tapping it scrolls to and opens the collapsible section.
+Delete the existing monolithic import logic in `ImportFixturesButton.tsx` and replace it with a dedicated service module plus a streamlined UI component. The new system uses the exact CSV headers specified, pre-fetches lookup data into maps, auto-derives derby/status/venue logic, and collects errors for display.
 
-### Step 1: Create the `springboks` table (migration)
-
-```text
-Columns:
-  id          UUID  PK  default gen_random_uuid()
-  cap_number  INTEGER  NOT NULL  (the "#" column)
-  player_name TEXT  NOT NULL
-  debut_year  INTEGER  NOT NULL
-  high_school TEXT  NOT NULL  (display name, kept for players with no school_id)
-  school_id   UUID  NULLABLE  FK -> schools(id)
-  matric_year TEXT  NULLABLE  (some values like "2010-11")
-  craven_week TEXT  NULLABLE
-  sa_schools  TEXT  NULLABLE
-  created_at  TIMESTAMPTZ  default now()
-
-RLS:
-  SELECT -> true (public data)
-  INSERT/UPDATE/DELETE -> admin only
-```
-
-Matric, Craven Week, and SA Schools are stored as TEXT because some values contain ranges like "2010-11" or "N/A".
-
-### Step 2: Seed the data (insert tool)
-
-Insert all 64 rows from the CSV. Empty School ID values become NULL. "N/A" values for matric/craven_week/sa_schools are stored as NULL.
-
-### Step 3: Create `SpringboksTable` component
-
-New file: `src/components/school/SpringboksTable.tsx`
-
-- Accepts `schoolId: string` prop
-- Fetches from `springboks` table where `school_id = schoolId`, ordered by `cap_number DESC`
-- Uses the same Table/TableBody/TableRow/TableCell components as `RecentResultsTable`
-- 3-column layout: `Cap # | Player | Debut`
-- Clean, compact rows matching the results table style
-- Paginated at 5 per page using `usePagination`
-- Shows empty state "No Springboks on record." if none
-
-### Step 4: Update `SchoolProfile.tsx`
-
-- Import `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from the existing collapsible UI component
-- Import `SpringboksTable`
-- Add a `useRef` for the Springboks section and state `springboksOpen` (boolean, default false)
-- Make the Trophy/Springboks count in the header a clickable button that:
-  - Sets `springboksOpen(true)`
-  - Scrolls the ref into view with smooth scrolling
-- Add a new collapsible section at the bottom of `<main>` (after Recent Results):
+### Architecture
 
 ```text
-  [Collapsible]
-    [CollapsibleTrigger] "Springboks (count)" with chevron
-    [CollapsibleContent]
-      <SpringboksTable schoolId={school.id} />
-  [/Collapsible]
+src/
+  lib/
+    fixtureImportService.ts   ← NEW: all mapping/validation/insert logic
+  components/admin/
+    ImportFixturesButton.tsx   ← REWRITE: thin UI shell calling the service
 ```
 
-- The springboks_count in the header now comes from the actual count of rows in the springboks table (or falls back to `school.springboks_count` until loaded)
+### File 1: `src/lib/fixtureImportService.ts` (new)
 
-### Files
+**TypeScript interfaces:**
 
-| File | Action |
-|------|--------|
-| Migration SQL | Create `springboks` table with RLS |
-| Insert SQL | Seed 64 rows from CSV |
-| `src/components/school/SpringboksTable.tsx` | New component |
-| `src/pages/SchoolProfile.tsx` | Add collapsible section + clickable count |
+```typescript
+// Expected CSV row shape
+interface CsvFixtureRow {
+  index: string;
+  school_a_name: string;
+  school_b_name: string;
+  date_time: string;
+  score_a: string;
+  score_b: string;
+  venue_type: string;       // 'school' | 'tournament'
+  venue_school: string;     // school name when venue_type = 'school'
+  tournament_name: string;
+  season: string;
+  status: string;           // optional override
+  source_url: string;
+}
+
+// Shape inserted into fixtures table
+interface FixtureInsert {
+  school_a_id: string;
+  school_b_id: string;
+  match_date: string;
+  score_a: number | null;
+  score_b: number | null;
+  venue_type: string;
+  venue_id: string | null;
+  tournament_id: string | null;
+  season: string;
+  year: number;
+  status: string;
+  source_url: string | null;
+  is_derby: boolean;
+  sport: string;
+  is_visible: boolean;
+}
+
+interface ImportError {
+  row: number;
+  message: string;
+}
+
+interface ImportResult {
+  inserted: number;
+  errors: ImportError[];
+}
+```
+
+**Lookup maps (pre-fetched once):**
+
+```typescript
+interface LookupMaps {
+  schoolNameToId: Map<string, string>;    // lowercase name → UUID
+  schoolIdToRival: Map<string, string>;   // school UUID → main_rival (name)
+  schoolNameSet: Set<string>;             // all lowercase names for validation
+  tournamentNameToId: Map<string, string>;  // lowercase name → tournament UUID
+  editionMap: Map<string, string>;         // `${tournamentId}_${year}` → edition UUID
+}
+```
+
+- Fetch `schools` with `id, name, main_rival`
+- Fetch `tournaments` with `id, name`
+- Fetch `tournament_editions` with `id, tournament_id, year`
+- Build all maps in a single `prefetchLookups()` function
+
+**Core mapping function** `mapRow(row: CsvFixtureRow, rowIndex: number, maps: LookupMaps)`:
+
+1. Resolve `school_a_id` and `school_b_id` from name maps (case-insensitive, trimmed)
+2. If either missing, push to errors array and skip
+3. **Derby logic**: check if `schoolIdToRival.get(schoolAId)` matches school B's name (or vice versa) → `is_derby = true`
+4. **Venue logic**:
+   - If `venue_type === 'tournament'`: look up tournament by name → get edition by `tournamentId_year` → set `tournament_id = editionId`, `venue_id = null`
+   - If `venue_type === 'school'`: resolve `venue_school` name to UUID → set `venue_id`, `tournament_id = null`
+5. **Status computation**:
+   - Parse `date_time` as Date
+   - If date is in the future → `'upcoming'`
+   - If date is in the past and both scores present → `'completed'`
+   - If date is in the past and scores missing → `'final'`
+   - CSV `status` column can override if explicitly provided
+6. **Year**: `parseInt(row.season)` for the `year` column
+7. **Sport**: always `'Rugby'`
+
+**Insert function** `insertFixtures(fixtures: FixtureInsert[])`:
+- Batch insert in groups of 50
+- Return count of inserted rows
+
+**Top-level export** `importFixturesFromCsv(rows: CsvFixtureRow[]): Promise<ImportResult>`:
+1. Call `prefetchLookups()`
+2. Map each row, collecting errors
+3. Insert valid fixtures
+4. Return `{ inserted, errors }`
+
+### File 2: `src/components/admin/ImportFixturesButton.tsx` (rewrite)
+
+The component becomes a thin UI shell:
+- File input + PapaParse to get `CsvFixtureRow[]`
+- Calls `importFixturesFromCsv(rows)`
+- Shows toast with inserted count
+- If errors exist, shows a detailed toast or alert listing each error (row number + message)
+- Resets file input after import
+- Calls `onSuccess` callback
+
+### Business Rules Summary
+
+| CSV Column | Fixture Column | Logic |
+|---|---|---|
+| `school_a_name` | `school_a_id` | Name → UUID lookup |
+| `school_b_name` | `school_b_id` | Name → UUID lookup |
+| `date_time` | `match_date` | Direct timestamptz |
+| `score_a` | `score_a` | Parse int or null |
+| `score_b` | `score_b` | Parse int or null |
+| `venue_type` | `venue_type` | Direct |
+| `venue_school` | `venue_id` | Name → UUID (when school) |
+| `tournament_name` | `tournament_id` | Name → tournament → edition UUID |
+| `season` | `season` | Direct text |
+| `season` | `year` | Extract integer |
+| `source_url` | `source_url` | Direct |
+| (derived) | `is_derby` | Rival check from schools table |
+| (derived) | `status` | Date + score logic |
+| (static) | `sport` | Always `'Rugby'` |
+
+### Error Handling
+
+Errors are collected (not thrown) into an `ImportError[]` array with the CSV row number and a human-readable message:
+- "Row 5: School 'XYZ Academy' not found in database"
+- "Row 12: Tournament 'ABC Cup' not found"
+- "Row 12: No edition found for 'ABC Cup' in season 2025"
+- "Row 8: Missing required field school_a_name"
+
+After import, a summary toast shows inserted count and error count. If errors exist, they are logged to console and shown in a secondary toast.
+
+### No Database Changes Required
+
+All tables (`fixtures`, `schools`, `tournaments`, `tournament_editions`) already exist with the needed columns.
 
