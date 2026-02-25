@@ -1184,6 +1184,7 @@ export type Database = {
         }[]
       }
       cleanup_rate_limits: { Args: never; Returns: number }
+      delete_duplicate_fixtures: { Args: never; Returns: number }
       finalize_pool_voting: {
         Args: { pool_id_param: string }
         Returns: undefined
