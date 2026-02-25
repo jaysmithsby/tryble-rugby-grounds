@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2 } from "lucide-react";
 import Papa from "papaparse";
+import { importFixturesFromCsv, type CsvFixtureRow } from "@/lib/fixtureImportService";
 
 interface ImportFixturesButtonProps {
   onSuccess?: () => void;
@@ -12,6 +12,7 @@ interface ImportFixturesButtonProps {
 export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -19,165 +20,33 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
 
     setLoading(true);
 
-    Papa.parse(file, {
+    Papa.parse<CsvFixtureRow>(file, {
       header: true,
+      skipEmptyLines: true,
       complete: async (results) => {
         try {
-          const { data: schools, error: schoolsError } = await supabase
-            .from('schools')
-            .select('id, name');
+          const { inserted, errors } = await importFixturesFromCsv(results.data);
 
-          if (schoolsError) throw schoolsError;
-
-          const { data: tournaments, error: tournamentsError } = await supabase
-            .from('tournaments')
-            .select('id, name');
-
-          if (tournamentsError) throw tournamentsError;
-
-          const schoolNameToId = new Map<string, string>();
-          schools?.forEach(school => {
-            schoolNameToId.set(school.name.toLowerCase().trim(), school.id);
-          });
-
-          const tournamentNameToId = new Map<string, string>();
-          tournaments?.forEach(tournament => {
-            tournamentNameToId.set(tournament.name.toLowerCase().trim(), tournament.id);
-          });
-
-          const fixtures = results.data
-            .filter((row: any) => row.home_school_id && row.away_school_id)
-            .map((row: any) => {
-              const isHomeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.home_school_id);
-              const isAwayUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.away_school_id);
-
-              const schoolAId = isHomeUuid 
-                ? row.home_school_id 
-                : schoolNameToId.get(row.home_school_id.toLowerCase().trim());
-              
-              const schoolBId = isAwayUuid 
-                ? row.away_school_id 
-                : schoolNameToId.get(row.away_school_id.toLowerCase().trim());
-
-              if (!schoolAId || !schoolBId) {
-                console.warn(`Skipping fixture: Could not find school IDs for ${row.home_school_id} vs ${row.away_school_id}`);
-                return null;
-              }
-
-              let tournamentId = null;
-              if (row.tournament_id) {
-                const tournamentValue = row.tournament_id;
-                const isTournamentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tournamentValue);
-                
-                if (isTournamentUuid) {
-                  tournamentId = tournamentValue;
-                } else {
-                  tournamentId = tournamentNameToId.get(tournamentValue.toLowerCase().trim());
-                  if (!tournamentId) {
-                    console.warn(`Tournament not found: ${tournamentValue}`);
-                  }
-                }
-              }
-
-              let matchDate = row.match_date;
-              if (matchDate) {
-                matchDate = matchDate.replace(/−/g, '-');
-              }
-
-              const fixture: any = {
-                school_a_id: schoolAId,
-                school_b_id: schoolBId,
-                sport: row.sport || 'Rugby',
-                match_date: matchDate,
-                venue_type: tournamentId ? 'tournament' : 'school',
-                venue_id: tournamentId || schoolAId,
-                status: row.status || 'upcoming',
-                score_a: row.home_score ? parseInt(row.home_score) : null,
-                score_b: row.away_score ? parseInt(row.away_score) : null,
-                season: row.season || row.year?.toString() || new Date().getFullYear().toString(),
-                year: row.year ? parseInt(row.year) : new Date().getFullYear(),
-                tournament_id: tournamentId,
-                round_name: row.round_name || null,
-                is_derby: row.is_derby === 'true' || row.is_derby === true || false,
-                is_visible: true,
-              };
-
-              if (row.id) {
-                fixture.id = row.id;
-              }
-
-              return fixture;
-            })
-            .filter((fixture: any) => fixture !== null);
-
-          console.log(`Parsed ${fixtures.length} fixtures from CSV...`);
-
-          if (fixtures.length === 0) {
+          if (inserted === 0 && errors.length > 0) {
             toast({
-              title: "No Fixtures to Import",
-              description: "No valid fixtures found in the CSV file. Check that school names match your database.",
+              title: "Import Failed",
+              description: `${errors.length} error(s). Check console for details.`,
               variant: "destructive",
             });
-            setLoading(false);
-            return;
-          }
-
-          const fixturesWithIds = fixtures.filter((f: any) => f.id);
-          let newFixtures = fixtures;
-          let duplicateCount = 0;
-
-          if (fixturesWithIds.length > 0) {
-            const fixtureIds = fixturesWithIds.map((f: any) => f.id);
-            const { data: existingFixtures, error: fetchError } = await supabase
-              .from('fixtures')
-              .select('id')
-              .in('id', fixtureIds);
-
-            if (fetchError) throw fetchError;
-
-            const existingIds = new Set(existingFixtures?.map(f => f.id) || []);
-            
-            newFixtures = fixtures.filter((fixture: any) => !fixture.id || !existingIds.has(fixture.id));
-            duplicateCount = fixtures.length - newFixtures.length;
-          }
-
-          if (newFixtures.length === 0) {
+          } else {
             toast({
-              title: "No New Fixtures",
-              description: `All ${duplicateCount} fixture(s) already exist in the database.`,
-              variant: "destructive",
+              title: "Import Complete",
+              description: `${inserted} fixture(s) imported.${errors.length > 0 ? ` ${errors.length} error(s) — see console.` : ""}`,
             });
-            setLoading(false);
-            return;
           }
 
-          console.log(`Importing ${newFixtures.length} new fixtures (${duplicateCount} duplicates skipped)...`);
-
-          const batchSize = 50;
-          for (let i = 0; i < newFixtures.length; i += batchSize) {
-            const batch = newFixtures.slice(i, i + batchSize);
-            const { error } = await supabase
-              .from('fixtures')
-              .insert(batch);
-
-            if (error) {
-              console.error(`Error importing batch ${i / batchSize + 1}:`, error);
-              throw error;
-            }
+          if (errors.length > 0) {
+            console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
           }
 
-          const successMessage = duplicateCount > 0 
-            ? `Imported ${newFixtures.length} new fixture(s). ${duplicateCount} duplicate(s) skipped.`
-            : `Imported ${newFixtures.length} fixture(s) successfully.`;
-
-          toast({
-            title: "Success!",
-            description: successMessage,
-          });
-
-          onSuccess?.();
+          if (inserted > 0) onSuccess?.();
         } catch (error: any) {
-          console.error('Error importing fixtures:', error);
+          console.error("Import error:", error);
           toast({
             title: "Import Failed",
             description: error.message,
@@ -185,15 +54,12 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
           });
         } finally {
           setLoading(false);
+          if (inputRef.current) inputRef.current.value = "";
         }
       },
       error: (error) => {
-        console.error('CSV parse error:', error);
-        toast({
-          title: "Parse Error",
-          description: "Failed to parse CSV file",
-          variant: "destructive",
-        });
+        console.error("CSV parse error:", error);
+        toast({ title: "Parse Error", description: "Failed to parse CSV file", variant: "destructive" });
         setLoading(false);
       },
     });
@@ -202,10 +68,11 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   return (
     <div>
       <input
+        ref={inputRef}
         type="file"
         accept=".csv"
         onChange={handleImport}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
         id="csv-upload"
         disabled={loading}
       />
