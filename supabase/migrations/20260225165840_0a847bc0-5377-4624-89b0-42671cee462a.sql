@@ -1,0 +1,1 @@
+UPDATE fixtures SET status = lower(status) WHERE lower(status) != status;
