@@ -199,7 +199,7 @@ function mapRow(
 
   const csvStatus = row.status?.trim();
   if (csvStatus) {
-    status = csvStatus;
+    status = csvStatus.toLowerCase();
   } else {
     const parsedDate = new Date(matchDate);
     const now = new Date();
