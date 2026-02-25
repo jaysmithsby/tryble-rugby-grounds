@@ -64,15 +64,15 @@ export function SchoolMappingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Map Unknown Schools</DialogTitle>
           <DialogDescription>
             {unknownSchools.length} school name(s) from your CSV were not found. Map each to an existing school — this alias will be remembered for future imports.
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
           <div className="space-y-3 py-2">
             {unknownSchools.map((name) => (
               <div
