@@ -1,90 +1,84 @@
 
 
-## Add Two-Layer Duplicate Prevention to Fixture Import
+## Add "Cleanup Duplicates" Button to Admin Panel
 
 ### Overview
 
-Add fingerprint-based deduplication to `fixtureImportService.ts` so that duplicate fixtures are caught both within a single CSV upload and against the existing database. No new files needed -- all changes are encapsulated in the service and the button component's toast message.
+Add a database RPC function, a service-layer wrapper, and a new admin button component to remove duplicate fixtures directly from the Admin panel.
 
-### Fingerprint Logic
+### Step 1: Database RPC Function
 
-A new helper function `getFixtureFingerprint`:
+Create a migration with a new `delete_duplicate_fixtures` function:
+
+```sql
+CREATE OR REPLACE FUNCTION public.delete_duplicate_fixtures()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  removed integer;
+BEGIN
+  IF NOT has_role(auth.uid(), 'admin'::app_role) THEN
+    RAISE EXCEPTION 'Unauthorized: Admin role required';
+  END IF;
+
+  WITH dupes AS (
+    SELECT unnest(ids[2:]) AS dup_id
+    FROM (
+      SELECT array_agg(id ORDER BY
+        CASE WHEN score_a IS NOT NULL AND score_b IS NOT NULL THEN 0 ELSE 1 END,
+        CASE WHEN tournament_id IS NOT NULL THEN 0 ELSE 1 END,
+        created_at ASC
+      ) AS ids
+      FROM fixtures
+      GROUP BY LEAST(school_a_id, school_b_id), GREATEST(school_a_id, school_b_id), match_date::date
+      HAVING COUNT(*) > 1
+    ) grouped
+  )
+  DELETE FROM fixtures WHERE id IN (SELECT dup_id FROM dupes);
+
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed;
+END;
+$$;
+```
+
+This uses the same LEAST/GREATEST logic to catch mirror duplicates and the same priority ordering (scores > tournament > earliest created).
+
+### Step 2: Service Layer
+
+Add to `src/lib/fixtureImportService.ts`:
 
 ```typescript
-function getFixtureFingerprint(schoolAId: string, schoolBId: string, matchDate: string): string {
-  const [lo, hi] = [schoolAId, schoolBId].sort();
-  const day = matchDate.substring(0, 10); // YYYY-MM-DD
-  return `${lo}|${hi}|${day}`;
+export async function cleanupExistingDuplicates(): Promise<number> {
+  const { data, error } = await supabase.rpc("delete_duplicate_fixtures");
+  if (error) throw new Error(`Cleanup failed: ${error.message}`);
+  return (data as number) ?? 0;
 }
 ```
 
-Sorting the two IDs ensures `A vs B` and `B vs A` produce the same fingerprint. Truncating to date ignores time differences.
+### Step 3: New Component
 
-### Layer 1: Intra-CSV Deduplication (in `runImport`)
+Create `src/components/admin/CleanupFixturesButton.tsx`:
 
-- Maintain a `Map<string, number>` mapping fingerprint to the first row number that produced it.
-- After `mapRow` succeeds, compute the fingerprint. If already in the map, skip the fixture and log: `"Row X: Duplicate of row Y within CSV (same schools and date)"`.
-- Otherwise, add the fingerprint and keep the fixture.
+- `Button` with `variant="outline"` and a `Trash2` icon
+- `confirm()` dialog before running
+- Loading state with `Loader2` spinner
+- Toast on success showing count of removed duplicates
+- Accepts `onSuccess` callback to refresh the fixtures table
 
-### Layer 2: Database Deduplication (new `fetchExistingFingerprints`)
+### Step 4: Admin.tsx Integration
 
-A new async function that:
-1. Collects all unique `YYYY-MM-DD` date strings from the valid fixtures.
-2. Queries `fixtures` using `LEAST(school_a_id, school_b_id)` / `GREATEST(school_a_id, school_b_id)` and `match_date::date = ANY($dates)` in a single query -- leveraging the existing `idx_fixtures_mirror_pair_date` index.
-3. Returns a `Set<string>` of fingerprints already in the database.
-
-This check runs after `runImport` produces valid fixtures but before the batch insert. Any fixture matching a DB fingerprint is filtered out and logged: `"Skipped: Fixture already exists in database (date YYYY-MM-DD)"`.
-
-### Updated `ImportResult` Interface
-
-```typescript
-export interface ImportResult {
-  inserted: number;
-  skipped: number;    // NEW -- count of duplicates removed
-  errors: ImportError[];
-}
-```
-
-### Updated Toast in `ImportFixturesButton.tsx`
-
-The `showResult` function will display the skipped count:
-
-```
-"Inserted 50, Skipped 5 (duplicates), 0 Errors"
-```
-
-### Execution Flow
-
-```text
-CSV rows
-  │
-  ▼
-runImport()          ← Layer 1: intra-CSV dedup via fingerprint Set
-  │
-  ▼
-validFixtures[]
-  │
-  ▼
-fetchExistingFingerprints()   ← Layer 2: single DB query using LEAST/GREATEST
-  │
-  ▼
-filter out DB duplicates
-  │
-  ▼
-insertFixtures()     ← only truly new fixtures
-  │
-  ▼
-ImportResult { inserted, skipped, errors }
-```
+Place the button next to the existing `ImportFixturesButton` and `Historical Fixtures` button in the action bar.
 
 ### Files Changed
 
 | File | Change |
 |---|---|
-| `src/lib/fixtureImportService.ts` | Add `getFixtureFingerprint`, intra-CSV dedup in `runImport`, new `fetchExistingFingerprints`, filter before insert, add `skipped` to `ImportResult` |
-| `src/components/admin/ImportFixturesButton.tsx` | Update `showResult` to display skipped count in toast |
-
-### No other files affected
-
-The `SchoolMappingDialog`, `Admin.tsx`, and all other components remain unchanged. Deduplication is fully encapsulated in the service layer.
+| New migration | `delete_duplicate_fixtures` RPC function |
+| `src/lib/fixtureImportService.ts` | Add `cleanupExistingDuplicates` export |
+| `src/components/admin/CleanupFixturesButton.tsx` | New component |
+| `src/pages/Admin.tsx` | Import and render `CleanupFixturesButton` |
 
