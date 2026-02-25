@@ -51,7 +51,8 @@ export function SchoolMappingDialog({
     return map;
   }, [allSchools]);
 
-  const allMapped = unknownSchools.every((name) => mappings[name]);
+  const mappedCount = unknownSchools.filter((name) => mappings[name]).length;
+  const skippedCount = unknownSchools.length - mappedCount;
 
   const handleSelect = (unknownName: string, schoolId: string) => {
     setMappings((prev) => ({ ...prev, [unknownName]: schoolId }));
@@ -59,7 +60,12 @@ export function SchoolMappingDialog({
   };
 
   const handleConfirm = () => {
-    if (allMapped) onConfirm(mappings);
+    // Only pass mapped entries; unmapped schools will cause their fixtures to be skipped
+    const validMappings: Record<string, string> = {};
+    for (const [name, id] of Object.entries(mappings)) {
+      if (id) validMappings[name] = id;
+    }
+    onConfirm(validMappings);
   };
 
   return (
@@ -134,12 +140,19 @@ export function SchoolMappingDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {skippedCount > 0 && (
+            <p className="text-xs text-muted-foreground mr-auto self-center">
+              {skippedCount} unmapped — their fixtures will be skipped
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!allMapped}>
-            Confirm Mapping
+          <Button onClick={handleConfirm} disabled={mappedCount === 0}>
+            {mappedCount === unknownSchools.length
+              ? "Confirm Mapping"
+              : `Import (skip ${skippedCount} unmapped)`}
           </Button>
         </DialogFooter>
       </DialogContent>
