@@ -29,23 +29,12 @@ export function useHomeAuth(): UseHomeAuthResult {
 
   useEffect(() => {
     let isMounted = true;
-    
-    // Check if user is logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!isMounted) return;
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-      
-      setUser(user);
-      
-      // Fetch user's profile info
+
+    const fetchProfile = (userId: string) => {
       supabase
         .from("profiles")
         .select("school_name_legacy, school_id, display_name, first_name, schools(name)")
-        .eq("id", user.id)
+        .eq("id", userId)
         .maybeSingle()
         .then(({ data }) => {
           if (!isMounted) return;
@@ -57,32 +46,34 @@ export function useHomeAuth(): UseHomeAuthResult {
           setProfileLoaded(true);
           setLoading(false);
         });
-    });
+    };
 
-    // Listen for auth changes
+    // Set up listener BEFORE checking session (recommended pattern)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      
+
+      if (event === 'SIGNED_OUT' || !session) {
+        navigate("/auth");
+        return;
+      }
+
+      setUser(session.user);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        fetchProfile(session.user.id);
+      }
+    });
+
+    // Local-first session check (no network call, uses persisted session)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+
       if (!session) {
         navigate("/auth");
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setUser(session.user);
-        // Fetch user's profile info
-        supabase
-          .from("profiles")
-          .select("school_name_legacy, school_id, display_name, first_name, schools(name)")
-          .eq("id", session.user.id)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (!isMounted) return;
-            const schoolName = (data?.schools as any)?.name || data?.school_name_legacy || null;
-            const displayName = data?.display_name || data?.first_name || null;
-            setUserSchoolName(schoolName);
-            setUserSchoolId(data?.school_id || null);
-            setUserDisplayName(displayName);
-            setProfileLoaded(true);
-          });
+        return;
       }
+
+      setUser(session.user);
+      fetchProfile(session.user.id);
     });
 
     return () => {
