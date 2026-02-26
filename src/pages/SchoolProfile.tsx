@@ -198,6 +198,7 @@ export default function SchoolProfile() {
           tournament_edition:tournament_editions(id, tournament:tournaments(id, name))
         `)
         .eq("is_visible", true)
+        .eq("venue_type", "school")
         .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
         .in("status", ["upcoming", "holding"])
         .order("match_date", { ascending: true });

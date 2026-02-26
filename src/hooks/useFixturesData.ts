@@ -89,6 +89,7 @@ export const useFixturesData = ({
           tournament_edition:tournament_editions(id, tournament:tournaments(id, name))
         `)
         .eq("is_visible", true)
+        .eq("venue_type", "school")
         .gte("match_date", startDate)
         .lte("match_date", endDate)
         .order("match_date", { ascending: true });

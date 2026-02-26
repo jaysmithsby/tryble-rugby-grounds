@@ -173,6 +173,7 @@ export function useHomeFixtures({
         .from("fixtures")
         .select(FIXTURE_SELECT)
         .eq("is_visible", true)
+        .eq("venue_type", "school")
         .eq("status", "upcoming")
         .eq("year", seasonYear)
         .gte("match_date", now)
@@ -202,6 +203,7 @@ export function useHomeFixtures({
         .from("fixtures")
         .select(FIXTURE_SELECT)
         .eq("is_visible", true)
+        .eq("venue_type", "school")
         .eq("year", seasonYear)
         .or(`school_a_id.eq.${userSchoolId},school_b_id.eq.${userSchoolId}`)
         .gte("match_date", weekendStart.toISOString())
@@ -230,39 +232,6 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
-  const { data: rawTournamentFixtures = [], isLoading: tournamentLoading } = useQuery({
-    queryKey: ["home-tournament-fixtures", seasonYear, effectiveDateStr, sevenDaysStr, tournamentData?.tournamentIds],
-    queryFn: async () => {
-      const tournamentIds = tournamentData?.tournamentIds || [];
-      if (tournamentIds.length === 0) return [];
-
-      // Look up edition IDs for followed tournaments
-      const { data: editions } = await supabase
-        .from("tournament_editions" as any)
-        .select("id")
-        .in("tournament_id", tournamentIds)
-        .eq("is_active", true);
-      const editionIds = ((editions || []) as any[]).map((e: any) => e.id);
-      if (editionIds.length === 0) return [];
-
-      const now = effectiveDate.toISOString();
-      const { data, error } = await supabase
-        .from("fixtures")
-        .select(FIXTURE_SELECT)
-        .eq("is_visible", true)
-        .eq("status", "upcoming")
-        .eq("year", seasonYear)
-        .in("tournament_id", editionIds)
-        .gte("match_date", now)
-        .lte("match_date", sevenDaysFromNow.toISOString())
-        .order("match_date", { ascending: true })
-        .limit(50);
-      if (error) { console.error("Error fetching tournament fixtures:", error); return []; }
-      return (data || []).map(mapFixture);
-    },
-    enabled: (tournamentData?.tournamentIds?.length ?? 0) > 0,
-    staleTime: CACHE_TIMES.DYNAMIC,
-  });
 
   const fourteenDaysFromNow = new Date(effectiveDate.getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -304,20 +273,12 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
-  const mergedUpcomingFixtures = useMemo(() => {
-    const seenIds = new Set<string>();
-    const all: FixtureWithSchools[] = [];
-    for (const f of [...upcomingFixtures, ...rawTournamentFixtures]) {
-      if (!seenIds.has(f.id)) { seenIds.add(f.id); all.push(f); }
-    }
-    return all.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime());
-  }, [upcomingFixtures, rawTournamentFixtures]);
 
   const allFixtureIds = useMemo(() => {
-    const ids = mergedUpcomingFixtures.map(f => f.id);
+    const ids = upcomingFixtures.map(f => f.id);
     if (userSchoolFixture && !ids.includes(userSchoolFixture.id)) ids.push(userSchoolFixture.id);
     return ids;
-  }, [mergedUpcomingFixtures, userSchoolFixture]);
+  }, [upcomingFixtures, userSchoolFixture]);
 
   const { data: dbPredictions = [] } = useQuery({
     queryKey: ["home-predictions", userId, allFixtureIds],
@@ -343,13 +304,11 @@ export function useHomeFixtures({
     return map;
   }, [dbPredictions]);
 
-  const fixturesLoading = upcomingLoading || tournamentLoading;
-
   return {
-    upcomingFixtures: mergedUpcomingFixtures,
+    upcomingFixtures,
     userSchoolFixture,
     hasNoPools,
-    fixturesLoading,
+    fixturesLoading: upcomingLoading,
     predictionsMap,
     upcomingTournaments,
   };
