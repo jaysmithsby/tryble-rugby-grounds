@@ -289,6 +289,8 @@ export const PoolLeaderboard = () => {
           school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
           tournament:tournaments(id, name)
         `)
+        .eq("is_visible", true)
+        .eq("venue_type", "school")
         .or(`school_a_id.in.(${poolSchoolIds.join(",")}),school_b_id.in.(${poolSchoolIds.join(",")})`)
         .gte("match_date", dateRange.from.toISOString())
         .lte("match_date", dateRange.to.toISOString())
