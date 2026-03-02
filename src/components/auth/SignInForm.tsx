@@ -8,6 +8,13 @@ import { Label } from "@/components/ui/label";
 import { z } from "zod";
 import { Eye, EyeOff } from "lucide-react";
 import ForgotPasswordDialog from "./ForgotPasswordDialog";
+import BiometricPromptDialog from "./BiometricPromptDialog";
+import {
+  isBiometricAvailable,
+  getBiometricPreference,
+  setBiometricPreference,
+  saveSessionToSecureStorage,
+} from "@/lib/biometricAuth";
 
 const emailSignInSchema = z.object({
   email: z.string().trim().email("Invalid email address"),
@@ -24,6 +31,8 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [showBiometricDialog, setShowBiometricDialog] = useState(false);
+  const [pendingSession, setPendingSession] = useState<{ access_token: string; refresh_token: string } | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -41,11 +50,31 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
       
       if (error) throw error;
 
-      if (data.user) {
+      if (data.user && data.session) {
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in.",
         });
+
+        // Check if we should prompt for biometric opt-in
+        if (!getBiometricPreference()) {
+          const available = await isBiometricAvailable();
+          if (available) {
+            setPendingSession({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+            });
+            setShowBiometricDialog(true);
+            return; // Don't navigate yet — wait for dialog
+          }
+        } else if (data.session) {
+          // User already opted in — update stored tokens silently
+          await saveSessionToSecureStorage(
+            data.session.access_token,
+            data.session.refresh_token
+          );
+        }
+
         navigate("/home");
       }
     } catch (error: any) {
@@ -65,6 +94,25 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBiometricEnable = async () => {
+    if (pendingSession) {
+      await saveSessionToSecureStorage(
+        pendingSession.access_token,
+        pendingSession.refresh_token
+      );
+      setBiometricPreference(true);
+    }
+    setShowBiometricDialog(false);
+    setPendingSession(null);
+    navigate("/home");
+  };
+
+  const handleBiometricSkip = () => {
+    setShowBiometricDialog(false);
+    setPendingSession(null);
+    navigate("/home");
   };
 
   return (
@@ -126,6 +174,12 @@ const SignInForm = ({ onSwitchToSignUp }: SignInFormProps) => {
       <ForgotPasswordDialog
         open={forgotPasswordOpen}
         onOpenChange={setForgotPasswordOpen}
+      />
+
+      <BiometricPromptDialog
+        open={showBiometricDialog}
+        onEnable={handleBiometricEnable}
+        onSkip={handleBiometricSkip}
       />
 
       <div className="text-center">
