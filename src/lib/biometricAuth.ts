@@ -1,28 +1,36 @@
 import { Capacitor } from "@capacitor/core";
 
-// Lazy imports to avoid bundling native plugins on web
-let NativeBiometric: any = null;
-let SecureStoragePlugin: any = null;
-
-async function loadNativeBiometric() {
-  if (!NativeBiometric) {
-    const mod = await import("capacitor-native-biometric");
-    NativeBiometric = mod.NativeBiometric;
-  }
-  return NativeBiometric;
-}
-
-async function loadSecureStorage() {
-  if (!SecureStoragePlugin) {
-    const mod = await import("capacitor-secure-storage-plugin");
-    SecureStoragePlugin = mod.SecureStoragePlugin;
-  }
-  return SecureStoragePlugin;
-}
-
 const STORAGE_KEY_ACCESS = "trybal_access_token";
 const STORAGE_KEY_REFRESH = "trybal_refresh_token";
 const PREF_KEY = "trybal_biometric_enabled";
+
+/**
+ * Safely load native biometric plugin.
+ * Returns null on web or if the plugin can't be loaded.
+ */
+async function loadNativeBiometric() {
+  if (!Capacitor.isNativePlatform()) return null;
+  try {
+    const mod = await import("capacitor-native-biometric");
+    return mod.NativeBiometric;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely load secure storage plugin.
+ * Returns null on web or if the plugin can't be loaded.
+ */
+async function loadSecureStorage() {
+  if (!Capacitor.isNativePlatform()) return null;
+  try {
+    const mod = await import("capacitor-secure-storage-plugin");
+    return mod.SecureStoragePlugin;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Check if biometric authentication is available on this device.
@@ -32,10 +40,10 @@ export async function isBiometricAvailable(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
   try {
     const bio = await loadNativeBiometric();
+    if (!bio) return false;
     await bio.isAvailable();
     return true;
   } catch {
-    // Covers: NOT_AVAILABLE, LOCKED_OUT, NOT_ENROLLED, any hardware error
     return false;
   }
 }
@@ -45,8 +53,10 @@ export async function isBiometricAvailable(): Promise<boolean> {
  * Returns true on success, false on any failure (cancel, lockout, error). Never throws.
  */
 export async function promptBiometric(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
   try {
     const bio = await loadNativeBiometric();
+    if (!bio) return false;
     await bio.verifyIdentity({
       reason: "Log in to Trybal",
       title: "Biometric Login",
@@ -55,7 +65,7 @@ export async function promptBiometric(): Promise<boolean> {
     });
     return true;
   } catch {
-    return false; // user cancelled, locked out, or hardware failure
+    return false;
   }
 }
 
@@ -69,6 +79,7 @@ export async function saveSessionToSecureStorage(
   if (!Capacitor.isNativePlatform()) return;
   try {
     const storage = await loadSecureStorage();
+    if (!storage) return;
     await storage.set({ key: STORAGE_KEY_ACCESS, value: accessToken });
     await storage.set({ key: STORAGE_KEY_REFRESH, value: refreshToken });
   } catch (e) {
@@ -87,6 +98,7 @@ export async function getSessionFromSecureStorage(): Promise<{
   if (!Capacitor.isNativePlatform()) return null;
   try {
     const storage = await loadSecureStorage();
+    if (!storage) return null;
     const { value: access_token } = await storage.get({ key: STORAGE_KEY_ACCESS });
     const { value: refresh_token } = await storage.get({ key: STORAGE_KEY_REFRESH });
     if (access_token && refresh_token) {
@@ -105,6 +117,7 @@ export async function clearSecureStorage(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const storage = await loadSecureStorage();
+    if (!storage) return;
     await storage.remove({ key: STORAGE_KEY_ACCESS });
     await storage.remove({ key: STORAGE_KEY_REFRESH });
   } catch (e) {
