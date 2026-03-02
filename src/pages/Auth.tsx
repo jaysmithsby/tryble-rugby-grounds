@@ -6,6 +6,11 @@ import SignInForm from "@/components/auth/SignInForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  getBiometricPreference,
+  promptBiometric,
+  getSessionFromSecureStorage,
+} from "@/lib/biometricAuth";
 
 const Auth = () => {
   const location = useLocation();
@@ -15,8 +20,52 @@ const Auth = () => {
   );
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Attempt biometric login on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    const attemptBiometricLogin = async () => {
+      if (!getBiometricPreference()) return;
+
+      setBiometricLoading(true);
+      try {
+        const success = await promptBiometric();
+        if (!success || cancelled) {
+          setBiometricLoading(false);
+          return;
+        }
+
+        const tokens = await getSessionFromSecureStorage();
+        if (!tokens || cancelled) {
+          setBiometricLoading(false);
+          return;
+        }
+
+        // setSession handles expired access_token by using refresh_token
+        const { error } = await supabase.auth.setSession({
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+        });
+
+        if (cancelled) return;
+
+        if (!error) {
+          navigate("/home");
+          return;
+        }
+      } catch {
+        // Any failure → fall through to normal sign-in UI
+      }
+      if (!cancelled) setBiometricLoading(false);
+    };
+
+    attemptBiometricLogin();
+    return () => { cancelled = true; };
+  }, [navigate]);
 
   // Handle verification token from URL
   useEffect(() => {
@@ -42,10 +91,7 @@ const Auth = () => {
           description: "Let's set up your profile.",
         });
         
-        // Refresh the session to get updated user data
         await supabase.auth.refreshSession();
-        
-        // Clear the token from URL
         window.history.replaceState({}, "", "/auth");
       } else {
         throw new Error(data.error || "Verification failed");
@@ -57,15 +103,14 @@ const Auth = () => {
         description: error.message || "Please try again or request a new verification email.",
         variant: "destructive",
       });
-      // Clear the token from URL
       window.history.replaceState({}, "", "/auth");
     } finally {
       setVerifying(false);
     }
   };
 
-  // Show loading state while verifying
-  if (verifying) {
+  // Show loading state while verifying or doing biometric auth
+  if (verifying || biometricLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <GlobalHeader />

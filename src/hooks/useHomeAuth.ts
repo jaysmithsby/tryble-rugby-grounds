@@ -83,6 +83,14 @@ export function useHomeAuth(): UseHomeAuthResult {
   }, [navigate]);
 
   const handleSignOut = async () => {
+    // Clear biometric credentials on sign-out
+    try {
+      const { clearSecureStorage, setBiometricPreference } = await import("@/lib/biometricAuth");
+      await clearSecureStorage();
+      setBiometricPreference(false);
+    } catch {
+      // Non-critical — proceed with sign-out
+    }
     await supabase.auth.signOut();
     navigate("/");
   };
