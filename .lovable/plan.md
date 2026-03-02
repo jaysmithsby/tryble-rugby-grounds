@@ -1,87 +1,62 @@
 
 
-## Security Hardening: 5 Fixes Across 4 Files
+## Plan: Replace N+1 Match History Queries with Batch RPC
 
-### 1. New Edge Function: `admin-delete-user`
+### Problem
+`loadMatchHistory` fires one query per fixture (N+1). A school with 30 upcoming fixtures = 30 round-trips.
 
-**File:** `supabase/functions/admin-delete-user/index.ts` (new)
+### Solution
 
-Moves the broken `supabase.auth.admin.deleteUser()` call out of the frontend. The function will:
-- Extract the caller's JWT from the `Authorization` header and verify it via `supabase.auth.getUser()`
-- Check the caller has the `admin` role using `has_role()` RPC
-- Write to `admin_audit_log` using the service role client
-- Call `supabase.auth.admin.deleteUser()` with the service role client
-- Return success or a descriptive error
+**1. Database Migration: Create `get_match_history_batch` RPC**
 
-Config addition to `supabase/config.toml`:
-```toml
-[functions.admin-delete-user]
-verify_jwt = false
+A function that accepts an array of fixture IDs, looks up completed historical fixtures for each pair, and returns which fixture IDs have history.
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_match_history_batch(p_fixture_ids uuid[])
+RETURNS TABLE(fixture_id uuid, has_history boolean)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
+AS $$
+  SELECT
+    f.id AS fixture_id,
+    EXISTS (
+      SELECT 1 FROM fixtures h
+      WHERE h.status = 'completed'
+        AND h.id != f.id
+        AND LEAST(h.school_a_id, h.school_b_id) = LEAST(f.school_a_id, f.school_b_id)
+        AND GREATEST(h.school_a_id, h.school_b_id) = GREATEST(f.school_a_id, f.school_b_id)
+    ) AS has_history
+  FROM unnest(p_fixture_ids) AS input_id
+  JOIN fixtures f ON f.id = input_id;
+$$;
 ```
 
-### 2. Update Frontend: `DeleteUserDialog.tsx`
+Key design choice: uses `LEAST/GREATEST` to normalize the pair regardless of home/away order, and uses a lateral `EXISTS` subquery which short-circuits per row. Single round-trip, no loop.
 
-**File:** `src/components/admin/DeleteUserDialog.tsx`
+**2. Update `src/pages/SchoolProfile.tsx`**
 
-Replace the direct `supabase.auth.admin.deleteUser()` and `admin_audit_log` insert with a single call:
+Replace the `loadMatchHistory` callback (lines 134-149) with:
+
 ```ts
-const { data, error } = await supabase.functions.invoke("admin-delete-user", {
-  body: { userId: user.id, email: user.email, displayName: user.profile?.display_name, schoolName: user.profile?.school_name }
-});
-```
-Remove the audit log insert from the frontend entirely — the edge function handles it.
-
-### 3. Rate Limit `confirm-email-verification`
-
-**File:** `supabase/functions/confirm-email-verification/index.ts`
-
-After parsing the token and before the DB lookup, add:
-1. Extract client IP from `x-forwarded-for` header
-2. Call `check_rate_limit` RPC with `p_identifier: ip`, `p_endpoint: "confirm-email-verification"`, `p_max_requests: 5`, `p_window_minutes: 15`
-3. If `allowed` is false, return `429 Too Many Requests` with `Retry-After` header
-
-### 4. School Onboarding Hardening
-
-**File:** `supabase/functions/school-onboarding/index.ts`
-
-Two changes:
-
-**a) Cryptographic OTP (line 84):**
-Replace `Math.floor(100000 + Math.random() * 900000)` with:
-```ts
-const arr = new Uint32Array(1);
-crypto.getRandomValues(arr);
-const otp = String(100000 + (arr[0] % 900000));
+const loadMatchHistory = useCallback(async (fixtures: any[]) => {
+  if (fixtures.length === 0) return;
+  const { data, error } = await supabase.rpc("get_match_history_batch", {
+    p_fixture_ids: fixtures.map(f => f.id),
+  });
+  if (error || !data) { setHasHistoryMap({}); return; }
+  const map: Record<string, boolean> = {};
+  data.forEach((row: { fixture_id: string; has_history: boolean }) => {
+    map[row.fixture_id] = row.has_history;
+  });
+  setHasHistoryMap(map);
+}, []);
 ```
 
-**b) PII leakage fix (lines 58-63):**
-Remove `contact_email` from the `validate-token` response. Only return it when `otp_verified` is already true:
-```ts
-return json({
-  status: "valid",
-  school_name: inv.school_name,
-  otp_verified: inv.otp_verified,
-  ...(inv.otp_verified ? { contact_email: inv.contact_email } : {}),
-});
-```
+No other files need changes — `hasHistory` prop on `FixtureCard` continues to work identically.
 
-### 5. Fixtures RLS Policy Tightening
-
-**Migration:** Update the fixtures SELECT policy so hidden fixtures (`is_visible = false`) are only visible to admins, not all authenticated users.
-
-Current: `(is_visible = true) OR (auth.uid() IS NOT NULL)`
-New: `(is_visible = true) OR has_role(auth.uid(), 'admin'::app_role)`
-
----
-
-### Files Changed Summary
+### Files Changed
 
 | File | Change |
 |---|---|
-| `supabase/functions/admin-delete-user/index.ts` | New edge function for secure user deletion |
-| `supabase/config.toml` | Add `admin-delete-user` function config |
-| `src/components/admin/DeleteUserDialog.tsx` | Call edge function instead of admin API |
-| `supabase/functions/confirm-email-verification/index.ts` | Add IP-based rate limiting |
-| `supabase/functions/school-onboarding/index.ts` | Crypto OTP + remove PII from validate-token |
-| DB migration | Tighten fixtures SELECT RLS policy |
+| New migration | Create `get_match_history_batch` function |
+| `src/pages/SchoolProfile.tsx` | Replace N+1 loop with single `supabase.rpc()` call |
 
