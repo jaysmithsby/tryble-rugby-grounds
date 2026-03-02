@@ -33,30 +33,18 @@ export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: Delete
 
     try {
       setLoading(true);
-      
-      // Get current admin user
-      const { data: { user: admin } } = await supabase.auth.getUser();
-      if (!admin) throw new Error("Not authenticated");
 
-      // Log admin action before deletion
-      const { error: logError } = await supabase
-        .from('admin_audit_log')
-        .insert({
-          admin_user_id: admin.id,
-          action_type: 'delete_user',
-          target_user_id: user.id,
-          details: {
-            email: user.email,
-            display_name: user.profile?.display_name,
-            school_name: user.profile?.school_name, // already resolved
-          },
-        });
+      const { data, error: fnError } = await supabase.functions.invoke("admin-delete-user", {
+        body: {
+          userId: user.id,
+          email: user.email,
+          displayName: user.profile?.display_name,
+          schoolName: user.profile?.school_name,
+        },
+      });
 
-      if (logError) throw logError;
-
-      // Delete user via admin API
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
-      if (deleteError) throw deleteError;
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
 
       toast.success("User account has been permanently deleted");
       onOpenChange(false);
