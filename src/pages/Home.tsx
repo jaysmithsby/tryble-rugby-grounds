@@ -6,11 +6,8 @@ import GlobalHeader from "@/components/GlobalHeader";
 import trybalLogo from "@/assets/trybal-logo.png";
 
 import { supabase } from "@/integrations/supabase/client";
-import { HomeCarousel } from "@/components/home/HomeCarousel";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
-import { SchoolFixtureCard } from "@/components/home/SchoolFixtureCard";
-import { Users, Trophy, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Trophy, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
 import { useHomeAuth } from "@/hooks/useHomeAuth";
@@ -19,52 +16,39 @@ import { useHomeFixtures } from "@/hooks/useHomeFixtures";
 const Home = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { effectiveDate, weekendRange, seasonYear } = useEffectiveDate();
-  const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string, margin: number }>>({});
-  
-  const {
-    user,
-    loading,
-    profileLoaded,
-    userSchoolName,
-    userSchoolId,
-    userDisplayName,
-  } = useHomeAuth();
+  const { effectiveDate, seasonYear } = useEffectiveDate();
+  const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string; margin: number }>>({});
+
+  const { user, loading, profileLoaded } = useHomeAuth();
 
   const {
     upcomingFixtures,
-    userSchoolFixture,
-    hasNoPools,
     fixturesLoading,
     predictionsMap: dbPredictions,
     upcomingTournaments,
   } = useHomeFixtures({
     userId: user?.id || null,
-    
-    userSchoolId,
     effectiveDate,
-    weekendStart: weekendRange.start,
-    weekendEnd: weekendRange.end,
     seasonYear,
     profileLoaded,
   });
 
   const predictions = { ...dbPredictions, ...localPredictions };
 
-  const handlePredictionMade = useCallback(async (matchId: string, schoolId: string, margin: number) => {
-    if (!user?.id) return;
+  const handlePredictionMade = useCallback(
+    async (matchId: string, schoolId: string, margin: number) => {
+      if (!user?.id) return;
 
-    const fixture = [...upcomingFixtures, userSchoolFixture].find(f => f?.id === matchId);
-    const predictedTeam = fixture && schoolId === fixture.school_a.id ? "school_a" : "school_b";
+      const fixture = upcomingFixtures.find((f) => f.id === matchId);
+      const predictedTeam =
+        fixture && schoolId === fixture.school_a.id ? "school_a" : "school_b";
 
-    setLocalPredictions(prev => ({
-      ...prev,
-      [matchId]: { schoolId, margin }
-    }));
+      setLocalPredictions((prev) => ({
+        ...prev,
+        [matchId]: { schoolId, margin },
+      }));
 
-    const { error } = await supabase
-      .from("predictions")
-      .upsert(
+      const { error } = await supabase.from("predictions").upsert(
         {
           fixture_id: matchId,
           user_id: user.id,
@@ -75,36 +59,33 @@ const Home = () => {
         { onConflict: "fixture_id,user_id" }
       );
 
-    if (error) {
-      console.error("Error saving prediction:", error);
-      setLocalPredictions(prev => {
-        const next = { ...prev };
-        delete next[matchId];
-        return next;
-      });
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
-    }
-  }, [user?.id, queryClient, upcomingFixtures, userSchoolFixture]);
+      if (error) {
+        console.error("Error saving prediction:", error);
+        setLocalPredictions((prev) => {
+          const next = { ...prev };
+          delete next[matchId];
+          return next;
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
+      }
+    },
+    [user?.id, queryClient, upcomingFixtures]
+  );
 
   const formatMatchTime = (matchDate: string, status: string) => {
     const date = new Date(matchDate);
     const dayName = format(date, "EEE");
     const time = format(date, "HH:mm");
-    if (status === "completed") {
-      return `Completed - ${dayName} ${time}`;
-    }
+    if (status === "completed") return `Completed - ${dayName} ${time}`;
     return `${dayName} ${time}`;
   };
 
   const getShortName = (name: string) => {
     const words = name.split(" ");
-    if (words.length >= 2) {
-      return words.map(w => w[0]).join("").slice(0, 3).toUpperCase();
-    }
+    if (words.length >= 2) return words.map((w) => w[0]).join("").slice(0, 3).toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
-
 
   if (loading) {
     return (
@@ -134,31 +115,6 @@ const Home = () => {
           </p>
         </div>
 
-        <HomeCarousel />
-
-        {userSchoolFixture && userSchoolName && (
-          <div className="space-y-2">
-            <SchoolFixtureCard
-              userSchool={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.name : userSchoolFixture.school_b.name}
-              userSchoolShort={getShortName(userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.name : userSchoolFixture.school_b.name)}
-              userSchoolIcon={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.jersey_url : userSchoolFixture.school_b.jersey_url}
-              userSchoolSlug={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_a.slug : userSchoolFixture.school_b.slug}
-              opponentSchool={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.name : userSchoolFixture.school_a.name}
-              opponentSchoolShort={getShortName(userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.name : userSchoolFixture.school_a.name)}
-              opponentSchoolIcon={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.jersey_url : userSchoolFixture.school_a.jersey_url}
-              opponentSchoolSlug={userSchoolFixture.school_a.name === userSchoolName ? userSchoolFixture.school_b.slug : userSchoolFixture.school_a.slug}
-              time={formatMatchTime(userSchoolFixture.match_date, userSchoolFixture.status)}
-              matchDate={userSchoolFixture.match_date}
-              venue={userSchoolFixture.venue}
-              matchId={userSchoolFixture.id}
-              priority
-            />
-            <p className="text-xs text-muted-foreground text-center">
-              Prediction closes at kickoff.
-            </p>
-          </div>
-        )}
-
         <div className="space-y-4">
           <div className="flex items-baseline justify-between px-1">
             <h2 className="text-lg font-bold">Upcoming Matches</h2>
@@ -176,14 +132,14 @@ const Home = () => {
               Predictions are open
             </p>
           )}
-          {(fixturesLoading || !profileLoaded) ? (
+          {fixturesLoading || !profileLoaded ? (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">Loading fixtures...</p>
             </div>
           ) : upcomingFixtures.length > 0 ? (
             <div className="space-y-3">
               {upcomingFixtures.slice(0, 3).map((fixture, index) => (
-                <FixtureCard 
+                <FixtureCard
                   key={fixture.id}
                   homeTeam={fixture.school_a.name}
                   awayTeam={fixture.school_b.name}
@@ -204,24 +160,11 @@ const Home = () => {
                   isPredicted={!!predictions[fixture.id]}
                   predictedSchoolId={predictions[fixture.id]?.schoolId}
                   predictedMargin={predictions[fixture.id]?.margin}
-                  onPredictionMade={(schoolId, margin) => handlePredictionMade(fixture.id, schoolId, margin)}
+                  onPredictionMade={(schoolId, margin) =>
+                    handlePredictionMade(fixture.id, schoolId, margin)
+                  }
                 />
               ))}
-            </div>
-          ) : hasNoPools ? (
-            <div className="text-center py-10 bg-gradient-card rounded-lg border border-border/40">
-              <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Pools Yet</h3>
-              <p className="text-muted-foreground mb-4 px-4">
-                You're not in a pool yet. Join one to start predicting.
-              </p>
-              <Button 
-                onClick={() => navigate("/leaderboard")} 
-                className="bg-primary hover:bg-primary/90"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Find a Pool
-              </Button>
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
@@ -245,7 +188,9 @@ const Home = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{t.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(t.startDate) <= new Date() ? "Live" : `Starts ${format(new Date(t.startDate), "EEE d MMM")}`}
+                      {new Date(t.startDate) <= new Date()
+                        ? "Live"
+                        : `Starts ${format(new Date(t.startDate), "EEE d MMM")}`}
                       {t.venue ? ` · ${t.venue}` : t.province ? ` · ${t.province}` : ""}
                     </p>
                   </div>
@@ -255,8 +200,6 @@ const Home = () => {
             </div>
           </div>
         )}
-
-        
       </main>
 
       <BottomNav />

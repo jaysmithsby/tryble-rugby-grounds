@@ -88,18 +88,13 @@ function mapFixture(f: any): FixtureWithSchools {
 
 interface UseHomeFixturesParams {
   userId: string | null;
-  userSchoolId: string | null;
   effectiveDate: Date;
-  weekendStart: Date;
-  weekendEnd: Date;
   seasonYear: number;
   profileLoaded: boolean;
 }
 
 interface UseHomeFixturesResult {
   upcomingFixtures: FixtureWithSchools[];
-  userSchoolFixture: FixtureWithSchools | null;
-  hasNoPools: boolean;
   fixturesLoading: boolean;
   predictionsMap: Record<string, { schoolId: string; margin: number }>;
   upcomingTournaments: UpcomingTournament[];
@@ -107,16 +102,11 @@ interface UseHomeFixturesResult {
 
 export function useHomeFixtures({
   userId,
-  userSchoolId,
   effectiveDate,
-  weekendStart,
-  weekendEnd,
   seasonYear,
   profileLoaded,
 }: UseHomeFixturesParams): UseHomeFixturesResult {
   const effectiveDateStr = effectiveDate.toISOString().split("T")[0];
-  const weekendStartStr = weekendStart.toISOString().split("T")[0];
-  const weekendEndStr = weekendEnd.toISOString().split("T")[0];
   const sevenDaysFromNow = new Date(effectiveDate.getTime() + 7 * 24 * 60 * 60 * 1000);
   const sevenDaysStr = sevenDaysFromNow.toISOString().split("T")[0];
 
@@ -162,9 +152,7 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
-  const followedLoaded = !!followedData;
   const allSchoolIds = followedData?.schoolIds || [];
-  const hasNoPools = followedData?.hasNoPools ?? true;
 
   const { data: upcomingFixtures = [], isLoading: upcomingLoading } = useQuery({
     queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, sevenDaysStr, allSchoolIds],
@@ -194,34 +182,11 @@ export function useHomeFixtures({
       if (error) { console.error("Error fetching upcoming fixtures:", error); return []; }
       return (data || []).map(mapFixture);
     },
-    enabled: !!userId && profileLoaded && followedLoaded,
+    enabled: !!userId && profileLoaded && !!followedData,
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
 
-
-  const { data: userSchoolFixture = null } = useQuery({
-    queryKey: ["home-user-school-fixture", userSchoolId, weekendStartStr, weekendEndStr, seasonYear],
-    queryFn: async () => {
-      if (!userSchoolId) return null;
-      const { data: fixture } = await supabase
-        .from("fixtures")
-        .select(FIXTURE_SELECT)
-        .eq("is_visible", true)
-        .eq("venue_type", "school")
-        .eq("year", seasonYear)
-        .or(`school_a_id.eq.${userSchoolId},school_b_id.eq.${userSchoolId}`)
-        .gte("match_date", weekendStart.toISOString())
-        .lte("match_date", weekendEnd.toISOString())
-        .order("match_date", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (!fixture) return null;
-      return mapFixture(fixture);
-    },
-    enabled: !!userId && !!userSchoolId && profileLoaded,
-    staleTime: CACHE_TIMES.DYNAMIC,
-  });
 
   const { data: tournamentData } = useQuery({
     queryKey: ["home-tournament-follows", userId],
@@ -236,7 +201,6 @@ export function useHomeFixtures({
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.REFERENCE,
   });
-
 
   const fourteenDaysFromNow = new Date(effectiveDate.getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -257,7 +221,6 @@ export function useHomeFixtures({
 
       if (error) { console.error("Error fetching upcoming tournaments:", error); return []; }
 
-      // Deduplicate by parent tournament id, keeping earliest edition
       const seen = new Set<string>();
       const result: UpcomingTournament[] = [];
       for (const e of (editions || []) as any[]) {
@@ -278,12 +241,9 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
-
   const allFixtureIds = useMemo(() => {
-    const ids = upcomingFixtures.map(f => f.id);
-    if (userSchoolFixture && !ids.includes(userSchoolFixture.id)) ids.push(userSchoolFixture.id);
-    return ids;
-  }, [upcomingFixtures, userSchoolFixture]);
+    return upcomingFixtures.map(f => f.id);
+  }, [upcomingFixtures]);
 
   const { data: dbPredictions = [] } = useQuery({
     queryKey: ["home-predictions", userId, allFixtureIds],
@@ -311,8 +271,6 @@ export function useHomeFixtures({
 
   return {
     upcomingFixtures,
-    userSchoolFixture,
-    hasNoPools,
     fixturesLoading: upcomingLoading,
     predictionsMap,
     upcomingTournaments,
