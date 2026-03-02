@@ -72,6 +72,16 @@ export default function Tournament() {
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [fixturesPage, setFixturesPage] = useState(1);
 
+  // Derive participating schools from fixtures
+  const participatingSchools = useMemo(() => {
+    const names = new Set<string>();
+    allFixtures.forEach(f => {
+      if (f.school_a?.name) names.add(f.school_a.name);
+      if (f.school_b?.name) names.add(f.school_b.name);
+    });
+    return [...names].sort();
+  }, [allFixtures]);
+
   // Filtered fixtures
   const filteredFixtures = useMemo(() => {
     let list = allFixtures;
@@ -326,7 +336,6 @@ export default function Tournament() {
   if (!tournamentName) return null;
 
   const logoSrc = selectedEdition?.logo_url || selectedEdition?.sponsor_logo_url;
-  const participatingSchools = selectedEdition?.participating_schools || [];
 
   return (
     <div className="min-h-screen bg-background pb-20">

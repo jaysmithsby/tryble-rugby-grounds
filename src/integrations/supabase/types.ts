@@ -862,7 +862,6 @@ export type Database = {
           id: string
           is_active: boolean | null
           logo_url: string | null
-          participating_schools: string[] | null
           province: string | null
           sponsor_logo_url: string | null
           sponsor_name: string | null
@@ -880,7 +879,6 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
-          participating_schools?: string[] | null
           province?: string | null
           sponsor_logo_url?: string | null
           sponsor_name?: string | null
@@ -898,7 +896,6 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
-          participating_schools?: string[] | null
           province?: string | null
           sponsor_logo_url?: string | null
           sponsor_name?: string | null

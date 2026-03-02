@@ -29,7 +29,7 @@ export interface TournamentEdition {
   year: number;
   start_date: string;
   end_date: string;
-  participating_schools: string[];
+  
   is_active: boolean;
   host_school: string | null;
   venue: string | null;
@@ -240,7 +240,7 @@ export function TournamentsTable({ onEdit, onEditEdition, onAddEdition, refreshT
                           ↳ {edition.year} — {edition.host_school || "No host"}, {edition.venue || "No venue"}{edition.province && ` · ${edition.province}`}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {format(new Date(edition.start_date), "MMM d")} – {format(new Date(edition.end_date), "MMM d, yyyy")} · {edition.participating_schools.length} schools
+                          {format(new Date(edition.start_date), "MMM d")} – {format(new Date(edition.end_date), "MMM d, yyyy")}
                           {edition.sponsor_name && ` · ${edition.sponsor_name}`}
                         </TableCell>
                         <TableCell>

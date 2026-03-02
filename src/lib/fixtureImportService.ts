@@ -116,11 +116,11 @@ async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: School
 
 // ── Row mapping ─────────────────────────────────────────────────────────────
 
-function mapRow(
+async function mapRow(
   row: CsvFixtureRow,
   rowIndex: number,
   maps: LookupMaps
-): { fixture: FixtureInsert | null; errors: ImportError[] } {
+): Promise<{ fixture: FixtureInsert | null; errors: ImportError[] }> {
   const errors: ImportError[] = [];
   const rowNum = rowIndex + 1;
 
@@ -163,22 +163,42 @@ function mapRow(
   let venueId: string | null = null;
   let tournamentId: string | null = null;
 
-  if (venueType === "tournament") {
-    const tName = row.tournament_name?.trim();
-    if (tName) {
-      const masterId = maps.tournamentNameToId.get(tName.toLowerCase());
-      if (!masterId) {
-        errors.push({ row: rowNum, message: `Tournament '${tName}' not found` });
-      } else {
-        const editionId = maps.editionMap.get(`${masterId}_${year}`);
-        if (!editionId) {
-          errors.push({ row: rowNum, message: `No edition found for '${tName}' in season ${year}` });
+  // Resolve tournament for any venue type if tournament_name is provided
+  const tName = row.tournament_name?.trim();
+  if (tName) {
+    const masterId = maps.tournamentNameToId.get(tName.toLowerCase());
+    if (!masterId) {
+      errors.push({ row: rowNum, message: `Tournament '${tName}' not found` });
+    } else {
+      const editionKey = `${masterId}_${year}`;
+      let editionId = maps.editionMap.get(editionKey);
+      if (!editionId) {
+        // Auto-create edition
+        const matchDate = row.date_time?.trim().replace(/−/g, "-") || new Date().toISOString();
+        const { data: newEdition, error: insertErr } = await supabase
+          .from("tournament_editions" as any)
+          .insert({
+            tournament_id: masterId,
+            year,
+            start_date: matchDate,
+            end_date: matchDate,
+            is_active: true,
+          })
+          .select("id")
+          .single();
+        if (insertErr || !newEdition) {
+          errors.push({ row: rowNum, message: `Failed to auto-create edition for '${tName}' ${year}: ${insertErr?.message || "unknown"}` });
         } else {
-          tournamentId = editionId;
+          editionId = (newEdition as any).id;
+          maps.editionMap.set(editionKey, editionId!);
         }
       }
+      if (editionId) tournamentId = editionId;
     }
-  } else {
+  }
+
+  // Resolve venue school for non-tournament types
+  if (venueType !== "tournament") {
     const venueSchoolName = row.venue_school?.trim();
     if (venueSchoolName) {
       const vsId = maps.schoolNameToId.get(venueSchoolName.toLowerCase());
@@ -288,7 +308,7 @@ async function fetchExistingFingerprints(fixtures: FixtureInsert[]): Promise<Set
 
 // ── Import core (shared) ────────────────────────────────────────────────────
 
-function runImport(rows: CsvFixtureRow[], maps: LookupMaps): { validFixtures: FixtureInsert[]; allErrors: ImportError[] } {
+async function runImport(rows: CsvFixtureRow[], maps: LookupMaps): Promise<{ validFixtures: FixtureInsert[]; allErrors: ImportError[] }> {
   const validFixtures: FixtureInsert[] = [];
   const allErrors: ImportError[] = [];
   const seenFingerprints = new Map<string, number>(); // fingerprint → first row number
@@ -297,7 +317,7 @@ function runImport(rows: CsvFixtureRow[], maps: LookupMaps): { validFixtures: Fi
     const row = rows[i];
     if (!row.school_a_name?.trim() && !row.school_b_name?.trim()) continue;
 
-    const { fixture, errors } = mapRow(row, i, maps);
+    const { fixture, errors } = await mapRow(row, i, maps);
     allErrors.push(...errors);
 
     if (fixture) {
@@ -337,7 +357,7 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
 
   // If no unknowns, import immediately
   if (unknownSchools.length === 0) {
-    const { validFixtures, allErrors } = runImport(rows, maps);
+    const { validFixtures, allErrors } = await runImport(rows, maps);
     const existingFps = await fetchExistingFingerprints(validFixtures);
     const newFixtures = validFixtures.filter((f) => {
       const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
@@ -400,7 +420,7 @@ export async function applyMappingsAndImport(
   }
 
   // Run the import
-  const { validFixtures, allErrors } = runImport(rows, maps);
+  const { validFixtures, allErrors } = await runImport(rows, maps);
   const existingFps = await fetchExistingFingerprints(validFixtures);
   const newFixtures = validFixtures.filter((f) => {
     const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);

@@ -1,0 +1,1 @@
+ALTER TABLE tournament_editions DROP COLUMN IF EXISTS participating_schools;
