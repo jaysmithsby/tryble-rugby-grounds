@@ -280,6 +280,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       case 'upcoming': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
       case 'in_progress': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
       case 'final': return 'bg-green-500/20 text-green-400 border-green-500/50';
+      case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/50';
       case 'holding': return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
     }
@@ -326,6 +327,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
             <SelectItem value="upcoming">Upcoming</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="final">Final</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
             <SelectItem value="holding">Holding</SelectItem>
           </SelectContent>
         </Select>

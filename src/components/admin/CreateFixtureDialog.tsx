@@ -607,6 +607,7 @@ export function CreateFixtureDialog({ open, onOpenChange, onSuccess }: CreateFix
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="final">Final</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
                 <SelectItem value="holding">Holding</SelectItem>
               </SelectContent>
             </Select>

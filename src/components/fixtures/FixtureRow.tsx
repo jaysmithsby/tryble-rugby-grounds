@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Lock, AlertCircle, Trophy } from "lucide-react";
+import { ChevronDown, Lock, AlertCircle, Trophy, Ban } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -32,6 +33,7 @@ export interface Fixture {
   tournament?: { id: string; name: string } | null;
   score_a?: number | null;
   score_b?: number | null;
+  status?: string;
 }
 
 export interface FixtureRowProps {
@@ -210,6 +212,7 @@ export const FixtureRow = ({
   const [left, right, leftIsA] = useMemo(() => sortSchoolsAlpha(fixture), [fixture]);
 
   const isPast = new Date(fixture.match_date) < new Date();
+  const isCancelled = fixture.status === "cancelled";
   const leftScore = leftIsA ? (fixture.score_a ?? null) : (fixture.score_b ?? null);
   const rightScore = leftIsA ? (fixture.score_b ?? null) : (fixture.score_a ?? null);
 
@@ -300,16 +303,23 @@ export const FixtureRow = ({
                   <span className="text-xs font-semibold text-foreground">{dateStr}</span>
                   {venue !== "TBD" && <span className="text-xs text-muted-foreground">{venue}</span>}
                 </div>
-                <div className="w-6 h-6 flex items-center justify-center -mr-1">
-                  {canExpand ? (
-                    <CollapsibleTrigger asChild>
-                      <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
-                        {chevronIcon}
-                      </button>
-                    </CollapsibleTrigger>
-                  ) : isPredicted ? (
-                    <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
-                  ) : null}
+                <div className="flex items-center gap-1.5 -mr-1">
+                  {isCancelled && (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                      <Ban className="w-3 h-3" />Cancelled
+                    </Badge>
+                  )}
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    {canExpand ? (
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
+                          {chevronIcon}
+                        </button>
+                      </CollapsibleTrigger>
+                    ) : isPredicted ? (
+                      <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
@@ -347,6 +357,11 @@ export const FixtureRow = ({
       {venue !== "TBD" && <span className="text-muted-foreground ml-2 text-xs">{venue}</span>}
       {fixture.tournament && fixture.venue_type !== "tournament" && (
         <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
+      )}
+      {isCancelled && (
+        <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1 ml-2">
+          <Ban className="w-3 h-3" />Cancelled
+        </Badge>
       )}
     </>
   );
