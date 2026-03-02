@@ -169,7 +169,7 @@ export function useHomeFixtures({
     queryKey: ["home-upcoming-fixtures", seasonYear, effectiveDateStr, sevenDaysStr, allSchoolIds],
     queryFn: async () => {
       const now = effectiveDate.toISOString();
-      const { data, error } = await supabase
+      let query = supabase
         .from("fixtures")
         .select(FIXTURE_SELECT)
         .eq("is_visible", true)
@@ -177,17 +177,21 @@ export function useHomeFixtures({
         .eq("status", "upcoming")
         .eq("year", seasonYear)
         .gte("match_date", now)
-        .lte("match_date", sevenDaysFromNow.toISOString())
-        .order("match_date", { ascending: true })
-        .limit(50);
-      if (error) { console.error("Error fetching upcoming fixtures:", error); return []; }
-      let filtered = data || [];
+        .lte("match_date", sevenDaysFromNow.toISOString());
+
       if (allSchoolIds.length > 0) {
-        filtered = filtered.filter(
-          (f: any) => allSchoolIds.includes(f.school_a_id) || allSchoolIds.includes(f.school_b_id)
-        );
+        const orFilter = allSchoolIds
+          .map(id => `school_a_id.eq.${id},school_b_id.eq.${id}`)
+          .join(",");
+        query = query.or(orFilter);
       }
-      return filtered.slice(0, 10).map(mapFixture);
+
+      const { data, error } = await query
+        .order("match_date", { ascending: true })
+        .limit(10);
+
+      if (error) { console.error("Error fetching upcoming fixtures:", error); return []; }
+      return (data || []).map(mapFixture);
     },
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
