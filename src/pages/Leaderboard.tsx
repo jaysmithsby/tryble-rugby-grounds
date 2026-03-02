@@ -1,18 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Trophy, Users, School, Globe, MapPin, Share2 } from "lucide-react";
+import { Trophy, Users, School, Globe, MapPin, Share2, AlertCircle } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
 import { CreatePoolDialog } from "@/components/pools/CreatePoolDialog";
 import { PoolCard } from "@/components/pools/PoolCard";
 import { BottomNav } from "@/components/BottomNav";
+import { DEFAULT_QUERY_OPTIONS, CACHE_TIMES, GC_TIMES } from "@/lib/queryConfig";
 
 type LeaderboardEntry = {
   rank: number;
@@ -31,104 +33,70 @@ type SchoolLeaderboardEntry = {
   totalUsers: number;
 };
 
+const currentYear = new Date().getFullYear();
+
+const getSchoolCode = (schoolName: string) => {
+  const words = schoolName.split(" ");
+  if (words.length === 1) return schoolName.substring(0, 3).toUpperCase();
+  return words.map(w => w[0]).join("").toUpperCase();
+};
+
 const Leaderboard = () => {
   const navigate = useNavigate();
-  const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [schoolLeaderboard, setSchoolLeaderboard] = useState<SchoolLeaderboardEntry[]>([]);
-  const [schoolSlugMap, setSchoolSlugMap] = useState<Record<string, string>>({});
-  const [userPools, setUserPools] = useState<any[]>([]);
-  const [poolMemberCounts, setPoolMemberCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [joinPoolCode, setJoinPoolCode] = useState("");
   const { toast } = useToast();
 
-  const currentYear = new Date().getFullYear();
+  // 1. School slugs (static, parallel with leaderboard)
+  const schoolSlugsQuery = useQuery({
+    queryKey: ["school-slugs"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("schools")
+        .select("id, slug, name")
+        .limit(500);
+      return data ?? [];
+    },
+    ...DEFAULT_QUERY_OPTIONS.static,
+  });
 
-  useEffect(() => {
-    loadLeaderboardData();
-    loadUserPools();
-  }, []);
+  const schoolSlugMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    schoolSlugsQuery.data?.forEach(s => { map[s.name] = s.slug; });
+    return map;
+  }, [schoolSlugsQuery.data]);
 
-  const getSchoolCode = (schoolName: string) => {
-    const words = schoolName.split(" ");
-    if (words.length === 1) return schoolName.substring(0, 3).toUpperCase();
-    return words.map(w => w[0]).join("").toUpperCase();
-  };
-
-  const loadLeaderboardData = async () => {
-    setLoading(true);
-
-    // Load school slugs for navigation
-    const { data: schoolsData } = await supabase
-      .from("schools")
-      .select("id, slug, name");
-
-    const slugMap: Record<string, string> = {};
-    schoolsData?.forEach(school => {
-      slugMap[school.name] = school.slug;
-    });
-    setSchoolSlugMap(slugMap);
-
-    // Call get_leaderboard_stats RPC for global leaderboard
-    const { data: statsData, error: statsError } = await supabase.rpc("get_leaderboard_stats", {
-      p_season_year: currentYear,
-    });
-
-    if (statsError) {
-      console.error("Error fetching leaderboard:", statsError);
-    }
-
-    // Fetch profiles for the users
-    const userIds = statsData?.map((d: any) => d.user_id) || [];
-    let profilesMap: Record<string, { display_name: string | null; school_name: string | null; school_id: string | null }> = {};
-
-    if (userIds.length > 0) {
-      const { data: profilesData } = await supabase
-        .from("profiles_public")
-        .select("id, display_name, school_name")
-        .in("id", userIds);
-
-      // Also get school_id from profiles for school grouping
-      const { data: profilesFull } = await supabase
-        .from("profiles")
-        .select("id, school_id")
-        .in("id", userIds);
-
-      const schoolIdMap: Record<string, string | null> = {};
-      profilesFull?.forEach(p => { schoolIdMap[p.id] = p.school_id; });
-
-      profilesData?.forEach(p => {
-        if (p.id) {
-          profilesMap[p.id] = {
-            display_name: p.display_name,
-            school_name: p.school_name,
-            school_id: schoolIdMap[p.id] || null,
-          };
-        }
+  // 2. Leaderboard stats (dynamic, parallel with schools)
+  const leaderboardQuery = useQuery({
+    queryKey: ["leaderboard-stats", currentYear],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_leaderboard_stats", {
+        p_season_year: currentYear,
       });
-    }
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+    ...DEFAULT_QUERY_OPTIONS.dynamic,
+  });
 
-    // Transform to LeaderboardEntry format (limit 50)
-    const entries: LeaderboardEntry[] = (statsData || []).slice(0, 50).map((item: any, index: number) => {
-      const profile = profilesMap[item.user_id];
-      return {
-        rank: index + 1,
-        userId: item.user_id,
-        nickname: profile?.display_name || "Anonymous",
-        schoolCode: getSchoolCode(profile?.school_name || ""),
-        points: Number(item.total_brags) || 0,
-        badges: [],
-      };
-    });
+  const globalLeaderboard = useMemo<LeaderboardEntry[]>(() => {
+    if (!leaderboardQuery.data) return [];
+    return leaderboardQuery.data.map((item: any, index: number) => ({
+      rank: index + 1,
+      userId: item.user_id,
+      nickname: item.display_name || "Anonymous",
+      schoolCode: getSchoolCode(item.school_name || ""),
+      points: Number(item.total_brags) || 0,
+      badges: [],
+    }));
+  }, [leaderboardQuery.data]);
 
-    setGlobalLeaderboard(entries);
-
-    // Build school leaderboard by grouping user stats by school
+  const schoolLeaderboard = useMemo<SchoolLeaderboardEntry[]>(() => {
+    if (!leaderboardQuery.data) return [];
     const schoolAgg: Record<string, { schoolName: string; schoolId: string; totalBrags: number; userCount: number }> = {};
-    (statsData || []).forEach((item: any) => {
-      const profile = profilesMap[item.user_id];
-      const schoolName = profile?.school_name;
-      const schoolId = profile?.school_id;
+    leaderboardQuery.data.forEach((item: any) => {
+      const schoolName = item.school_name;
+      const schoolId = item.school_id;
       if (schoolName && schoolId) {
         if (!schoolAgg[schoolId]) {
           schoolAgg[schoolId] = { schoolName, schoolId, totalBrags: 0, userCount: 0 };
@@ -137,9 +105,8 @@ const Leaderboard = () => {
         schoolAgg[schoolId].userCount += 1;
       }
     });
-
-    const schoolEntries: SchoolLeaderboardEntry[] = Object.values(schoolAgg)
-      .map((s, _) => ({
+    return Object.values(schoolAgg)
+      .map(s => ({
         rank: 0,
         schoolName: s.schoolName,
         schoolId: s.schoolId,
@@ -149,28 +116,21 @@ const Leaderboard = () => {
       .sort((a, b) => b.averagePoints - a.averagePoints)
       .slice(0, 20)
       .map((s, i) => ({ ...s, rank: i + 1 }));
+  }, [leaderboardQuery.data]);
 
-    setSchoolLeaderboard(schoolEntries);
-    setLoading(false);
-  };
-
-  const loadUserPools = async () => {
-    try {
+  // 3. User pools (reference cache)
+  const userPoolsQuery = useQuery({
+    queryKey: ["user-pools"],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return { pools: [], counts: {} as Record<string, number> };
 
       const { data, error } = await supabase
         .from("pool_members")
         .select(`
           pool_id,
           pools (
-            id,
-            name,
-            invite_code,
-            schools,
-            voting_mode,
-            icon_id,
-            color_id,
+            id, name, invite_code, schools, voting_mode, icon_id, color_id,
             pool_members(count)
           )
         `)
@@ -178,21 +138,21 @@ const Leaderboard = () => {
 
       if (error) throw error;
 
-      const pools = data?.map(d => d.pools) || [];
-      setUserPools(pools);
-
+      const pools = data?.map(d => d.pools).filter(Boolean) ?? [];
       const counts: Record<string, number> = {};
       for (const pool of pools) {
         if (pool) {
-          const memberCount = (pool as any).pool_members?.[0]?.count ?? 0;
-          counts[pool.id] = memberCount;
+          counts[pool.id] = (pool as any).pool_members?.[0]?.count ?? 0;
         }
       }
-      setPoolMemberCounts(counts);
-    } catch (error) {
-      console.error("Error loading pools:", error);
-    }
-  };
+      return { pools, counts };
+    },
+    staleTime: CACHE_TIMES.REFERENCE,
+    gcTime: GC_TIMES.STANDARD,
+  });
+
+  const userPools = userPoolsQuery.data?.pools ?? [];
+  const poolMemberCounts = userPoolsQuery.data?.counts ?? {};
 
   const joinPool = async () => {
     if (!joinPoolCode.trim()) {
@@ -236,16 +196,13 @@ const Leaderboard = () => {
 
       const { error } = await supabase
         .from("pool_members")
-        .insert({
-          pool_id: pool.id,
-          user_id: user.id,
-        });
+        .insert({ pool_id: pool.id, user_id: user.id });
 
       if (error) throw error;
 
       toast({ title: "Joined pool successfully! 🎉" });
       setJoinPoolCode("");
-      loadUserPools();
+      queryClient.invalidateQueries({ queryKey: ["user-pools"] });
     } catch (error: any) {
       toast({ title: "Error joining pool", description: error.message, variant: "destructive" });
     }
@@ -325,6 +282,27 @@ const Leaderboard = () => {
     </div>
   );
 
+  const renderLoadingOrError = (query: typeof leaderboardQuery, emptyIcon: React.ReactNode, emptyTitle: string, emptyDesc: string) => {
+    if (query.isLoading) {
+      return <div className="text-center py-8 text-muted-foreground">Loading...</div>;
+    }
+    if (query.isError) {
+      return (
+        <div className="text-center py-8 text-destructive">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+          <p className="text-sm">Failed to load data. Pull down to retry.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="text-center py-12">
+        {emptyIcon}
+        <h3 className="font-semibold mb-2">{emptyTitle}</h3>
+        <p className="text-muted-foreground text-sm">{emptyDesc}</p>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <GlobalHeader />
@@ -338,7 +316,6 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="global" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
@@ -364,24 +341,18 @@ const Leaderboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Global Rankings</CardTitle>
-                <CardDescription>
-                  Season leaderboard — {currentYear}
-                </CardDescription>
+                <CardDescription>Season leaderboard — {currentYear}</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : globalLeaderboard.length > 0 ? (
+                {globalLeaderboard.length > 0 ? (
                   <LeaderboardTable entries={globalLeaderboard} />
                 ) : (
-                  <div className="text-center py-12">
-                    <Trophy className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                    <h3 className="font-semibold mb-2">No rankings yet</h3>
-                    <p className="text-muted-foreground text-sm">
-                      Rankings will appear once the first predictions are scored.
-                      <br />Check back after the weekend's matches!
-                    </p>
-                  </div>
+                  renderLoadingOrError(
+                    leaderboardQuery,
+                    <Trophy className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />,
+                    "No rankings yet",
+                    "Rankings will appear once the first predictions are scored.\nCheck back after the weekend's matches!"
+                  )
                 )}
               </CardContent>
             </Card>
@@ -391,23 +362,18 @@ const Leaderboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>School Pride Leaderboard</CardTitle>
-                <CardDescription>
-                  Top schools by average user performance
-                </CardDescription>
+                <CardDescription>Top schools by average user performance</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : schoolLeaderboard.length > 0 ? (
+                {schoolLeaderboard.length > 0 ? (
                   <SchoolLeaderboardTable entries={schoolLeaderboard} />
                 ) : (
-                  <div className="text-center py-12">
-                    <School className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                    <h3 className="font-semibold mb-2">No school rankings yet</h3>
-                    <p className="text-muted-foreground text-sm">
-                      School rankings are calculated after predictions are scored.
-                    </p>
-                  </div>
+                  renderLoadingOrError(
+                    leaderboardQuery,
+                    <School className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />,
+                    "No school rankings yet",
+                    "School rankings are calculated after predictions are scored."
+                  )
                 )}
               </CardContent>
             </Card>
@@ -417,9 +383,7 @@ const Leaderboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Provincial Rankings</CardTitle>
-                <CardDescription>
-                  Top performers in your province
-                </CardDescription>
+                <CardDescription>Top performers in your province</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8 text-muted-foreground">
@@ -430,9 +394,8 @@ const Leaderboard = () => {
           </TabsContent>
 
           <TabsContent value="pools" className="space-y-4">
-            {/* Pool Management */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <CreatePoolDialog onPoolCreated={loadUserPools} />
+              <CreatePoolDialog onPoolCreated={() => queryClient.invalidateQueries({ queryKey: ["user-pools"] })} />
 
               <Dialog>
                 <DialogTrigger asChild>
@@ -444,9 +407,7 @@ const Leaderboard = () => {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Join a Pool</DialogTitle>
-                    <DialogDescription>
-                      Enter the pool code to join
-                    </DialogDescription>
+                    <DialogDescription>Enter the pool code to join</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div>
@@ -464,8 +425,9 @@ const Leaderboard = () => {
               </Dialog>
             </div>
 
-            {/* User's Pools */}
-            {userPools.length > 0 ? (
+            {userPoolsQuery.isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading pools...</div>
+            ) : userPools.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {userPools.map((pool: any) => pool && (
                   <PoolCard
@@ -479,19 +441,14 @@ const Leaderboard = () => {
               <Card>
                 <CardContent className="py-12 text-center">
                   <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground mb-4">
-                    You haven't joined any pools yet
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Create or join a pool to compete with friends!
-                  </p>
+                  <p className="text-muted-foreground mb-4">You haven't joined any pools yet</p>
+                  <p className="text-sm text-muted-foreground">Create or join a pool to compete with friends!</p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
         </Tabs>
 
-        {/* Season Note */}
         <div className="mt-8 text-center">
           <p className="text-sm text-muted-foreground">
             🏁 Season ends on June 28th. Leaderboards reset for next season!
