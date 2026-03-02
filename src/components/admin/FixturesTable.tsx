@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Search, Loader2, Eye, EyeOff, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfYear, endOfYear } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { BulkYearCorrectionDialog } from "./BulkYearCorrectionDialog";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "./PaginationControls";
+import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 
 type SortField = 'date' | 'school_a' | 'school_b' | 'venue' | 'tournament' | 'status' | 'visible';
 type SortDirection = 'asc' | 'desc';
@@ -44,7 +45,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [yearFilter, setYearFilter] = useState("all");
+  const [dateRange, setDateRange] = useState({ from: startOfYear(new Date()), to: endOfYear(new Date()) });
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -90,7 +91,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   useEffect(() => {
     pagination.goToPage(1);
-  }, [debouncedSearch, statusFilter, yearFilter]);
+  }, [debouncedSearch, statusFilter, dateRange]);
 
   const fetchFixtures = useCallback(async (isManualRefresh = false) => {
     try {
@@ -107,9 +108,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       if (statusFilter !== 'all') {
         countQuery = countQuery.eq('status', statusFilter);
       }
-      if (yearFilter !== 'all') {
-        countQuery = countQuery.eq('year', parseInt(yearFilter));
-      }
+      countQuery = countQuery.gte('match_date', dateRange.from.toISOString()).lte('match_date', dateRange.to.toISOString());
 
       const { count, error: countError } = await countQuery;
       if (countError) console.error('Count error:', countError);
@@ -123,9 +122,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       if (statusFilter !== 'all') {
         dataQuery = dataQuery.eq('status', statusFilter);
       }
-      if (yearFilter !== 'all') {
-        dataQuery = dataQuery.eq('year', parseInt(yearFilter));
-      }
+      dataQuery = dataQuery.gte('match_date', dateRange.from.toISOString()).lte('match_date', dateRange.to.toISOString());
 
       const sortColumn = sortField === 'date' ? 'match_date'
         : sortField === 'school_a' ? 'school_a_id'
@@ -179,7 +176,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [pagination.from, pagination.to, debouncedSearch, statusFilter, yearFilter, sortField, sortDirection, schools, tournaments, toast]);
+  }, [pagination.from, pagination.to, debouncedSearch, statusFilter, dateRange, sortField, sortDirection, schools, tournaments, toast]);
 
   useEffect(() => {
     if (schools.size > 0) {
@@ -238,7 +235,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
-    setYearFilter("all");
+    setDateRange({ from: startOfYear(new Date()), to: endOfYear(new Date()) });
     pagination.goToPage(1);
   };
 
@@ -331,16 +328,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
             <SelectItem value="holding">Holding</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={yearFilter} onValueChange={setYearFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Years</SelectItem>
-            <SelectItem value="2025">2025</SelectItem>
-            <SelectItem value="2026">2026</SelectItem>
-          </SelectContent>
-        </Select>
+        <FixturesDateSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       <div className="flex items-center justify-between">
@@ -410,7 +398,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
                         ? "No fixtures loaded. Import CSV data to get started."
                         : "No matches found for your search"}
                     </p>
-                    {(searchQuery || statusFilter !== "all" || yearFilter !== "all") && (
+                    {(searchQuery || statusFilter !== "all") && (
                       <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
                         <RefreshCcw className="h-4 w-4" />
                         Clear filters
