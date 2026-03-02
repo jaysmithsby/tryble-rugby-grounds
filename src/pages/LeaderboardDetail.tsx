@@ -75,18 +75,6 @@ const LeaderboardDetail = () => {
         return;
       }
 
-      // Fetch display names
-      const userIds = statsData.map((s: any) => s.user_id);
-      const { data: profilesPublic } = await supabase
-        .from("profiles_public")
-        .select("id, display_name")
-        .in("id", userIds);
-
-      const nameMap = new Map<string, string>();
-      profilesPublic?.forEach(p => {
-        if (p.id && p.display_name) nameMap.set(p.id, p.display_name);
-      });
-
       const rows: ScoreRow[] = statsData.map((s: any) => {
         const made = Number(s.picks_made) || 0;
         const correct = Number(s.picks_correct) || 0;
@@ -96,7 +84,7 @@ const LeaderboardDetail = () => {
           season_points: pts,
           predictions_made: made,
           predictions_correct: correct,
-          display_name: nameMap.get(s.user_id) ?? null,
+          display_name: s.display_name ?? null,
           accuracy: made > 0 ? (correct / made) * 100 : 0,
           efficiency: Number(s.avg_efficiency) || 0,
         };

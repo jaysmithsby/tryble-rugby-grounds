@@ -1190,16 +1190,34 @@ export type Database = {
         Returns: undefined
       }
       fixture_match_day: { Args: { ts: string }; Returns: string }
-      get_leaderboard_stats: {
-        Args: { p_school_id?: string; p_season_year: number }
-        Returns: {
-          avg_efficiency: number
-          picks_correct: number
-          picks_made: number
-          total_brags: number
-          user_id: string
-        }[]
-      }
+      get_leaderboard_stats:
+        | {
+            Args: { p_school_id?: string; p_season_year: number }
+            Returns: {
+              avg_efficiency: number
+              picks_correct: number
+              picks_made: number
+              total_brags: number
+              user_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_limit?: number
+              p_school_id?: string
+              p_season_year: number
+            }
+            Returns: {
+              avg_efficiency: number
+              display_name: string
+              picks_correct: number
+              picks_made: number
+              school_id: string
+              school_name: string
+              total_brags: number
+              user_id: string
+            }[]
+          }
       get_match_history_batch: {
         Args: { p_fixture_ids: string[] }
         Returns: {
