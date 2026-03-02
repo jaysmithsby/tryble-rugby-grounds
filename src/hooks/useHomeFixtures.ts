@@ -162,6 +162,7 @@ export function useHomeFixtures({
     staleTime: CACHE_TIMES.REFERENCE,
   });
 
+  const followedLoaded = !!followedData;
   const allSchoolIds = followedData?.schoolIds || [];
   const hasNoPools = followedData?.hasNoPools ?? true;
 
@@ -193,7 +194,7 @@ export function useHomeFixtures({
       if (error) { console.error("Error fetching upcoming fixtures:", error); return []; }
       return (data || []).map(mapFixture);
     },
-    enabled: !!userId && profileLoaded,
+    enabled: !!userId && profileLoaded && followedLoaded,
     staleTime: CACHE_TIMES.DYNAMIC,
   });
 
