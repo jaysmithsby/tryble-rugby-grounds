@@ -160,14 +160,29 @@ const Home = () => {
         )}
 
         <div className="space-y-4">
-          <h2 className="text-lg font-bold px-1">Upcoming Matches</h2>
+          <div className="flex items-baseline justify-between px-1">
+            <h2 className="text-lg font-bold">Upcoming Matches</h2>
+            {upcomingFixtures.length > 3 && (
+              <button
+                onClick={() => navigate("/fixtures")}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Make your call →
+              </button>
+            )}
+          </div>
+          {upcomingFixtures.length > 3 && (
+            <p className="text-xs text-muted-foreground px-1 -mt-2">
+              Predictions are open
+            </p>
+          )}
           {(fixturesLoading || !profileLoaded) ? (
             <div className="text-center py-12 bg-gradient-card rounded-lg border border-border/40">
               <p className="text-muted-foreground">Loading fixtures...</p>
             </div>
           ) : upcomingFixtures.length > 0 ? (
             <div className="space-y-3">
-              {upcomingFixtures.map((fixture, index) => (
+              {upcomingFixtures.slice(0, 3).map((fixture, index) => (
                 <FixtureCard 
                   key={fixture.id}
                   homeTeam={fixture.school_a.name}
