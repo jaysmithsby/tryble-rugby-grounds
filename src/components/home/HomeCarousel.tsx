@@ -8,9 +8,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { DerbySlide } from "./DerbySlide";
-import { NudgeSlide } from "./NudgeSlide";
 import { NewsSlide } from "./NewsSlide";
-import { AdSlide } from "./AdSlide";
 import { cn } from "@/lib/utils";
 
 interface Derby {
@@ -38,15 +36,7 @@ interface Advertisement {
   link_url: string;
 }
 
-interface HomeCarouselProps {
-  unpickedFixturesCount?: number;
-  onPredictionNudgeClick?: () => void;
-}
-
-export const HomeCarousel = ({ 
-  unpickedFixturesCount = 0, 
-  onPredictionNudgeClick 
-}: HomeCarouselProps) => {
+export const HomeCarousel = () => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
@@ -148,8 +138,7 @@ export const HomeCarousel = ({
     return () => clearInterval(interval);
   }, [api, count]);
 
-  const hasNudge = unpickedFixturesCount > 0;
-  const totalSlides = derbies.length + (hasNudge ? 1 : 0) + news.length;
+  const totalSlides = derbies.length + news.length;
 
   if (loading) {
     return (
@@ -177,15 +166,6 @@ export const HomeCarousel = ({
               <DerbySlide derby={derby} />
             </CarouselItem>
           ))}
-          
-          {hasNudge && (
-            <CarouselItem key="nudge">
-              <NudgeSlide 
-                unpickedCount={unpickedFixturesCount} 
-                onClick={onPredictionNudgeClick} 
-              />
-            </CarouselItem>
-          )}
           
           {news.map((article) => (
             <CarouselItem key={`news-${article.id}`}>
