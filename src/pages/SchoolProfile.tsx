@@ -132,19 +132,15 @@ export default function SchoolProfile() {
   };
 
   const loadMatchHistory = useCallback(async (fixtures: any[]) => {
+    if (fixtures.length === 0) return;
+    const { data, error } = await supabase.rpc("get_match_history_batch", {
+      p_fixture_ids: fixtures.map(f => f.id),
+    });
+    if (error || !data) { setHasHistoryMap({}); return; }
     const map: Record<string, boolean> = {};
-    await Promise.all(
-      fixtures.map(async (f) => {
-        const aId = f.school_a_id;
-        const bId = f.school_b_id;
-        const { count } = await supabase
-          .from("fixtures")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "completed")
-          .or(`and(school_a_id.eq.${aId},school_b_id.eq.${bId}),and(school_a_id.eq.${bId},school_b_id.eq.${aId})`);
-        map[f.id] = (count ?? 0) > 0;
-      })
-    );
+    (data as { fixture_id: string; has_history: boolean }[]).forEach((row) => {
+      map[row.fixture_id] = row.has_history;
+    });
     setHasHistoryMap(map);
   }, []);
 

@@ -1200,6 +1200,13 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_match_history_batch: {
+        Args: { p_fixture_ids: string[] }
+        Returns: {
+          fixture_id: string
+          has_history: boolean
+        }[]
+      }
       get_next_friday_8pm: { Args: { from_time: string }; Returns: string }
       get_pool_by_invite_code: {
         Args: { code: string }
