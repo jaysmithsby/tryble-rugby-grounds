@@ -119,27 +119,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <GlobalHeader>
-        {(userDisplayName || userSchoolName) && (
-          <div className="container mx-auto px-4 pb-3">
-            {userSchoolName ? (
-              <div className="space-y-0.5">
-                <p className="text-base font-bold text-primary">{userSchoolName}</p>
-              <p className="text-sm text-muted-foreground">
-                  Hey {userDisplayName || 'Fan'}.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                <p className="text-base font-bold text-primary">For the Badge.</p>
-                <p className="text-sm text-muted-foreground">
-                  Hey {userDisplayName || 'Fan'}.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </GlobalHeader>
+      <GlobalHeader />
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <div className="space-y-1.5">
@@ -154,7 +134,7 @@ const Home = () => {
           </p>
         </div>
 
-        <HomeCarousel unpickedFixturesCount={upcomingFixtures.filter(f => !predictions[f.id]).length} />
+        <HomeCarousel />
 
         {userSchoolFixture && userSchoolName && (
           <div className="space-y-2">
