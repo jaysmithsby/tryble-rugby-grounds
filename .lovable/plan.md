@@ -1,80 +1,75 @@
 
 
-## Plan: Biometric Authentication with Robust Error Handling
+## Plan: Remove Participating Schools Column & Auto-Create Tournament Editions from Fixture Imports
 
-Incorporating the three refinements into the previously approved plan.
+### Overview
 
-### New File: `src/lib/biometricAuth.ts`
+Three interconnected changes: (1) drop the manual `participating_schools` column and infer participating schools from fixtures at query time, (2) auto-create tournament editions during CSV import when a tournament name matches but no edition exists for that year, (3) simplify admin forms by removing school-selection widgets from edition dialogs.
 
-Core utility with platform-gated native calls. Key design decisions per your feedback:
+### Database Changes
 
-**1. Lockout Handling**
-- `isBiometricAvailable()` catches all plugin errors (including `BIOMETRIC_LOCKED_OUT`, `BIOMETRIC_NOT_ENROLLED`, device-level errors) and returns `false`, ensuring the standard SignInForm always renders as fallback.
-- `promptBiometric()` wraps the native call in try/catch, returning `false` on any failure (cancellation, lockout, hardware error). Never throws.
+**Migration: Drop `participating_schools` column from `tournament_editions`**
 
-**2. Token Storage**
-- `saveSessionToSecureStorage(accessToken, refreshToken)` saves **both** tokens as separate keys in OS secure storage.
-- `getSessionFromSecureStorage()` returns `{ access_token, refresh_token } | null`.
-- On session restore in `Auth.tsx`, calls `supabase.auth.setSession({ access_token, refresh_token })` which handles silent refresh if the access token is expired but the refresh token is still valid.
-
-**3. Dialog Timing in SignInForm**
-- After `signInWithPassword()` succeeds, call `isBiometricAvailable()` **before** showing `BiometricPromptDialog`.
-- Only open the dialog if: (a) on native platform, (b) biometrics available and not locked out, (c) user hasn't previously opted in.
-- If any check fails, skip the dialog silently and proceed to `/home`.
-
-### Files
-
-| File | Change |
-|---|---|
-| `src/lib/biometricAuth.ts` | New -- all native calls wrapped in try/catch returning safe defaults; saves both access + refresh tokens |
-| `src/components/auth/BiometricPromptDialog.tsx` | New -- opt-in dialog, only rendered when `isBiometricAvailable()` resolves `true` |
-| `src/components/auth/SignInForm.tsx` | Post-login: await `isBiometricAvailable()` then conditionally show dialog; save both tokens on opt-in |
-| `src/pages/Auth.tsx` | On mount: attempt biometric restore with `setSession({ access_token, refresh_token })`; any failure falls through to normal UI |
-| `src/hooks/useHomeAuth.ts` | `handleSignOut`: clear secure storage + biometric preference |
-
-### Key Code Patterns
-
-```typescript
-// biometricAuth.ts - lockout-safe availability check
-export async function isBiometricAvailable(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
-  try {
-    await NativeBiometric.isAvailable();
-    return true;
-  } catch {
-    // Covers: NOT_AVAILABLE, LOCKED_OUT, NOT_ENROLLED, any hardware error
-    return false;
-  }
-}
-
-// biometricAuth.ts - safe prompt that never throws
-export async function promptBiometric(): Promise<boolean> {
-  try {
-    await NativeBiometric.verifyIdentity({ reason: "Log in to Trybal" });
-    return true;
-  } catch {
-    return false; // user cancelled, locked out, or hardware failure
-  }
-}
-
-// Auth.tsx - session restore with refresh token
-const tokens = await getSessionFromSecureStorage();
-if (tokens) {
-  // setSession handles expired access_token by using refresh_token
-  const { error } = await supabase.auth.setSession({
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-  });
-  if (!error) { navigate("/home"); return; }
-}
-// Any failure → fall through to SignInForm
-
-// SignInForm.tsx - dialog timing
-const { data } = await supabase.auth.signInWithPassword({ ... });
-if (data.session && !getBiometricPreference()) {
-  const available = await isBiometricAvailable();
-  if (available) setShowBiometricDialog(true);
-  else navigate("/home");
-}
+```sql
+ALTER TABLE tournament_editions DROP COLUMN IF EXISTS participating_schools;
 ```
+
+This column becomes unnecessary since participating schools will be inferred from fixtures linked to each edition.
+
+### File Changes
+
+#### 1. `src/lib/fixtureImportService.ts` — Auto-create editions
+
+In `mapRow()` (lines 166-179), when `venue_type === "tournament"` and a tournament name matches a parent tournament but no edition exists for that year:
+
+- Instead of pushing an error, auto-create the tournament edition via `supabase.from("tournament_editions").insert(...)` with minimal data: `tournament_id`, `year`, `start_date` (from the fixture's match_date), `end_date` (same date as placeholder), `is_active: true`.
+- Cache the new edition ID in `maps.editionMap` so subsequent rows in the same import reuse it.
+- This requires making `mapRow` async, and updating `runImport` to be async as well.
+
+Also apply this same logic for non-tournament venue types (lines 181-193) — if `tournament_name` is provided in the CSV, resolve it regardless of `venue_type`, auto-creating editions as needed.
+
+#### 2. `src/components/admin/CreateEditionDialog.tsx` — Remove participating schools
+
+- Remove the `participating_schools` field from the form schema (line 34), default values, and the entire `<FormField>` block for participating schools (lines 227-262).
+- Remove `schools` state, `fetchSchools()`, `filteredSchools`, `searchQuery` state, and imports for `Checkbox`, `Badge`, `X`, `ScrollArea` that are only used for that field.
+- Remove `participating_schools` from the insert payload (line 119).
+
+#### 3. `src/components/admin/EditEditionDialog.tsx` — Remove participating schools
+
+- Same removal as CreateEditionDialog: drop the form field, schema entry, fetch/filter logic, and update payload (line 123).
+
+#### 4. `src/components/admin/TournamentsTable.tsx` — Show inferred school count
+
+- In the expanded edition row (around line 185), instead of showing `edition.participating_schools.length` schools, fetch the count of distinct schools from fixtures linked to each edition.
+- Add a small query (or use a `useMemo` from fixtures data) to count distinct `school_a_id` + `school_b_id` per edition.
+- Display as "N schools" (inferred from fixtures).
+
+#### 5. `src/pages/Tournament.tsx` — Infer participating schools from fixtures
+
+- Remove references to `selectedEdition?.participating_schools` (line 329).
+- Derive `participatingSchools` from `allFixtures` using a `useMemo`:
+  ```typescript
+  const participatingSchools = useMemo(() => {
+    const names = new Set<string>();
+    allFixtures.forEach(f => {
+      if (f.school_a?.name) names.add(f.school_a.name);
+      if (f.school_b?.name) names.add(f.school_b.name);
+    });
+    return [...names].sort();
+  }, [allFixtures]);
+  ```
+- The school count in the header (line 402) and the filter popover (lines 455-473) will automatically use this derived list.
+- Remove `participating_schools` from the `Edition` interface (line 35).
+
+#### 6. `src/integrations/supabase/types.ts` — Auto-updated
+
+Will be regenerated after the migration drops the column.
+
+### Summary of Simplifications
+
+| Before | After |
+|---|---|
+| Manual checkbox list to select participating schools per edition | Schools inferred automatically from linked fixtures |
+| CSV import fails if no matching edition exists | Edition auto-created with minimal data when tournament name matches |
+| `participating_schools` text array column on `tournament_editions` | Column dropped entirely |
 
