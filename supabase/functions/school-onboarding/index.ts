@@ -58,8 +58,8 @@ async function handleValidateToken(body: { token: string }) {
   return json({
     status: "valid",
     school_name: inv.school_name,
-    contact_email: inv.contact_email,
     otp_verified: inv.otp_verified,
+    ...(inv.otp_verified ? { contact_email: inv.contact_email } : {}),
   });
 }
 
@@ -80,8 +80,10 @@ async function handleSendOtp(body: { token: string }) {
   if (inv.otp_attempts >= 5) return json({ error: "Too many attempts. Please contact Trybal." }, 403);
   if (new Date(inv.expires_at) < new Date()) return json({ error: "Token expired" }, 400);
 
-  // Generate OTP
-  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  // Generate cryptographically secure OTP
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  const otp = String(100000 + (arr[0] % 900000));
   const otpHash = await sha256(otp);
 
   await sb

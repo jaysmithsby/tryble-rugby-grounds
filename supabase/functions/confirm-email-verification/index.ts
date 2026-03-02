@@ -32,7 +32,34 @@ serve(async (req: Request): Promise<Response> => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Find the token in the database
+    // ── Rate limiting ──────────────────────────────────────────
+    const forwarded = req.headers.get("x-forwarded-for");
+    const clientIp = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+
+    const { data: rlData } = await supabase.rpc("check_rate_limit", {
+      p_identifier: clientIp,
+      p_endpoint: "confirm-email-verification",
+      p_max_requests: 5,
+      p_window_minutes: 15,
+    });
+
+    if (rlData && rlData.length > 0 && !rlData[0].allowed) {
+      const resetAt = rlData[0].reset_at;
+      const retryAfter = Math.max(1, Math.ceil((new Date(resetAt).getTime() - Date.now()) / 1000));
+      return new Response(
+        JSON.stringify({ error: "Too many attempts. Please try again later." }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(retryAfter),
+            ...corsHeaders,
+          },
+        }
+      );
+    }
+
+    // ── Token lookup ───────────────────────────────────────────
     const { data: tokenRecord, error: tokenError } = await supabase
       .from("email_verification_tokens")
       .select("*")
@@ -84,7 +111,6 @@ serve(async (req: Request): Promise<Response> => {
 
     if (updateTokenError) {
       console.error("Error updating token:", updateTokenError.message);
-      // Continue anyway - the important part is updating the user
     }
 
     // Update the user's email_confirmed_at using admin API
