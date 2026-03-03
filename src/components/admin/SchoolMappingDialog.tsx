@@ -156,10 +156,12 @@ export function SchoolMappingDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={mappedCount === 0}>
+          <Button onClick={handleConfirm}>
             {mappedCount === unknownSchools.length
               ? "Confirm Mapping"
-              : `Import (skip ${skippedCount} unmapped)`}
+              : mappedCount === 0
+                ? `Import (skip all ${skippedCount} unmapped)`
+                : `Import (skip ${skippedCount} unmapped)`}
           </Button>
         </DialogFooter>
       </DialogContent>
