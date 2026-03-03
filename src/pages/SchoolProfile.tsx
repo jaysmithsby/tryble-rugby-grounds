@@ -1,23 +1,17 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { RecentResultsTable } from "@/components/fixtures/RecentResultsTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Users, Trophy, Search, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
-import { FixtureTable } from "@/components/fixtures/FixtureTable";
+import { Star, Users, Trophy, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
-import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import { resolveVenueName } from "@/lib/venueUtils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
-import { useDebounce } from "@/hooks/use-debounce";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { SpringboksTable } from "@/components/school/SpringboksTable";
-
-import { startOfYear, endOfYear, format } from "date-fns";
 
 export default function SchoolProfile() {
   const { schoolSlug } = useParams();
@@ -37,35 +31,12 @@ export default function SchoolProfile() {
   const [springboksOpen, setSpringboksOpen] = useState(false);
   const springboksRef = useRef<HTMLDivElement>(null);
 
-  // Search & month nav state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState({ from: new Date(2026, 0, 1), to: endOfYear(new Date(2026, 0, 1)) });
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  // Pagination for upcoming fixtures
   const [fixturesPage, setFixturesPage] = useState(1);
   const FIXTURES_PER_PAGE = 8;
 
-  // Filtered fixtures
-  const filteredFixtures = useMemo(() => {
-    if (!school) return [];
-    if (debouncedSearch) {
-      return allUpcomingFixtures.filter(f => {
-        const opponent = f.school_a_id === school.id ? f.school_b : f.school_a;
-        return opponent?.name?.toLowerCase().includes(debouncedSearch.toLowerCase());
-      });
-    }
-    return allUpcomingFixtures.filter(f => {
-      const d = new Date(f.match_date);
-      return d >= dateRange.from && d <= dateRange.to;
-    });
-  }, [allUpcomingFixtures, debouncedSearch, dateRange, school]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setFixturesPage(1);
-  }, [debouncedSearch, dateRange]);
-
-  const totalFixturePages = Math.max(1, Math.ceil(filteredFixtures.length / FIXTURES_PER_PAGE));
-  const paginatedFixtures = filteredFixtures.slice(
+  const totalFixturePages = Math.max(1, Math.ceil(allUpcomingFixtures.length / FIXTURES_PER_PAGE));
+  const paginatedFixtures = allUpcomingFixtures.slice(
     (fixturesPage - 1) * FIXTURES_PER_PAGE,
     fixturesPage * FIXTURES_PER_PAGE
   );
@@ -322,35 +293,6 @@ export default function SchoolProfile() {
         <section>
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming Fixtures</h2>
 
-          {/* Inline search + date picker row */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search school..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 text-sm rounded-full border-border"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {!debouncedSearch && (
-              <FixturesDateSelector
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
-              />
-            )}
-          </div>
-
           {/* Fixture list or empty state */}
           {paginatedFixtures.length > 0 ? (
             <>
@@ -434,9 +376,7 @@ export default function SchoolProfile() {
             </>
           ) : (
             <p className="text-xs text-muted-foreground text-center py-6">
-              {debouncedSearch
-                ? `No fixtures found for '${debouncedSearch}'`
-                : `No fixtures in ${format(dateRange.from, "yyyy")}`}
+              No upcoming fixtures
             </p>
           )}
         </section>
