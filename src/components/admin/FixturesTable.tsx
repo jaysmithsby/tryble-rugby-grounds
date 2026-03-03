@@ -61,14 +61,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   const fetchSchools = async () => {
     try {
-      const { data, error } = await supabase
-        .from('schools')
-        .select('id, name');
-
+      const { data, error } = await supabase.from('schools').select('id, name');
       if (error) throw error;
-
-      const schoolMap = new Map(data?.map(s => [s.id, s.name]) || []);
-      setSchools(schoolMap);
+      setSchools(new Map(data?.map(s => [s.id, s.name]) || []));
     } catch (error) {
       console.error('Error fetching schools:', error);
     }
@@ -76,14 +71,9 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
 
   const fetchTournaments = async () => {
     try {
-      const { data, error } = await supabase
-        .from('tournaments')
-        .select('id, name');
-
+      const { data, error } = await supabase.from('tournaments').select('id, name');
       if (error) throw error;
-
-      const tournamentMap = new Map(data?.map(t => [t.id, t.name]) || []);
-      setTournaments(tournamentMap);
+      setTournaments(new Map(data?.map(t => [t.id, t.name]) || []));
     } catch (error) {
       console.error('Error fetching tournaments:', error);
     }
@@ -93,100 +83,91 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     pagination.goToPage(1);
   }, [debouncedSearch, statusFilter, dateRange]);
 
+  // Find school IDs matching search query (server-side search)
+  const getMatchingSchoolIds = useCallback(async (query: string): Promise<string[] | null> => {
+    if (!query.trim()) return null; // null = no filter
+    const { data, error } = await supabase
+      .from('schools')
+      .select('id')
+      .ilike('name', `%${query}%`);
+    if (error) {
+      console.error('Error searching schools:', error);
+      return [];
+    }
+    return data?.map(s => s.id) || [];
+  }, []);
+
+  const applyFilters = useCallback((query: any, matchingIds: string[] | null) => {
+    if (statusFilter !== 'all') {
+      query = query.eq('status', statusFilter);
+    }
+    query = query
+      .gte('match_date', dateRange.from.toISOString())
+      .lte('match_date', dateRange.to.toISOString());
+
+    // Server-side search: filter by matching school IDs
+    if (matchingIds !== null) {
+      if (matchingIds.length === 0) {
+        // No schools match → force empty result
+        query = query.in('school_a_id', ['00000000-0000-0000-0000-000000000000']);
+      } else {
+        // school_a OR school_b matches
+        const idList = matchingIds.join(',');
+        query = query.or(`school_a_id.in.(${idList}),school_b_id.in.(${idList})`);
+      }
+    }
+    return query;
+  }, [statusFilter, dateRange]);
+
   const fetchFixtures = useCallback(async (isManualRefresh = false) => {
     try {
-      if (isManualRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (isManualRefresh) setRefreshing(true);
+      else setLoading(true);
 
-      let countQuery = supabase
-        .from('fixtures')
-        .select('*', { count: 'exact', head: true });
+      // Server-side search: resolve matching school IDs first
+      const matchingIds = await getMatchingSchoolIds(debouncedSearch);
 
-      if (statusFilter !== 'all') {
-        countQuery = countQuery.eq('status', statusFilter);
-      }
-      countQuery = countQuery.gte('match_date', dateRange.from.toISOString()).lte('match_date', dateRange.to.toISOString());
-
+      // Count query
+      let countQuery = supabase.from('fixtures').select('*', { count: 'exact', head: true });
+      countQuery = applyFilters(countQuery, matchingIds);
       const { count, error: countError } = await countQuery;
       if (countError) console.error('Count error:', countError);
-      
       pagination.setTotalCount(count || 0);
 
-      let dataQuery = supabase
-        .from('fixtures')
-        .select('*');
-
-      if (statusFilter !== 'all') {
-        dataQuery = dataQuery.eq('status', statusFilter);
-      }
-      dataQuery = dataQuery.gte('match_date', dateRange.from.toISOString()).lte('match_date', dateRange.to.toISOString());
+      // Data query
+      let dataQuery = supabase.from('fixtures').select('*');
+      dataQuery = applyFilters(dataQuery, matchingIds);
 
       const sortColumn = sortField === 'date' ? 'match_date'
         : sortField === 'school_a' ? 'school_a_id'
         : sortField === 'school_b' ? 'school_b_id'
         : sortField === 'visible' ? 'is_visible'
         : sortField;
-      
-      dataQuery = dataQuery.order(sortColumn, { ascending: sortDirection === 'asc' });
-      dataQuery = dataQuery.range(pagination.from, pagination.to);
+
+      dataQuery = dataQuery
+        .order(sortColumn, { ascending: sortDirection === 'asc' })
+        .range(pagination.from, pagination.to);
 
       const { data, error } = await dataQuery;
-
       if (error) throw error;
-      
-      let filteredData = data || [];
-      if (debouncedSearch) {
-        const query = debouncedSearch.toLowerCase();
-        filteredData = filteredData.filter(fixture => {
-          const schoolA = schools.get(fixture.school_a_id) || '';
-          const schoolB = schools.get(fixture.school_b_id) || '';
-          const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '';
-          const matchDate = format(new Date(fixture.match_date), 'MMM dd yyyy').toLowerCase();
-          
-          const venueName = fixture.venue_type === 'tournament' 
-            ? (fixture.tournament_id ? tournaments.get(fixture.tournament_id) || '' : '')
-            : (fixture.venue_id ? schools.get(fixture.venue_id) || '' : '');
-          return venueName.toLowerCase().includes(query) ||
-            schoolA.toLowerCase().includes(query) ||
-            schoolB.toLowerCase().includes(query) ||
-            tournamentName.toLowerCase().includes(query) ||
-            matchDate.includes(query);
-        });
-      }
 
-      setFixtures(filteredData);
-      
+      setFixtures(data || []);
+
       if (isManualRefresh) {
-        toast({
-          title: "Refreshed",
-          description: `Loaded ${data?.length || 0} fixtures`,
-        });
+        toast({ title: "Refreshed", description: `Loaded ${data?.length || 0} fixtures` });
       }
     } catch (error) {
       console.error('Error fetching fixtures:', error);
-      toast({
-        title: "Failed to Load Fixtures",
-        description: "Could not retrieve fixture data. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Failed to Load Fixtures", description: "Could not retrieve fixture data.", variant: "destructive" });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [pagination.from, pagination.to, debouncedSearch, statusFilter, dateRange, sortField, sortDirection, schools, tournaments, toast]);
+  }, [pagination.from, pagination.to, debouncedSearch, statusFilter, dateRange, sortField, sortDirection, getMatchingSchoolIds, applyFilters, toast]);
 
   useEffect(() => {
-    if (schools.size > 0) {
-      fetchFixtures();
-    }
+    if (schools.size > 0) fetchFixtures();
   }, [fetchFixtures, schools.size]);
-
-  const handleManualRefresh = () => {
-    fetchFixtures(true);
-  };
 
   const toggleVisibility = async (fixture: any) => {
     try {
@@ -194,28 +175,18 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         .from('fixtures')
         .update({ is_visible: !fixture.is_visible })
         .eq('id', fixture.id);
-
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Fixture ${fixture.is_visible ? 'hidden' : 'visible'}`,
-      });
-
+      toast({ title: "Success", description: `Fixture ${fixture.is_visible ? 'hidden' : 'visible'}` });
       fetchFixtures();
     } catch (error) {
       console.error('Error toggling visibility:', error);
-      toast({
-        title: "Update Failed",
-        description: "Could not update fixture visibility. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Update Failed", description: "Could not update fixture visibility.", variant: "destructive" });
     }
   };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortDirection('asc');
@@ -224,12 +195,10 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   };
 
   const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
-    }
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="h-4 w-4 ml-1" />
-      : <ArrowDown className="h-4 w-4 ml-1" />;
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
   };
 
   const clearFilters = () => {
@@ -243,44 +212,39 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     if (selectedIds.size === fixtures.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(fixtures.map((f) => f.id)));
+      setSelectedIds(new Set(fixtures.map(f => f.id)));
     }
   };
 
   const toggleSelectFixture = (id: string) => {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedIds(newSelected);
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
   };
 
-  const getSelectedFixturesWithNames = () => {
-    return fixtures
-      .filter((f) => selectedIds.has(f.id))
-      .map((f) => ({
+  const getSelectedFixturesWithNames = () =>
+    fixtures
+      .filter(f => selectedIds.has(f.id))
+      .map(f => ({
         ...f,
         schoolAName: schools.get(f.school_a_id) || "Unknown",
         schoolBName: schools.get(f.school_b_id) || "Unknown",
       }));
-  };
 
   const handleBulkYearSuccess = () => {
     setSelectedIds(new Set());
     fetchFixtures();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
-      case 'in_progress': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-      case 'final': return 'bg-green-500/20 text-green-400 border-green-500/50';
-      case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/50';
-      case 'holding': return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
-    }
+  const statusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      upcoming: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+      in_progress: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+      final: 'bg-green-500/20 text-green-400 border-green-500/50',
+      cancelled: 'bg-red-500/20 text-red-400 border-red-500/50',
+      holding: 'bg-gray-500/20 text-gray-400 border-gray-500/50',
+    };
+    return colors[status] || colors.holding;
   };
 
   if (loading && fixtures.length === 0) {
@@ -292,31 +256,20 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleManualRefresh}
-          disabled={refreshing}
-          className="gap-2"
-        >
-          <RefreshCcw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </Button>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-4">
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by school name or venue..."
+            placeholder="Search schools…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-9 text-xs"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -329,78 +282,70 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
           </SelectContent>
         </Select>
         <FixturesDateSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchFixtures(true)}
+          disabled={refreshing}
+          className="gap-1.5 h-9 text-xs"
+        >
+          <RefreshCcw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+          {refreshing ? "…" : "Refresh"}
+        </Button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {selectedIds.size > 0 && (
-            <span className="text-primary">
-              {selectedIds.size} selected
-            </span>
-          )}
-        </div>
-        {selectedIds.size > 0 && (
+      {/* Bulk actions */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-primary font-medium">{selectedIds.size} selected</span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setBulkYearDialogOpen(true)}
-            className="gap-2"
+            className="gap-1.5 h-7 text-xs"
           >
-            <Calendar className="h-4 w-4" />
+            <Calendar className="h-3 w-3" />
             Fix Year ({selectedIds.size})
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="rounded-lg border border-border bg-card">
+      {/* Table */}
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[40px]">
+              <TableHead className="w-8 px-2">
                 <Checkbox
                   checked={fixtures.length > 0 && selectedIds.size === fixtures.length}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('date')}>
-                <div className="flex items-center">Date {getSortIcon('date')}</div>
-              </TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('school_a')}>
-                <div className="flex items-center">School A {getSortIcon('school_a')}</div>
-              </TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('school_b')}>
-                <div className="flex items-center">School B {getSortIcon('school_b')}</div>
-              </TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('venue')}>
-                <div className="flex items-center">Venue {getSortIcon('venue')}</div>
-              </TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('tournament')}>
-                <div className="flex items-center">Tournament {getSortIcon('tournament')}</div>
-              </TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('status')}>
-                <div className="flex items-center">Status {getSortIcon('status')}</div>
-              </TableHead>
-              <TableHead>Score</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('visible')}>
-                <div className="flex items-center">Visible {getSortIcon('visible')}</div>
-              </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <SortableHead field="date" label="Date" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <SortableHead field="school_a" label="Home" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <SortableHead field="school_b" label="Away" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <TableHead className="text-xs px-2">Score</TableHead>
+              <SortableHead field="venue" label="Venue" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <SortableHead field="tournament" label="Tournament" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <SortableHead field="status" label="Status" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <TableHead className="text-xs px-2">Src</TableHead>
+              <SortableHead field="visible" label="Vis" current={sortField} direction={sortDirection} onSort={handleSort} getIcon={getSortIcon} />
+              <TableHead className="text-xs px-2 text-right">Act</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {fixtures.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="text-center py-8">
-                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground text-xs">
                     <p>
-                      {pagination.totalCount === 0 
+                      {pagination.totalCount === 0
                         ? "No fixtures loaded. Import CSV data to get started."
                         : "No matches found for your search"}
                     </p>
                     {(searchQuery || statusFilter !== "all") && (
-                      <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
-                        <RefreshCcw className="h-4 w-4" />
+                      <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1.5 h-7 text-xs">
+                        <RefreshCcw className="h-3 w-3" />
                         Clear filters
                       </Button>
                     )}
@@ -409,77 +354,88 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
               </TableRow>
             ) : (
               fixtures.map((fixture) => {
-                const schoolAName = schools.get(fixture.school_a_id) || 'Unknown School';
-                const schoolBName = schools.get(fixture.school_b_id) || 'Unknown School';
+                const schoolA = schools.get(fixture.school_a_id) || 'Unknown';
+                const schoolB = schools.get(fixture.school_b_id) || 'Unknown';
                 const tournamentName = fixture.tournament_id ? tournaments.get(fixture.tournament_id) : null;
-                
+                const hasScore = fixture.score_a !== null && fixture.score_b !== null;
+                const venueName = fixture.venue_type === 'tournament'
+                  ? (fixture.tournament_id ? tournaments.get(fixture.tournament_id) || 'Tournament' : 'Tournament')
+                  : fixture.venue_type === 'school' && fixture.venue_id
+                    ? (schools.get(fixture.venue_id) || 'TBD')
+                    : 'TBD';
+
                 return (
-                <TableRow key={fixture.id} className={selectedIds.has(fixture.id) ? "bg-muted/30" : ""}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(fixture.id)}
-                      onCheckedChange={() => toggleSelectFixture(fixture.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {format(new Date(fixture.match_date), 'MMM dd, yyyy')}
-                  </TableCell>
-                  <TableCell className="text-sm">{schoolAName}</TableCell>
-                  <TableCell className="text-sm">{schoolBName}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{
-                    fixture.venue_type === 'tournament' 
-                      ? (fixture.tournament_id ? tournaments.get(fixture.tournament_id) || 'Tournament' : 'Tournament')
-                      : fixture.venue_type === 'school' && fixture.venue_id
-                        ? (schools.get(fixture.venue_id) || 'TBD')
-                        : 'TBD'
-                  }</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{tournamentName || '-'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={getStatusColor(fixture.status)}>
-                      {fixture.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {(fixture.score_a !== null && fixture.score_b !== null) 
-                      ? `${fixture.score_a} - ${fixture.score_b}` 
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {fixture.source_url ? (
-                      <a 
-                        href={fixture.source_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-1"
-                      >
-                        Link
-                      </a>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => toggleVisibility(fixture)}
-                      title={fixture.is_visible ? "Hide fixture" : "Show fixture"}
-                    >
-                      {fixture.is_visible ? (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                  <TableRow
+                    key={fixture.id}
+                    className={cn(
+                      "group",
+                      selectedIds.has(fixture.id) && "bg-muted/30"
+                    )}
+                  >
+                    <TableCell className="px-2 py-1.5">
+                      <Checkbox
+                        checked={selectedIds.has(fixture.id)}
+                        onCheckedChange={() => toggleSelectFixture(fixture.id)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground px-2 py-1.5 whitespace-nowrap">
+                      {format(new Date(fixture.match_date), 'd MMM yy')}
+                    </TableCell>
+                    <TableCell className="text-xs px-2 py-1.5 max-w-[120px] truncate" title={schoolA}>
+                      {schoolA}
+                    </TableCell>
+                    <TableCell className="text-xs px-2 py-1.5 max-w-[120px] truncate" title={schoolB}>
+                      {schoolB}
+                    </TableCell>
+                    <TableCell className="text-xs text-center font-mono w-16 px-2 py-1.5">
+                      {hasScore ? (
+                        <>
+                          <span className={fixture.score_a > fixture.score_b ? "font-semibold" : "text-muted-foreground"}>
+                            {fixture.score_a}
+                          </span>
+                          {" - "}
+                          <span className={fixture.score_b > fixture.score_a ? "font-semibold" : "text-muted-foreground"}>
+                            {fixture.score_b}
+                          </span>
+                        </>
                       ) : (
-                        <EyeOff className="h-4 w-4 text-muted-foreground opacity-50" />
+                        <span className="text-muted-foreground">–</span>
                       )}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onEdit(fixture)}
-                    >
-                      <Edit className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground px-2 py-1.5 max-w-[100px] truncate" title={venueName}>
+                      {venueName}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground px-2 py-1.5 max-w-[100px] truncate" title={tournamentName || '-'}>
+                      {tournamentName || '-'}
+                    </TableCell>
+                    <TableCell className="px-2 py-1.5">
+                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", statusBadge(fixture.status))}>
+                        {fixture.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-2 py-1.5">
+                      {fixture.source_url ? (
+                        <a href={fixture.source_url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline">
+                          Link
+                        </a>
+                      ) : <span className="text-xs text-muted-foreground">–</span>}
+                    </TableCell>
+                    <TableCell className="px-2 py-1.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6"
+                        onClick={() => toggleVisibility(fixture)}
+                        title={fixture.is_visible ? "Hide" : "Show"}>
+                        {fixture.is_visible
+                          ? <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                          : <EyeOff className="h-3.5 w-3.5 text-muted-foreground opacity-50" />}
+                      </Button>
+                    </TableCell>
+                    <TableCell className="px-2 py-1.5 text-right">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(fixture)}>
+                        <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 );
               })
             )}
@@ -487,14 +443,38 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
         </Table>
       </div>
 
-      <PaginationControls pagination={pagination} />
+      <PaginationControls pagination={pagination} loading={loading} />
 
-      <BulkYearCorrectionDialog 
+      <BulkYearCorrectionDialog
         open={bulkYearDialogOpen}
         onOpenChange={setBulkYearDialogOpen}
         selectedFixtures={getSelectedFixturesWithNames()}
         onSuccess={handleBulkYearSuccess}
       />
     </div>
+  );
+}
+
+/* Compact sortable header cell */
+function SortableHead({
+  field, label, current, direction, onSort, getIcon,
+}: {
+  field: SortField;
+  label: string;
+  current: SortField;
+  direction: SortDirection;
+  onSort: (f: SortField) => void;
+  getIcon: (f: SortField) => React.ReactNode;
+}) {
+  return (
+    <TableHead
+      className="cursor-pointer select-none hover:bg-muted/50 text-xs px-2"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center">
+        {label}
+        {getIcon(field)}
+      </div>
+    </TableHead>
   );
 }
