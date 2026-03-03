@@ -85,7 +85,10 @@ export function SchoolMappingDialog({
                 key={name}
                 className="flex items-center gap-2 rounded-md border border-border p-3"
               >
-                <span className="text-sm font-medium min-w-0 truncate flex-1" title={name}>
+                <span
+                  className="text-sm font-medium min-w-0 flex-1 break-words"
+                  title={name}
+                >
                   "{name}"
                 </span>
                 <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -100,14 +103,17 @@ export function SchoolMappingDialog({
                       variant="outline"
                       role="combobox"
                       className="w-[200px] justify-between text-sm"
+                      title={mappings[name] ? schoolsById.get(mappings[name]) ?? "" : ""}
                     >
-                      {mappings[name]
-                        ? schoolsById.get(mappings[name]) ?? "Selected"
-                        : "Select school…"}
+                      <span className="truncate">
+                        {mappings[name]
+                          ? schoolsById.get(mappings[name]) ?? "Selected"
+                          : "Select school…"}
+                      </span>
                       <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[250px] p-0" align="end">
+                  <PopoverContent className="w-[300px] p-0" align="end">
                     <Command>
                       <CommandInput placeholder="Search schools…" />
                       <CommandList>
@@ -118,16 +124,17 @@ export function SchoolMappingDialog({
                               key={school.id}
                               value={school.name}
                               onSelect={() => handleSelect(name, school.id)}
+                              title={school.name}
                             >
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4",
+                                  "mr-2 h-4 w-4 shrink-0",
                                   mappings[name] === school.id
                                     ? "opacity-100"
                                     : "opacity-0"
                                 )}
                               />
-                              {school.name}
+                              <span className="break-words">{school.name}</span>
                             </CommandItem>
                           ))}
                         </CommandGroup>
