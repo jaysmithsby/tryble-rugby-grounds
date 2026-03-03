@@ -72,7 +72,7 @@ export function RecentResultsTable({ schoolId }: RecentResultsTableProps) {
             forCount ? { count: "exact", head: true } : undefined
           )
           .or(`school_a_id.eq.${schoolId},school_b_id.eq.${schoolId}`)
-          .eq("status", "completed")
+          .in("status", ["completed", "final"])
           .not("score_a", "is", null)
           .not("score_b", "is", null);
 
