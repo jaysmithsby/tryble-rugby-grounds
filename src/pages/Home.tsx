@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import trybalLogo from "@/assets/trybal-logo.png";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 import { supabase } from "@/integrations/supabase/client";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
@@ -86,6 +88,14 @@ const Home = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-fixtures"] });
+    await queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
+    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-tournaments"] });
+  }, [queryClient]);
+
+  const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({ onRefresh: handleRefresh });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -98,8 +108,9 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div ref={containerRef} className="min-h-screen bg-background pb-20 overflow-auto">
       <GlobalHeader />
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <div className="space-y-1.5">
