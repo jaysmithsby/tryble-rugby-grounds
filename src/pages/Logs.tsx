@@ -5,9 +5,7 @@ import { Trophy, CheckCircle2, XCircle, Share2, Flame, Target, BarChart3 } from 
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -21,7 +19,6 @@ import { toast } from "sonner";
 const Logs = () => {
   const navigate = useNavigate();
 
-  // Auth check
   const { data: session, isLoading: sessionLoading } = useQuery({
     queryKey: ["session"],
     queryFn: async () => {
@@ -38,7 +35,6 @@ const Logs = () => {
 
   const userId = session?.user?.id;
 
-  // Fetch user's scored predictions with fixture + school data
   const { data: predictions, isLoading: predictionsLoading } = useQuery({
     queryKey: ["user-predictions-log", userId],
     queryFn: async () => {
@@ -57,7 +53,6 @@ const Logs = () => {
     enabled: !!userId,
   });
 
-  // Sort predictions by match_date DESC
   const sortedPredictions = useMemo(() => {
     if (!predictions) return [];
     return [...predictions].sort((a, b) => {
@@ -67,13 +62,11 @@ const Logs = () => {
     });
   }, [predictions]);
 
-  // Get fixture IDs for community avg query
   const fixtureIds = useMemo(
     () => sortedPredictions.map((p) => p.fixture_id),
     [sortedPredictions]
   );
 
-  // Fetch community averages
   const { data: communityAvgs } = useQuery({
     queryKey: ["community-avg", fixtureIds],
     queryFn: async () => {
@@ -95,34 +88,27 @@ const Logs = () => {
     return map;
   }, [communityAvgs]);
 
-  // Analytics
   const analytics = useMemo(() => {
     if (!sortedPredictions.length)
-      return { participation: 0, total: 0, efficiency: 0, streak: 0 };
+      return { participation: 0, efficiency: 0, streak: 0 };
 
     const scored = sortedPredictions.filter((p) => p.points_earned != null);
     const totalPoints = scored.reduce((s, p) => s + (p.points_earned ?? 0), 0);
     const efficiency = scored.length > 0 ? totalPoints / scored.length : 0;
 
-    // Streak: consecutive with points >= 3 (correct winner)
     let streak = 0;
     for (const p of sortedPredictions) {
-      if ((p.points_earned ?? 0) >= 3) {
-        streak++;
-      } else {
-        break;
-      }
+      if ((p.points_earned ?? 0) >= 3) streak++;
+      else break;
     }
 
     return {
       participation: scored.length,
-      total: scored.length, // we only have scored predictions
       efficiency: Math.round(efficiency * 10) / 10,
       streak,
     };
   }, [sortedPredictions]);
 
-  // Form guide: last 8
   const formGuide = useMemo(
     () => sortedPredictions.slice(0, 8),
     [sortedPredictions]
@@ -138,134 +124,96 @@ const Logs = () => {
         toast.success("Copied to clipboard!");
       }
     } catch {
-      // user cancelled share
+      // user cancelled
     }
   };
 
   const getFormIcon = (points: number | null) => {
     if (points == null) return null;
-    if (points >= 5)
-      return <CheckCircle2 className="w-5 h-5 text-yellow-500" />;
-    if (points >= 3)
-      return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-    return <XCircle className="w-5 h-5 text-destructive" />;
+    if (points >= 5) return <CheckCircle2 className="w-4 h-4 text-yellow-500" />;
+    if (points >= 3) return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+    return <XCircle className="w-4 h-4 text-destructive" />;
   };
 
-  if (sessionLoading) {
+  if (sessionLoading || predictionsLoading) {
     return (
-      <div className="min-h-screen bg-background pb-24">
-        <GlobalHeader />
-        <div className="container mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-        <BottomNav />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading logs...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-20">
       <GlobalHeader />
 
-      <div className="container mx-auto px-4 py-6 max-w-2xl space-y-6">
+      <main className="container mx-auto px-4 py-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-7 h-7 text-yellow-500" />
-            <h1 className="text-2xl font-bold">Personal Logs</h1>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShare}
-            className="gap-1.5"
-          >
-            <Share2 className="w-4 h-4" />
+          <h1 className="text-lg font-semibold flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-500" />
+            Personal Logs
+          </h1>
+          <Button variant="ghost" size="sm" onClick={handleShare} className="gap-1.5 text-xs">
+            <Share2 className="w-3.5 h-3.5" />
             Share
           </Button>
         </div>
 
-        {predictionsLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-64 w-full" />
+        {sortedPredictions.length === 0 ? (
+          <div className="text-center py-16">
+            <Trophy className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />
+            <h3 className="font-semibold mb-1">No scored predictions yet</h3>
+            <p className="text-sm text-muted-foreground">
+              Start calling matches to see your stats here!
+            </p>
           </div>
-        ) : sortedPredictions.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Trophy className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">
-                No scored predictions yet. Start calling matches to see your
-                stats here!
-              </p>
-            </CardContent>
-          </Card>
         ) : (
           <>
-            {/* Analytics Grid */}
-            <div className="grid grid-cols-3 gap-3">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Target className="w-5 h-5 mx-auto text-primary mb-1" />
-                  <p className="text-2xl font-bold">{analytics.participation}</p>
-                  <p className="text-xs text-muted-foreground">Predictions</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <BarChart3 className="w-5 h-5 mx-auto text-primary mb-1" />
-                  <p className="text-2xl font-bold">{analytics.efficiency}</p>
-                  <p className="text-xs text-muted-foreground">Avg Pts / 6.0</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <Flame className="w-5 h-5 mx-auto text-orange-500 mb-1" />
-                  <p className="text-2xl font-bold">{analytics.streak}</p>
-                  <p className="text-xs text-muted-foreground">Win Streak</p>
-                </CardContent>
-              </Card>
+            {/* Analytics Row */}
+            <div className="flex items-center justify-between py-3 border-y border-border/40">
+              <div className="flex items-center gap-1.5 text-center">
+                <Target className="w-4 h-4 text-primary" />
+                <span className="font-mono text-sm font-bold">{analytics.participation}</span>
+                <span className="text-xs text-muted-foreground">Picks</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-center">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                <span className="font-mono text-sm font-bold">{analytics.efficiency}</span>
+                <span className="text-xs text-muted-foreground">Avg/6</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-center">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="font-mono text-sm font-bold">{analytics.streak}</span>
+                <span className="text-xs text-muted-foreground">Streak</span>
+              </div>
             </div>
 
             {/* Form Guide */}
             {formGuide.length > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Form Guide (Last {formGuide.length})
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    {formGuide.map((p) => (
-                      <div key={p.id} className="flex flex-col items-center">
-                        {getFormIcon(p.points_earned)}
-                        <span className="text-[10px] text-muted-foreground mt-0.5">
-                          {p.points_earned}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">Form</span>
+                <div className="flex gap-1.5">
+                  {formGuide.map((p) => (
+                    <div key={p.id} className="flex flex-col items-center">
+                      {getFormIcon(p.points_earned)}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* History Table */}
-            <Card>
-              <CardContent className="p-0">
+            <section>
+              <h2 className="text-sm font-semibold text-muted-foreground mb-3">Match History</h2>
+              <div className="divide-y divide-border/40">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs">Matchup</TableHead>
-                      <TableHead className="text-xs text-center">
-                        Actual (Diff)
-                      </TableHead>
-                      <TableHead className="text-xs text-center">
-                        Your Call
-                      </TableHead>
-                      <TableHead className="text-xs text-center">
-                        Comm.
-                      </TableHead>
+                      <TableHead className="text-xs px-2">Matchup</TableHead>
+                      <TableHead className="text-xs text-center px-1">Result</TableHead>
+                      <TableHead className="text-xs text-center px-1">Call</TableHead>
+                      <TableHead className="text-xs text-center px-1">Comm.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -274,73 +222,62 @@ const Logs = () => {
                       if (!fixture) return null;
                       const schoolA = fixture.school_a?.name ?? "?";
                       const schoolB = fixture.school_b?.name ?? "?";
-                      const hasScores =
-                        fixture.score_a != null && fixture.score_b != null;
-                      const actualDiff = hasScores
-                        ? Math.abs(fixture.score_a - fixture.score_b)
-                        : null;
+                      const hasScores = fixture.score_a != null && fixture.score_b != null;
+                      const actualDiff = hasScores ? Math.abs(fixture.score_a - fixture.score_b) : null;
                       const pts = pred.points_earned ?? 0;
                       const commAvg = communityMap[pred.fixture_id];
 
                       return (
                         <TableRow key={pred.id}>
-                          <TableCell className="text-xs py-2 max-w-[120px]">
-                            <span className="line-clamp-2">
-                              {schoolA} vs {schoolB}
-                            </span>
+                          <TableCell className="text-xs py-2 px-2 max-w-[110px]">
+                            <span className="line-clamp-1">{schoolA} v {schoolB}</span>
                           </TableCell>
-                          <TableCell className="text-xs text-center py-2">
+                          <TableCell className="text-xs text-center py-2 px-1 font-mono">
                             {hasScores ? (
                               <>
-                                {fixture.score_a}-{fixture.score_b}{" "}
-                                <span className="text-muted-foreground">
-                                  ({actualDiff})
-                                </span>
+                                {fixture.score_a}-{fixture.score_b}
+                                <span className="text-muted-foreground ml-0.5">({actualDiff})</span>
                               </>
-                            ) : (
-                              "—"
-                            )}
+                            ) : "—"}
                           </TableCell>
-                          <TableCell className="text-xs text-center py-2">
+                          <TableCell className="text-xs text-center py-2 px-1">
                             <span
-                              className={
+                              className={`font-mono ${
                                 pts >= 5
                                   ? "font-bold text-yellow-500"
                                   : pts >= 3
                                   ? "font-medium text-green-500"
                                   : "text-muted-foreground"
-                              }
+                              }`}
                             >
-                              ±{pred.predicted_margin} → {pts}pts
+                              ±{pred.predicted_margin} → {pts}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs text-center py-2 text-muted-foreground">
-                            {commAvg != null ? `${commAvg}` : "—"}
+                          <TableCell className="text-xs text-center py-2 px-1 font-mono text-muted-foreground">
+                            {commAvg != null ? commAvg : "—"}
                           </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
 
             {/* Scoring Guide */}
-            <Card className="border-dashed">
-              <CardContent className="p-4 text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground text-sm mb-1">
-                  Scoring Guide
-                </p>
+            <section>
+              <h2 className="text-sm font-semibold text-muted-foreground mb-2">Scoring Guide</h2>
+              <div className="text-xs text-muted-foreground space-y-0.5 pl-1">
                 <p>🎯 Correct winner = 4 pts</p>
                 <p>📏 + Margin within 7 = 5 pts</p>
                 <p>💎 + Exact margin = 6 pts</p>
                 <p>❌ Wrong winner, margin within 7 = 1 pt</p>
                 <p>❌ Wrong winner, margin off = 0 pts</p>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </>
         )}
-      </div>
+      </main>
 
       <BottomNav />
     </div>
