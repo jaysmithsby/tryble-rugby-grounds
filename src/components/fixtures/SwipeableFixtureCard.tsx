@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { motion, AnimatePresence, PanInfo, useMotionValue, useTransform } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 
 interface SwipeableFixtureCardProps {
   fixtureId: string;
@@ -8,63 +8,86 @@ interface SwipeableFixtureCardProps {
 }
 
 const SWIPE_THRESHOLD = 80;
+const INTENT_LOCK_THRESHOLD = 8;
 
 export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: SwipeableFixtureCardProps) {
   const [isDismissing, setIsDismissing] = useState(false);
   const x = useMotionValue(0);
   const opacity = useTransform(x, [-200, -80, 0], [0.3, 0.8, 1]);
-  const wasDragged = useRef(false);
-  const isVerticalScroll = useRef(false);
-  const directionLocked = useRef(false);
 
-  const resetGestureState = useCallback(() => {
-    isVerticalScroll.current = false;
-    directionLocked.current = false;
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const lockedDirection = useRef<"horizontal" | "vertical" | null>(null);
+  const isTouching = useRef(false);
+  const wasDragged = useRef(false);
+
+  const resetGesture = useCallback(() => {
+    isTouching.current = false;
+    lockedDirection.current = null;
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    startX.current = touch.clientX;
+    startY.current = touch.clientY;
+    lockedDirection.current = null;
+    isTouching.current = true;
     wasDragged.current = false;
   }, []);
 
-  const handlePointerDown = useCallback(() => {
-    resetGestureState();
-  }, [resetGestureState]);
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isTouching.current || e.touches.length !== 1) return;
 
-  const handlePointerCancel = useCallback(() => {
-    resetGestureState();
-    x.set(0);
-  }, [resetGestureState, x]);
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - startX.current;
+    const deltaY = touch.clientY - startY.current;
 
-  const handleDrag = useCallback((_: any, info: PanInfo) => {
-    if (!directionLocked.current) {
-      const absX = Math.abs(info.offset.x);
-      const absY = Math.abs(info.offset.y);
-      if (absX > 8 || absY > 8) {
-        directionLocked.current = true;
-        isVerticalScroll.current = absY > absX;
-      }
+    if (!lockedDirection.current) {
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      if (absX < INTENT_LOCK_THRESHOLD && absY < INTENT_LOCK_THRESHOLD) return;
+
+      lockedDirection.current = absX > absY ? "horizontal" : "vertical";
     }
 
-    if (isVerticalScroll.current) {
+    if (lockedDirection.current === "vertical") {
       x.set(0);
       return;
     }
 
-    if (Math.abs(info.offset.x) > 10) {
+    // Horizontal swipe only; clamp so card cannot be dragged right.
+    const nextX = Math.max(-150, Math.min(0, deltaX));
+    x.set(nextX);
+
+    if (Math.abs(nextX) > 10) {
       wasDragged.current = true;
     }
+
+    // Prevent browser from treating it as page scroll once horizontal intent is locked.
+    e.preventDefault();
   }, [x]);
 
-  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
-    if (isVerticalScroll.current) {
-      x.set(0);
-      return;
-    }
+  const handleTouchEnd = useCallback(() => {
+    if (!isTouching.current) return;
 
-    if (info.offset.x < -SWIPE_THRESHOLD && Math.abs(info.offset.y) < Math.abs(info.offset.x)) {
+    const finalX = x.get();
+
+    if (lockedDirection.current === "horizontal" && finalX <= -SWIPE_THRESHOLD) {
       setIsDismissing(true);
+      resetGesture();
       return;
     }
 
     x.set(0);
-  }, [x]);
+    resetGesture();
+  }, [resetGesture, x]);
+
+  const handleTouchCancel = useCallback(() => {
+    x.set(0);
+    resetGesture();
+  }, [resetGesture, x]);
 
   const handleExitComplete = useCallback(() => {
     onDismiss(fixtureId);
@@ -85,14 +108,10 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
           key={fixtureId}
           className="touch-pan-y"
           style={{ x, opacity, overflow: "hidden", touchAction: "pan-y" }}
-          drag="x"
-          dragConstraints={{ left: -150, right: 0 }}
-          dragElastic={{ left: 0.15, right: 0 }}
-          dragMomentum={false}
-          onPointerDown={handlePointerDown}
-          onPointerCancel={handlePointerCancel}
-          onDrag={handleDrag}
-          onDragEnd={handleDragEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
           onClickCapture={handleClickCapture}
           exit={{
             x: -400,
