@@ -220,22 +220,27 @@ const Fixtures = () => {
           paginatedMyGroups.map((group) => (
             <FixtureDateGroup key={group.date.toISOString()} date={group.date} fixtureCount={group.fixtures.length}>
               {group.fixtures.map((fixture) => (
-                <FixtureListCard
+                <SwipeableFixtureCard
                   key={fixture.id}
-                  fixture={{
-                    id: fixture.id,
-                    match_date: fixture.match_date,
-                    venue_type: fixture.venue_type,
-                    venue_id: fixture.venue_id,
-                    status: fixture.status,
-                    school_a: fixture.school_a,
-                    school_b: fixture.school_b,
-                    tournament: fixture.tournament_edition?.tournament ?? null,
-                  }}
-                  isPredicted={!!predictionsMap[fixture.id]}
-                  userPrediction={predictionsMap[fixture.id]}
-                  onPredictionSubmit={handlePredictionSubmit}
-                />
+                  fixtureId={fixture.id}
+                  onDismiss={(id) => setDismissedIds(prev => new Set(prev).add(id))}
+                >
+                  <FixtureListCard
+                    fixture={{
+                      id: fixture.id,
+                      match_date: fixture.match_date,
+                      venue_type: fixture.venue_type,
+                      venue_id: fixture.venue_id,
+                      status: fixture.status,
+                      school_a: fixture.school_a,
+                      school_b: fixture.school_b,
+                      tournament: fixture.tournament_edition?.tournament ?? null,
+                    }}
+                    isPredicted={!!predictionsMap[fixture.id]}
+                    userPrediction={predictionsMap[fixture.id]}
+                    onPredictionSubmit={handlePredictionSubmit}
+                  />
+                </SwipeableFixtureCard>
               ))}
             </FixtureDateGroup>
           ))}
