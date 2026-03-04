@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import { Button } from "@/components/ui/button";
+import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
 import {
   Table,
   TableBody,
@@ -264,17 +265,8 @@ const Logs = () => {
               </div>
             </section>
 
-            {/* Scoring Guide */}
-            <section>
-              <h2 className="text-sm font-semibold text-muted-foreground mb-2">Scoring Guide</h2>
-              <div className="text-xs text-muted-foreground space-y-0.5 pl-1">
-                <p>🎯 Correct winner = 4 pts</p>
-                <p>📏 + Margin within 7 = 5 pts</p>
-                <p>💎 + Exact margin = 6 pts</p>
-                <p>❌ Wrong winner, margin within 7 = 1 pt</p>
-                <p>❌ Wrong winner, margin off = 0 pts</p>
-              </div>
-            </section>
+            {/* Scoring Info */}
+            <ScoringInfoCard />
           </>
         )}
       </main>
