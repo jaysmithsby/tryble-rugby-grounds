@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Star, Users, Trophy, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
