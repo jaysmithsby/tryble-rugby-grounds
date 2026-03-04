@@ -119,16 +119,24 @@ const Logs = () => {
   );
 
   const handleShare = async () => {
-    const text = `🏉 My Trybal Stats: ${analytics.efficiency}/6.0 pts | 🔥 ${analytics.streak} Win Streak. Join the scrum at ${window.location.origin}!`;
+    const text = `🏉 My Trybal Stats: ${analytics.efficiency}/6.0 pts | 🔥 ${analytics.streak} Win Streak. Join the scrum!`;
+    const shareData = {
+      title: "My Trybal Stats",
+      text,
+      url: window.location.origin,
+    };
     try {
-      if (navigator.share) {
-        await navigator.share({ text });
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(`${text} ${window.location.origin}`);
         toast.success("Copied to clipboard!");
       }
-    } catch {
-      // user cancelled
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        await navigator.clipboard.writeText(`${text} ${window.location.origin}`);
+        toast.success("Copied to clipboard!");
+      }
     }
   };
 
