@@ -205,6 +205,12 @@ async function mapRow(
     }
   }
 
+  // If a tournament name was provided but we couldn't resolve an edition, skip the fixture
+  if (tName && !tournamentId) {
+    errors.push({ row: rowNum, message: `Skipped: No tournament edition resolved for '${tName}' (${year})` });
+    return { fixture: null, errors };
+  }
+
   // Resolve venue school for non-tournament types
   if (venueType !== "tournament") {
     const venueSchoolName = row.venue_school?.trim();
