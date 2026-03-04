@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import { FixturesFilters } from "@/components/fixtures/FixturesFilters";
@@ -12,6 +13,8 @@ import { usePreloadJerseyImages } from "@/components/ui/SchoolJerseyImage";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 const Fixtures = () => {
   const { toast } = useToast();
