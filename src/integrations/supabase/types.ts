@@ -483,8 +483,7 @@ export type Database = {
           is_fake: boolean
           points_earned: number | null
           predicted_margin: number
-          predicted_school_id: string
-          predicted_team: string
+          predicted_school_id: string | null
           updated_at: string
           user_id: string
         }
@@ -495,8 +494,7 @@ export type Database = {
           is_fake?: boolean
           points_earned?: number | null
           predicted_margin: number
-          predicted_school_id: string
-          predicted_team: string
+          predicted_school_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -507,8 +505,7 @@ export type Database = {
           is_fake?: boolean
           points_earned?: number | null
           predicted_margin?: number
-          predicted_school_id?: string
-          predicted_team?: string
+          predicted_school_id?: string | null
           updated_at?: string
           user_id?: string
         }
