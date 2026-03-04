@@ -7,6 +7,7 @@ import GlobalHeader from "@/components/GlobalHeader";
 import { FixturesFilters } from "@/components/fixtures/FixturesFilters";
 import { FixtureDateGroup } from "@/components/fixtures/FixtureDateGroup";
 import { FixtureListCard } from "@/components/fixtures/FixtureListCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { useFixturesData } from "@/hooks/useFixturesData";
 import { usePreloadJerseyImages } from "@/components/ui/SchoolJerseyImage";
