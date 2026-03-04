@@ -26,9 +26,8 @@ interface FixtureWithSchools {
 
 interface UserPrediction {
   fixture_id: string;
-  predicted_team: string;
   predicted_margin: number;
-  predicted_school_id: string;
+  predicted_school_id: string | null;
 }
 
 interface UseFixturesDataOptions {
