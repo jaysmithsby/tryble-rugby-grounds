@@ -8,21 +8,24 @@ interface SwipeableFixtureCardProps {
 }
 
 const SWIPE_THRESHOLD = 80;
-const VERTICAL_LOCK = 15; // If vertical movement exceeds this before horizontal, cancel drag
 
 export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: SwipeableFixtureCardProps) {
   const [isDismissing, setIsDismissing] = useState(false);
   const x = useMotionValue(0);
   const opacity = useTransform(x, [-200, -80, 0], [0.3, 0.8, 1]);
-  const isDragging = useRef(false);
+  const wasDragged = useRef(false);
 
   const handleDragStart = useCallback(() => {
-    isDragging.current = true;
+    wasDragged.current = false;
+  }, []);
+
+  const handleDrag = useCallback((_: any, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > 10) {
+      wasDragged.current = true;
+    }
   }, []);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
-    isDragging.current = false;
-    // Only dismiss on clear horizontal left swipe
     if (info.offset.x < -SWIPE_THRESHOLD && Math.abs(info.offset.y) < Math.abs(info.offset.x)) {
       setIsDismissing(true);
     }
@@ -31,6 +34,15 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
   const handleExitComplete = useCallback(() => {
     onDismiss(fixtureId);
   }, [onDismiss, fixtureId]);
+
+  // Prevent click events from firing after a swipe gesture
+  const handleClickCapture = useCallback((e: React.MouseEvent) => {
+    if (wasDragged.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      wasDragged.current = false;
+    }
+  }, []);
 
   return (
     <AnimatePresence onExitComplete={handleExitComplete}>
@@ -44,7 +56,9 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
           dragElastic={{ left: 0.15, right: 0 }}
           dragMomentum={false}
           onDragStart={handleDragStart}
+          onDrag={handleDrag}
           onDragEnd={handleDragEnd}
+          onClickCapture={handleClickCapture}
           exit={{
             x: -400,
             opacity: 0,
