@@ -149,9 +149,9 @@ const CenterArea = ({
           <span className={cn("font-mono text-muted-foreground", scoreSizeClass)}>-</span>
           <span className={cn("font-mono font-semibold text-muted-foreground text-left", scoreSizeClass)}>?</span>
         </div>
-        {isPredicted && predictedSchoolName && (
+        {isPredicted && (
           <span className="text-[10px] text-muted-foreground text-center leading-tight">
-            {predictedSchoolName} by {predictedMargin}
+            {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
           </span>
         )}
       </div>
