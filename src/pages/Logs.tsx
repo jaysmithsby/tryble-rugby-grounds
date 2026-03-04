@@ -54,11 +54,13 @@ const Logs = () => {
 
   const sortedPredictions = useMemo(() => {
     if (!predictions) return [];
-    return [...predictions].sort((a, b) => {
-      const dateA = (a.fixture as any)?.match_date || "";
-      const dateB = (b.fixture as any)?.match_date || "";
-      return dateB.localeCompare(dateA);
-    });
+    return [...predictions]
+      .filter((p: any) => (p.fixture as any)?.status !== "cancelled")
+      .sort((a, b) => {
+        const dateA = (a.fixture as any)?.match_date || "";
+        const dateB = (b.fixture as any)?.match_date || "";
+        return dateB.localeCompare(dateA);
+      });
   }, [predictions]);
 
   const visiblePredictions = useMemo(
@@ -102,7 +104,7 @@ const Logs = () => {
 
     let streak = 0;
     for (const p of sortedPredictions) {
-      if ((p.points_earned ?? 0) >= 3) streak++;
+      if ((p.points_earned ?? 0) >= 4) streak++;
       else break;
     }
 
@@ -142,8 +144,8 @@ const Logs = () => {
 
   const getFormIcon = (points: number | null) => {
     if (points == null) return null;
-    if (points >= 5) return <CheckCircle2 className="w-4 h-4 text-yellow-500" />;
-    if (points >= 3) return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+    if (points > 4) return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+    if (points === 4) return <CheckCircle2 className="w-4 h-4 text-yellow-500" />;
     return <XCircle className="w-4 h-4 text-destructive" />;
   };
 
@@ -245,10 +247,10 @@ const Logs = () => {
                         </span>
                         <span
                           className={`font-mono tabular-nums text-center ${
-                            pts >= 5
-                              ? "font-bold text-yellow-500"
-                              : pts >= 3
-                              ? "font-medium text-green-500"
+                            pts > 4
+                              ? "font-bold text-green-500"
+                              : pts === 4
+                              ? "font-medium text-yellow-500"
                               : ""
                           }`}
                         >
