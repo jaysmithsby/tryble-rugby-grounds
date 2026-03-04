@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, CheckCircle2, XCircle, Share2, Flame, Target, BarChart3 } from "lucide-react";
+import { Trophy, CheckCircle2, XCircle, Share2, Flame, Target, BarChart3, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -9,8 +9,13 @@ import { Button } from "@/components/ui/button";
 import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
 import { toast } from "sonner";
 
+const INITIAL_COUNT = 5;
+const MAX_COUNT = 20;
+
 const Logs = () => {
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
+  const [showAll, setShowAll] = useState(false);
 
   const { data: session, isLoading: sessionLoading } = useQuery({
     queryKey: ["session"],
@@ -29,7 +34,7 @@ const Logs = () => {
   const userId = session?.user?.id;
 
   const { data: predictions, isLoading: predictionsLoading } = useQuery({
-    queryKey: ["user-predictions-log", userId],
+    queryKey: ["user-predictions-log", userId, currentYear],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("predictions")
@@ -38,10 +43,11 @@ const Logs = () => {
         )
         .eq("user_id", userId!)
         .not("points_earned", "is", null)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(MAX_COUNT);
 
       if (error) throw error;
-      return data;
+      return (data ?? []).filter((p: any) => p.fixture?.year === currentYear);
     },
     enabled: !!userId,
   });
@@ -54,6 +60,11 @@ const Logs = () => {
       return dateB.localeCompare(dateA);
     });
   }, [predictions]);
+
+  const visiblePredictions = useMemo(
+    () => (showAll ? sortedPredictions : sortedPredictions.slice(0, INITIAL_COUNT)),
+    [sortedPredictions, showAll]
+  );
 
   const fixtureIds = useMemo(
     () => sortedPredictions.map((p) => p.fixture_id),
@@ -141,7 +152,6 @@ const Logs = () => {
       <GlobalHeader />
 
       <main className="container mx-auto px-4 py-4 space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold flex items-center gap-2">
             <Trophy className="w-5 h-5 text-yellow-500" />
@@ -196,11 +206,13 @@ const Logs = () => {
               </div>
             )}
 
-            {/* History Table */}
+            {/* Match History */}
             <section>
-              <h2 className="text-sm font-semibold text-muted-foreground mb-3">Match History</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground mb-3">
+                Match History ({currentYear})
+              </h2>
               <div className="divide-y divide-border/40">
-                {sortedPredictions.map((pred) => {
+                {visiblePredictions.map((pred) => {
                   const fixture = pred.fixture as any;
                   if (!fixture) return null;
                   const schoolA = fixture.school_a?.name ?? "?";
@@ -243,9 +255,21 @@ const Logs = () => {
                   );
                 })}
               </div>
+
+              {/* Load More / Show Less */}
+              {sortedPredictions.length > INITIAL_COUNT && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2 text-xs gap-1.5"
+                  onClick={() => setShowAll((prev) => !prev)}
+                >
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAll ? "rotate-180" : ""}`} />
+                  {showAll ? "Show less" : `Show all ${sortedPredictions.length} matches`}
+                </Button>
+              )}
             </section>
 
-            {/* Scoring Info */}
             <ScoringInfoCard />
           </>
         )}
