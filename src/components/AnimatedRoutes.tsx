@@ -74,6 +74,7 @@ function KeepAlivePage({ path, element, isActive }: { path: string; element: Rea
 }
 
 export const AnimatedRoutes = () => {
+  useSwipeNavigation();
   const location = useLocation();
   const [visitedPaths, setVisitedPaths] = useState<Set<string>>(new Set());
 
