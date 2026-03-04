@@ -8,6 +8,7 @@ import GlobalHeader from "@/components/GlobalHeader";
 import { Button } from "@/components/ui/button";
 import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
 import { toast } from "sonner";
+import { useUserStats } from "@/hooks/useUserStats";
 
 const INITIAL_COUNT = 5;
 const MAX_COUNT = 20;
@@ -32,6 +33,7 @@ const Logs = () => {
   }, [session, sessionLoading, navigate]);
 
   const userId = session?.user?.id;
+  const { currentStreak } = useUserStats(userId);
 
   const { data: predictions, isLoading: predictionsLoading } = useQuery({
     queryKey: ["user-predictions-log", userId, currentYear],
@@ -96,22 +98,15 @@ const Logs = () => {
 
   const analytics = useMemo(() => {
     if (!sortedPredictions.length)
-      return { participation: 0, efficiency: 0, streak: 0 };
+      return { participation: 0, efficiency: 0 };
 
     const scored = sortedPredictions.filter((p) => p.points_earned != null);
     const totalPoints = scored.reduce((s, p) => s + (p.points_earned ?? 0), 0);
     const efficiency = scored.length > 0 ? totalPoints / scored.length : 0;
 
-    let streak = 0;
-    for (const p of sortedPredictions) {
-      if ((p.points_earned ?? 0) >= 4) streak++;
-      else break;
-    }
-
     return {
       participation: scored.length,
       efficiency: Math.round(efficiency * 10) / 10,
-      streak,
     };
   }, [sortedPredictions]);
 
@@ -121,7 +116,7 @@ const Logs = () => {
   );
 
   const handleShare = async () => {
-    const text = `🏉 My Trybal Stats: ${analytics.efficiency}/6.0 pts | 🔥 ${analytics.streak} Win Streak. Join the scrum!`;
+    const text = `🏉 My Trybal Stats: ${analytics.efficiency}/6.0 pts | 🔥 ${currentStreak} Week Streak. Join the scrum!`;
     const shareData = {
       title: "My Trybal Stats",
       text,
@@ -197,7 +192,7 @@ const Logs = () => {
               </div>
               <div className="flex items-center gap-1.5 text-center">
                 <Flame className="w-4 h-4 text-orange-500" />
-                <span className="font-mono text-sm font-bold">{analytics.streak}</span>
+                <span className="font-mono text-sm font-bold">{currentStreak}</span>
                 <span className="text-xs text-muted-foreground">Streak</span>
               </div>
             </div>
