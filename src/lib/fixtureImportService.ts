@@ -439,19 +439,8 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
   // If no unknowns at all, import immediately
   if (unknownSchools.length === 0 && unknownTournaments.length === 0) {
     const { validFixtures, allErrors } = await runImport(rows, maps);
-    const existingFps = await fetchExistingFingerprints(validFixtures);
-    const newFixtures = validFixtures.filter((f) => {
-      const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
-      if (existingFps.has(fp)) {
-        allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
-        return false;
-      }
-      return true;
-    });
-    const skipped = validFixtures.length - newFixtures.length;
-    let inserted = 0;
-    if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
-    return { unknownSchools: [], unknownTournaments: [], allSchools, allTournaments, maps, rows, importResult: { inserted, skipped, errors: allErrors } };
+    const { inserted, updated, skipped } = await deduplicateAndImport(validFixtures, allErrors);
+    return { unknownSchools: [], unknownTournaments: [], allSchools, allTournaments, maps, rows, importResult: { inserted, updated, skipped, errors: allErrors } };
   }
 
   return { unknownSchools: unknownSchools.sort(), unknownTournaments: unknownTournaments.sort(), allSchools, allTournaments, maps, rows };
