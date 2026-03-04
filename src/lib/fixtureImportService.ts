@@ -339,6 +339,40 @@ async function updateExistingScores(
   return updated;
 }
 
+// ── Shared dedup + score-update logic ───────────────────────────────────────
+
+async function deduplicateAndImport(
+  validFixtures: FixtureInsert[],
+  allErrors: ImportError[]
+): Promise<{ inserted: number; updated: number; skipped: number }> {
+  const existingMap = await fetchExistingFixtures(validFixtures);
+  const newFixtures: FixtureInsert[] = [];
+  const scoreUpdates: { id: string; score_a: number; score_b: number; status: string }[] = [];
+  let skipped = 0;
+
+  for (const f of validFixtures) {
+    const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
+    const existing = existingMap.get(fp);
+    if (existing) {
+      if (f.score_a !== null && f.score_b !== null && (existing.score_a === null || existing.score_b === null)) {
+        scoreUpdates.push({ id: existing.id, score_a: f.score_a, score_b: f.score_b, status: "final" });
+        allErrors.push({ row: 0, message: `Updated score: Existing fixture (${f.match_date.substring(0, 10)}) updated with score ${f.score_a}-${f.score_b}` });
+      } else {
+        skipped++;
+        allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
+      }
+    } else {
+      newFixtures.push(f);
+    }
+  }
+
+  let inserted = 0;
+  if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
+  const updated = await updateExistingScores(scoreUpdates);
+
+  return { inserted, updated, skipped };
+}
+
 // ── Import core (shared) ────────────────────────────────────────────────────
 
 async function runImport(rows: CsvFixtureRow[], maps: LookupMaps): Promise<{ validFixtures: FixtureInsert[]; allErrors: ImportError[] }> {
