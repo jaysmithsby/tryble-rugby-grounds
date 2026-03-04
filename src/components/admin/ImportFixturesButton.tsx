@@ -66,9 +66,9 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
 
           if (analysis.importResult) {
             // No unknowns — imported immediately
-            const { inserted, skipped, errors } = analysis.importResult;
+            const { inserted, updated, skipped, errors } = analysis.importResult;
             if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
-            showResult(inserted, skipped, errors.length);
+            showResult(inserted, updated, skipped, errors.length);
           } else {
             // Store shared state
             setPendingMaps(analysis.maps);
