@@ -88,6 +88,14 @@ const Home = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-fixtures"] });
+    await queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
+    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-tournaments"] });
+  }, [queryClient]);
+
+  const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({ onRefresh: handleRefresh });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -98,14 +106,6 @@ const Home = () => {
       </div>
     );
   }
-
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-fixtures"] });
-    await queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
-    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-tournaments"] });
-  }, [queryClient]);
-
-  const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({ onRefresh: handleRefresh });
 
   return (
     <div ref={containerRef} className="min-h-screen bg-background pb-20 overflow-auto">
