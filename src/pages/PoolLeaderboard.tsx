@@ -74,6 +74,7 @@ export const PoolLeaderboard = () => {
   const [fixturesPage, setFixturesPage] = useState(1);
   const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
   const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // School IDs resolved from pool school names
   const [poolSchoolIds, setPoolSchoolIds] = useState<string[]>([]);
