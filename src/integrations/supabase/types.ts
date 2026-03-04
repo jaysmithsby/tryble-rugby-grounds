@@ -1184,6 +1184,14 @@ export type Database = {
         Returns: undefined
       }
       fixture_match_day: { Args: { ts: string }; Returns: string }
+      get_community_avg_for_fixtures: {
+        Args: { p_fixture_ids: string[] }
+        Returns: {
+          avg_points: number
+          fixture_id: string
+          total_predictions: number
+        }[]
+      }
       get_leaderboard_stats:
         | {
             Args: { p_school_id?: string; p_season_year: number }
