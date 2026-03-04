@@ -126,8 +126,11 @@ const Fixtures = () => {
   // Reset page on filter changes
   useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, searchQuery]);
 
-  // My-schools: flatten filtered groups, paginate, then re-group
-  const allMyFixtures = useMemo(() => filteredGroupedFixtures.flatMap(g => g.fixtures), [filteredGroupedFixtures]);
+  // My-schools: filter dismissed, then paginate, then re-group
+  const allMyFixtures = useMemo(() =>
+    filteredGroupedFixtures.flatMap(g => g.fixtures).filter(f => !dismissedIds.has(f.id)),
+    [filteredGroupedFixtures, dismissedIds]
+  );
   const totalMyPages = Math.max(1, Math.ceil(allMyFixtures.length / FIXTURES_PER_PAGE));
   const paginatedMyFixtures = allMyFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
   const paginatedMyGroups = useMemo(() => {
@@ -144,15 +147,16 @@ const Fixtures = () => {
     return groups;
   }, [paginatedMyFixtures]);
 
-  // All-schools: paginate the flat fixtures list
+  // All-schools: filter dismissed, then paginate
   const filteredAllFixtures = useMemo(() => {
-    if (!searchQuery) return fixtures;
+    let list = fixtures.filter(f => !dismissedIds.has(f.id));
+    if (!searchQuery) return list;
     const q = searchQuery.toLowerCase();
-    return fixtures.filter(f =>
+    return list.filter(f =>
       f.school_a?.name?.toLowerCase().includes(q) ||
       f.school_b?.name?.toLowerCase().includes(q)
     );
-  }, [fixtures, searchQuery]);
+  }, [fixtures, searchQuery, dismissedIds]);
   const totalAllPages = Math.max(1, Math.ceil(filteredAllFixtures.length / FIXTURES_PER_PAGE));
   const paginatedAllFixtures = filteredAllFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
 
