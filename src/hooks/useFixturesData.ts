@@ -26,9 +26,8 @@ interface FixtureWithSchools {
 
 interface UserPrediction {
   fixture_id: string;
-  predicted_team: string;
   predicted_margin: number;
-  predicted_school_id: string;
+  predicted_school_id: string | null;
 }
 
 interface UseFixturesDataOptions {
@@ -129,7 +128,7 @@ export const useFixturesData = ({
       if (!userId || fixtureIds.length === 0) return [];
       const { data, error } = await supabase
         .from("predictions")
-        .select("fixture_id, predicted_team, predicted_margin, predicted_school_id")
+        .select("fixture_id, predicted_margin, predicted_school_id")
         .eq("user_id", userId)
         .in("fixture_id", fixtureIds);
       if (error) throw error;
