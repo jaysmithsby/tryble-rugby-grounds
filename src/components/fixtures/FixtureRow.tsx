@@ -149,9 +149,9 @@ const CenterArea = ({
           <span className={cn("font-mono text-muted-foreground", scoreSizeClass)}>-</span>
           <span className={cn("font-mono font-semibold text-muted-foreground text-left", scoreSizeClass)}>?</span>
         </div>
-        {isPredicted && predictedSchoolName && (
+        {isPredicted && (
           <span className="text-[10px] text-muted-foreground text-center leading-tight">
-            {predictedSchoolName} by {predictedMargin}
+            {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
           </span>
         )}
       </div>
@@ -164,7 +164,7 @@ const CenterArea = ({
       <div className={wrapClass}>
         <Lock className={cn("text-primary", compact ? "w-4 h-4" : "w-5 h-5")} />
         <span className={cn("font-semibold text-primary text-center", compact ? "text-[10px]" : "text-xs")}>
-          {predictedSchoolName} by {predictedMargin}
+          {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
         </span>
       </div>
     );
