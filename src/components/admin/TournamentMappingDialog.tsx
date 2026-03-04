@@ -25,102 +25,109 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { SchoolOption } from "@/lib/fixtureImportService";
+import type { TournamentOption, LookupMaps } from "@/lib/fixtureImportService";
 
-interface SchoolMappingDialogProps {
+interface TournamentMappingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  unknownSchools: string[];
-  allSchools: SchoolOption[];
-  onConfirm: (mappings: Record<string, string>, newSchools: SchoolOption[]) => void;
+  unknownTournaments: string[];
+  allTournaments: TournamentOption[];
+  maps: LookupMaps;
+  seasons: string[];
+  onConfirm: (tournamentMappings: Record<string, string>) => void;
 }
 
-export function SchoolMappingDialog({
+export function TournamentMappingDialog({
   open,
   onOpenChange,
-  unknownSchools,
-  allSchools,
+  unknownTournaments,
+  allTournaments,
+  maps,
+  seasons,
   onConfirm,
-}: SchoolMappingDialogProps) {
+}: TournamentMappingDialogProps) {
   const { toast } = useToast();
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
-  const [creatingSchool, setCreatingSchool] = useState<string | null>(null);
-  const [newSchools, setNewSchools] = useState<SchoolOption[]>([]);
+  const [creatingTournament, setCreatingTournament] = useState<string | null>(null);
+  const [newTournaments, setNewTournaments] = useState<TournamentOption[]>([]);
 
-  // Merge original schools with newly created ones
-  const combinedSchools = useMemo(() => [...allSchools, ...newSchools], [allSchools, newSchools]);
+  const combinedTournaments = useMemo(
+    () => [...allTournaments, ...newTournaments],
+    [allTournaments, newTournaments]
+  );
 
-  const schoolsById = useMemo(() => {
+  const tournamentsById = useMemo(() => {
     const map = new Map<string, string>();
-    for (const s of combinedSchools) map.set(s.id, s.name);
+    for (const t of combinedTournaments) map.set(t.id, t.name);
     return map;
-  }, [combinedSchools]);
+  }, [combinedTournaments]);
 
-  const mappedCount = unknownSchools.filter((name) => mappings[name]).length;
-  const skippedCount = unknownSchools.length - mappedCount;
+  const mappedCount = unknownTournaments.filter((name) => mappings[name]).length;
+  const skippedCount = unknownTournaments.length - mappedCount;
 
-  const handleSelect = (unknownName: string, schoolId: string) => {
-    setMappings((prev) => ({ ...prev, [unknownName]: schoolId }));
+  const handleSelect = (unknownName: string, tournamentId: string) => {
+    setMappings((prev) => ({ ...prev, [unknownName]: tournamentId }));
     setOpenPopovers((prev) => ({ ...prev, [unknownName]: false }));
   };
 
-  const handleCreateSchool = async (csvName: string) => {
-    setCreatingSchool(csvName);
+  const handleCreateTournament = async (csvName: string) => {
+    setCreatingTournament(csvName);
     try {
-      const slug = csvName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-");
-
       const { data, error } = await supabase
-        .from("schools")
-        .insert({
-          name: csvName,
-          slug: `${slug}-${Date.now()}`,
-          status: "approved",
-          is_visible: true,
-        })
+        .from("tournaments")
+        .insert({ name: csvName })
         .select("id, name")
         .single();
 
       if (error) throw error;
 
-      const newSchool: SchoolOption = { id: data.id, name: data.name };
-      setNewSchools((prev) => [...prev, newSchool]);
+      const newTournament: TournamentOption = { id: data.id, name: data.name };
+      setNewTournaments((prev) => [...prev, newTournament]);
+      // Update the lookup maps so edition auto-creation works during import
+      maps.tournamentNameToId.set(csvName.toLowerCase().trim(), data.id);
       setMappings((prev) => ({ ...prev, [csvName]: data.id }));
-      toast({ title: "School Created", description: `"${csvName}" created and mapped.` });
+      toast({ title: "Tournament Created", description: `"${csvName}" created. Editions will be auto-created for each season.` });
     } catch (err: any) {
-      console.error("Error creating school:", err);
+      console.error("Error creating tournament:", err);
       toast({ title: "Failed", description: err.message, variant: "destructive" });
     } finally {
-      setCreatingSchool(null);
+      setCreatingTournament(null);
     }
   };
 
   const handleConfirm = () => {
+    // For mapped tournaments, update the lookup maps so import can resolve them
     const validMappings: Record<string, string> = {};
-    for (const [name, id] of Object.entries(mappings)) {
-      if (id) validMappings[name] = id;
+    for (const [csvName, tournamentId] of Object.entries(mappings)) {
+      if (tournamentId) {
+        validMappings[csvName] = tournamentId;
+        maps.tournamentNameToId.set(csvName.toLowerCase().trim(), tournamentId);
+      }
     }
-    onConfirm(validMappings, newSchools);
+    onConfirm(validMappings);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>Step 1: Map Unknown Schools</DialogTitle>
+          <DialogTitle>Step 2: Map Unknown Tournaments</DialogTitle>
           <DialogDescription>
-            {unknownSchools.length} school name(s) not found. Map to an existing school, create a new one, or skip.
+            {unknownTournaments.length} tournament name(s) not found. Map to an existing tournament, create a new one, or skip.
+            {seasons.length > 0 && (
+              <span className="block mt-1 text-xs">
+                Seasons detected: {seasons.join(", ")}. Editions will be auto-created for mapped/created tournaments.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto max-h-[50vh] -mx-6 px-6">
           <div className="space-y-3 py-2">
-            {unknownSchools.map((name) => {
+            {unknownTournaments.map((name) => {
               const isMapped = !!mappings[name];
-              const isCreating = creatingSchool === name;
+              const isCreating = creatingTournament === name;
 
               return (
                 <div
@@ -139,8 +146,8 @@ export function SchoolMappingDialog({
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
 
                   {isMapped ? (
-                    <span className="text-sm text-green-500 truncate max-w-[180px]" title={schoolsById.get(mappings[name])}>
-                      ✓ {schoolsById.get(mappings[name])}
+                    <span className="text-sm text-green-500 truncate max-w-[180px]" title={tournamentsById.get(mappings[name])}>
+                      ✓ {tournamentsById.get(mappings[name])}
                     </span>
                   ) : (
                     <div className="flex items-center gap-1">
@@ -157,30 +164,30 @@ export function SchoolMappingDialog({
                             size="sm"
                             className="w-[160px] justify-between text-xs"
                           >
-                            <span className="truncate">Select school…</span>
+                            <span className="truncate">Select tournament…</span>
                             <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[300px] p-0" align="end">
                           <Command>
-                            <CommandInput placeholder="Search schools…" />
+                            <CommandInput placeholder="Search tournaments…" />
                             <CommandList>
-                              <CommandEmpty>No school found.</CommandEmpty>
+                              <CommandEmpty>No tournament found.</CommandEmpty>
                               <CommandGroup>
-                                {combinedSchools.map((school) => (
+                                {combinedTournaments.map((tournament) => (
                                   <CommandItem
-                                    key={school.id}
-                                    value={school.name}
-                                    onSelect={() => handleSelect(name, school.id)}
-                                    title={school.name}
+                                    key={tournament.id}
+                                    value={tournament.name}
+                                    onSelect={() => handleSelect(name, tournament.id)}
+                                    title={tournament.name}
                                   >
                                     <Check
                                       className={cn(
                                         "mr-2 h-4 w-4 shrink-0",
-                                        mappings[name] === school.id ? "opacity-100" : "opacity-0"
+                                        mappings[name] === tournament.id ? "opacity-100" : "opacity-0"
                                       )}
                                     />
-                                    <span className="break-words">{school.name}</span>
+                                    <span className="break-words">{tournament.name}</span>
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -193,9 +200,9 @@ export function SchoolMappingDialog({
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0"
-                        title={`Create "${name}" as a new school`}
+                        title={`Create "${name}" as a new tournament`}
                         disabled={isCreating}
-                        onClick={() => handleCreateSchool(name)}
+                        onClick={() => handleCreateTournament(name)}
                       >
                         {isCreating ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -214,18 +221,18 @@ export function SchoolMappingDialog({
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {skippedCount > 0 && (
             <p className="text-xs text-muted-foreground mr-auto self-center">
-              {skippedCount} unmapped — their fixtures will be skipped
+              {skippedCount} unmapped — their tournament links will be skipped
             </p>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleConfirm}>
-            {mappedCount === unknownSchools.length
-              ? "Next: Tournaments"
+            {mappedCount === unknownTournaments.length
+              ? "Confirm & Import"
               : mappedCount === 0
-                ? `Next (skip all ${skippedCount} unmapped)`
-                : `Next (skip ${skippedCount} unmapped)`}
+                ? `Import (skip all ${skippedCount} unmapped)`
+                : `Import (skip ${skippedCount} unmapped)`}
           </Button>
         </DialogFooter>
       </DialogContent>
