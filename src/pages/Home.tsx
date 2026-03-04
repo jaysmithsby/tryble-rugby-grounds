@@ -52,14 +52,16 @@ const Home = () => {
         [matchId]: { schoolId, margin },
       }));
 
+      const upsertData: Record<string, unknown> = {
+        fixture_id: matchId,
+        user_id: user.id,
+        predicted_team: predictedTeam,
+        predicted_margin: margin,
+        predicted_school_id: isDraw ? fixture?.school_a?.id : schoolId,
+      };
+
       const { error } = await supabase.from("predictions").upsert(
-        {
-          fixture_id: matchId,
-          user_id: user.id,
-          predicted_team: predictedTeam,
-          predicted_margin: margin,
-          predicted_school_id: schoolId,
-        },
+        upsertData as any,
         { onConflict: "fixture_id,user_id" }
       );
 
