@@ -126,8 +126,11 @@ const Fixtures = () => {
   // Reset page on filter changes
   useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, searchQuery]);
 
-  // My-schools: flatten filtered groups, paginate, then re-group
-  const allMyFixtures = useMemo(() => filteredGroupedFixtures.flatMap(g => g.fixtures), [filteredGroupedFixtures]);
+  // My-schools: filter dismissed, then paginate, then re-group
+  const allMyFixtures = useMemo(() =>
+    filteredGroupedFixtures.flatMap(g => g.fixtures).filter(f => !dismissedIds.has(f.id)),
+    [filteredGroupedFixtures, dismissedIds]
+  );
   const totalMyPages = Math.max(1, Math.ceil(allMyFixtures.length / FIXTURES_PER_PAGE));
   const paginatedMyFixtures = allMyFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
   const paginatedMyGroups = useMemo(() => {
