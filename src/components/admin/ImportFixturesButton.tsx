@@ -138,9 +138,9 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const runFinalImport = async (schoolMappings: Record<string, string>) => {
     setLoading(true);
     try {
-      const { inserted, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows);
+      const { inserted, updated, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows);
       if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
-      showResult(inserted, skipped, errors.length);
+      showResult(inserted, updated, skipped, errors.length);
     } catch (error: any) {
       console.error("Import error:", error);
       toast({ title: "Import Failed", description: error.message, variant: "destructive" });
