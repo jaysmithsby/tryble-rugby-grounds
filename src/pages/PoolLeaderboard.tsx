@@ -96,7 +96,7 @@ export const PoolLeaderboard = () => {
     }
   }, [poolSchoolIds, dateRange, activeView]);
 
-  useEffect(() => { setFixturesPage(1); }, [dateRange]);
+  useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [dateRange]);
   useEffect(() => { setLeaderboardPage(1); }, [selectedSeason]);
 
   const loadCurrentUser = async () => {
