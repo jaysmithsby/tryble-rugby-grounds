@@ -164,7 +164,7 @@ const CenterArea = ({
       <div className={wrapClass}>
         <Lock className={cn("text-primary", compact ? "w-4 h-4" : "w-5 h-5")} />
         <span className={cn("font-semibold text-primary text-center", compact ? "text-[10px]" : "text-xs")}>
-          {predictedSchoolName} by {predictedMargin}
+          {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
         </span>
       </div>
     );
