@@ -7,14 +7,6 @@ import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import { Button } from "@/components/ui/button";
 import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { toast } from "sonner";
 
 const Logs = () => {
@@ -208,60 +200,48 @@ const Logs = () => {
             <section>
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Match History</h2>
               <div className="divide-y divide-border/40">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs px-2">Matchup</TableHead>
-                      <TableHead className="text-xs text-center px-1">Result</TableHead>
-                      <TableHead className="text-xs text-center px-1">Call</TableHead>
-                      <TableHead className="text-xs text-center px-1">Comm.</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedPredictions.map((pred) => {
-                      const fixture = pred.fixture as any;
-                      if (!fixture) return null;
-                      const schoolA = fixture.school_a?.name ?? "?";
-                      const schoolB = fixture.school_b?.name ?? "?";
-                      const hasScores = fixture.score_a != null && fixture.score_b != null;
-                      const actualDiff = hasScores ? Math.abs(fixture.score_a - fixture.score_b) : null;
-                      const pts = pred.points_earned ?? 0;
-                      const commAvg = communityMap[pred.fixture_id];
+                {sortedPredictions.map((pred) => {
+                  const fixture = pred.fixture as any;
+                  if (!fixture) return null;
+                  const schoolA = fixture.school_a?.name ?? "?";
+                  const schoolB = fixture.school_b?.name ?? "?";
+                  const hasScores = fixture.score_a != null && fixture.score_b != null;
+                  const actualDiff = hasScores ? Math.abs(fixture.score_a - fixture.score_b) : null;
+                  const pts = pred.points_earned ?? 0;
+                  const commAvg = communityMap[pred.fixture_id];
 
-                      return (
-                        <TableRow key={pred.id}>
-                          <TableCell className="text-xs py-2 px-2 max-w-[110px]">
-                            <span className="line-clamp-1">{schoolA} v {schoolB}</span>
-                          </TableCell>
-                          <TableCell className="text-xs text-center py-2 px-1 font-mono">
-                            {hasScores ? (
-                              <>
-                                {fixture.score_a}-{fixture.score_b}
-                                <span className="text-muted-foreground ml-0.5">({actualDiff})</span>
-                              </>
-                            ) : "—"}
-                          </TableCell>
-                          <TableCell className="text-xs text-center py-2 px-1">
-                            <span
-                              className={`font-mono ${
-                                pts >= 5
-                                  ? "font-bold text-yellow-500"
-                                  : pts >= 3
-                                  ? "font-medium text-green-500"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              ±{pred.predicted_margin} → {pts}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs text-center py-2 px-1 font-mono text-muted-foreground">
-                            {commAvg != null ? commAvg : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                  return (
+                    <div key={pred.id} className="py-2.5 space-y-1">
+                      <p className="text-xs font-medium truncate">
+                        {schoolA} v {schoolB}
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="font-mono">
+                          {hasScores ? (
+                            <>
+                              {fixture.score_a}-{fixture.score_b}
+                              <span className="ml-0.5">({actualDiff})</span>
+                            </>
+                          ) : "—"}
+                        </span>
+                        <span
+                          className={`font-mono ${
+                            pts >= 5
+                              ? "font-bold text-yellow-500"
+                              : pts >= 3
+                              ? "font-medium text-green-500"
+                              : ""
+                          }`}
+                        >
+                          ±{pred.predicted_margin} → {pts}pts
+                        </span>
+                        <span className="font-mono">
+                          Comm. {commAvg != null ? commAvg : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
