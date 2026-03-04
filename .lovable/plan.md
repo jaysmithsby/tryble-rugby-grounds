@@ -1,75 +1,27 @@
 
 
-## Plan: Remove Participating Schools Column & Auto-Create Tournament Editions from Fixture Imports
+## Plan: Mobile-friendly Prediction Dialog with Draw Support
 
-### Overview
+### Changes
 
-Three interconnected changes: (1) drop the manual `participating_schools` column and infer participating schools from fixtures at query time, (2) auto-create tournament editions during CSV import when a tournament name matches but no edition exists for that year, (3) simplify admin forms by removing school-selection widgets from edition dialogs.
+**1. `src/components/home/PredictionDialog.tsx`** — Redesign for mobile
 
-### Database Changes
+- **Add "Draw" option**: Change `selectedTeam` state to `"home" | "away" | "draw"`. When draw is selected, margin is forced to 0 and disabled.
+- **Compact team selection**: Reduce padding from `p-4` to `p-2`, use `size="md"` jerseys instead of `lg`. Add a centered "Draw" button/option between or below the two teams.
+- **Remove slider**: Replace the slider + input combo with just a simple number input field. Remove the `max={50}` cap — allow any value >= 0. Min is 0 (draw auto-sets to 0).
+- **Tighter spacing**: Reduce `space-y-6` to `space-y-4`, reduce `py-4` to `py-2`. Use `sm:max-w-sm` instead of `sm:max-w-md` for a smaller dialog.
+- **Remove summary text** ("Selected margin: X points") — the input is self-explanatory.
 
-**Migration: Drop `participating_schools` column from `tournament_editions`**
+**2. Handle draw in submit logic**:
+- When draw is selected, pass a special marker (empty string or a "draw" schoolId convention) and margin 0.
+- Update toast message: "Draw — bold call." instead of "X by 0".
 
-```sql
-ALTER TABLE tournament_editions DROP COLUMN IF EXISTS participating_schools;
-```
+**3. Upstream handling** — `src/pages/Home.tsx` and wherever `onPredictionMade` is consumed:
+- A draw prediction with margin 0 and schoolId="" should be handled gracefully (the upsert already uses `predicted_school_id`; for a draw this would be null/empty and `predicted_margin` = 0).
 
-This column becomes unnecessary since participating schools will be inferred from fixtures linked to each edition.
-
-### File Changes
-
-#### 1. `src/lib/fixtureImportService.ts` — Auto-create editions
-
-In `mapRow()` (lines 166-179), when `venue_type === "tournament"` and a tournament name matches a parent tournament but no edition exists for that year:
-
-- Instead of pushing an error, auto-create the tournament edition via `supabase.from("tournament_editions").insert(...)` with minimal data: `tournament_id`, `year`, `start_date` (from the fixture's match_date), `end_date` (same date as placeholder), `is_active: true`.
-- Cache the new edition ID in `maps.editionMap` so subsequent rows in the same import reuse it.
-- This requires making `mapRow` async, and updating `runImport` to be async as well.
-
-Also apply this same logic for non-tournament venue types (lines 181-193) — if `tournament_name` is provided in the CSV, resolve it regardless of `venue_type`, auto-creating editions as needed.
-
-#### 2. `src/components/admin/CreateEditionDialog.tsx` — Remove participating schools
-
-- Remove the `participating_schools` field from the form schema (line 34), default values, and the entire `<FormField>` block for participating schools (lines 227-262).
-- Remove `schools` state, `fetchSchools()`, `filteredSchools`, `searchQuery` state, and imports for `Checkbox`, `Badge`, `X`, `ScrollArea` that are only used for that field.
-- Remove `participating_schools` from the insert payload (line 119).
-
-#### 3. `src/components/admin/EditEditionDialog.tsx` — Remove participating schools
-
-- Same removal as CreateEditionDialog: drop the form field, schema entry, fetch/filter logic, and update payload (line 123).
-
-#### 4. `src/components/admin/TournamentsTable.tsx` — Show inferred school count
-
-- In the expanded edition row (around line 185), instead of showing `edition.participating_schools.length` schools, fetch the count of distinct schools from fixtures linked to each edition.
-- Add a small query (or use a `useMemo` from fixtures data) to count distinct `school_a_id` + `school_b_id` per edition.
-- Display as "N schools" (inferred from fixtures).
-
-#### 5. `src/pages/Tournament.tsx` — Infer participating schools from fixtures
-
-- Remove references to `selectedEdition?.participating_schools` (line 329).
-- Derive `participatingSchools` from `allFixtures` using a `useMemo`:
-  ```typescript
-  const participatingSchools = useMemo(() => {
-    const names = new Set<string>();
-    allFixtures.forEach(f => {
-      if (f.school_a?.name) names.add(f.school_a.name);
-      if (f.school_b?.name) names.add(f.school_b.name);
-    });
-    return [...names].sort();
-  }, [allFixtures]);
-  ```
-- The school count in the header (line 402) and the filter popover (lines 455-473) will automatically use this derived list.
-- Remove `participating_schools` from the `Edition` interface (line 35).
-
-#### 6. `src/integrations/supabase/types.ts` — Auto-updated
-
-Will be regenerated after the migration drops the column.
-
-### Summary of Simplifications
-
-| Before | After |
-|---|---|
-| Manual checkbox list to select participating schools per edition | Schools inferred automatically from linked fixtures |
-| CSV import fails if no matching edition exists | Edition auto-created with minimal data when tournament name matches |
-| `participating_schools` text array column on `tournament_editions` | Column dropped entirely |
+### Summary of UX changes
+- Smaller, tighter dialog on mobile
+- Three-way pick: Home / Draw / Away
+- Simple number input for margin (no slider, no max cap, min 0)
+- Draw auto-locks margin to 0
 
