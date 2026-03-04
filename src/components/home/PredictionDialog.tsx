@@ -48,7 +48,7 @@ export const PredictionDialog = ({
     if (team === "draw") {
       setMargin(0);
       setMarginInput("0");
-    } else if (margin === 0 && team !== "draw") {
+    } else if (margin === 0) {
       setMargin(1);
       setMarginInput("1");
     }
