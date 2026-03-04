@@ -17,6 +17,12 @@ export function useSwipeNavigation() {
   const swiping = useRef(false);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
+    // Skip if touch originates on a swipeable fixture card
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-swipeable-card]")) {
+      swiping.current = false;
+      return;
+    }
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     swiping.current = true;

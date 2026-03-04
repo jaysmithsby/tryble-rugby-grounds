@@ -7,6 +7,7 @@ import GlobalHeader from "@/components/GlobalHeader";
 import { FixturesFilters } from "@/components/fixtures/FixturesFilters";
 import { FixtureDateGroup } from "@/components/fixtures/FixtureDateGroup";
 import { FixtureListCard } from "@/components/fixtures/FixtureListCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { useFixturesData } from "@/hooks/useFixturesData";
 import { usePreloadJerseyImages } from "@/components/ui/SchoolJerseyImage";
@@ -27,6 +28,7 @@ const Fixtures = () => {
   const [viewMode, setViewMode] = useState<"my-schools" | "all-schools">("my-schools");
   const [selectedProvince, setSelectedProvince] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const startDate = useMemo(() => dateRange.from.toISOString(), [dateRange.from]);
   const endDate = useMemo(
@@ -122,7 +124,7 @@ const Fixtures = () => {
   const [page, setPage] = useState(1);
 
   // Reset page on filter changes
-  useEffect(() => { setPage(1); }, [dateRange, viewMode, selectedProvince, searchQuery]);
+  useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, searchQuery]);
 
   // My-schools: flatten filtered groups, paginate, then re-group
   const allMyFixtures = useMemo(() => filteredGroupedFixtures.flatMap(g => g.fixtures), [filteredGroupedFixtures]);
@@ -159,6 +161,7 @@ const Fixtures = () => {
 
   const queryClient = useQueryClient();
   const handleRefresh = useCallback(async () => {
+    setDismissedIds(new Set());
     await queryClient.invalidateQueries({ queryKey: ["fixtures"] });
     await queryClient.invalidateQueries({ queryKey: ["fixture-predictions"] });
   }, [queryClient]);
@@ -217,22 +220,27 @@ const Fixtures = () => {
           paginatedMyGroups.map((group) => (
             <FixtureDateGroup key={group.date.toISOString()} date={group.date} fixtureCount={group.fixtures.length}>
               {group.fixtures.map((fixture) => (
-                <FixtureListCard
+                <SwipeableFixtureCard
                   key={fixture.id}
-                  fixture={{
-                    id: fixture.id,
-                    match_date: fixture.match_date,
-                    venue_type: fixture.venue_type,
-                    venue_id: fixture.venue_id,
-                    status: fixture.status,
-                    school_a: fixture.school_a,
-                    school_b: fixture.school_b,
-                    tournament: fixture.tournament_edition?.tournament ?? null,
-                  }}
-                  isPredicted={!!predictionsMap[fixture.id]}
-                  userPrediction={predictionsMap[fixture.id]}
-                  onPredictionSubmit={handlePredictionSubmit}
-                />
+                  fixtureId={fixture.id}
+                  onDismiss={(id) => setDismissedIds(prev => new Set(prev).add(id))}
+                >
+                  <FixtureListCard
+                    fixture={{
+                      id: fixture.id,
+                      match_date: fixture.match_date,
+                      venue_type: fixture.venue_type,
+                      venue_id: fixture.venue_id,
+                      status: fixture.status,
+                      school_a: fixture.school_a,
+                      school_b: fixture.school_b,
+                      tournament: fixture.tournament_edition?.tournament ?? null,
+                    }}
+                    isPredicted={!!predictionsMap[fixture.id]}
+                    userPrediction={predictionsMap[fixture.id]}
+                    onPredictionSubmit={handlePredictionSubmit}
+                  />
+                </SwipeableFixtureCard>
               ))}
             </FixtureDateGroup>
           ))}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
@@ -9,6 +9,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 import { supabase } from "@/integrations/supabase/client";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { Trophy, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
@@ -20,6 +21,7 @@ const Home = () => {
   const queryClient = useQueryClient();
   const { effectiveDate, seasonYear } = useEffectiveDate();
   const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string; margin: number }>>({});
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const { user, loading, profileLoaded } = useHomeAuth();
 
@@ -89,6 +91,7 @@ const Home = () => {
   };
 
   const handleRefresh = useCallback(async () => {
+    setDismissedIds(new Set());
     await queryClient.invalidateQueries({ queryKey: ["home-upcoming-fixtures"] });
     await queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
     await queryClient.invalidateQueries({ queryKey: ["home-upcoming-tournaments"] });
@@ -148,32 +151,40 @@ const Home = () => {
             </div>
           ) : upcomingFixtures.length > 0 ? (
             <div className="space-y-3">
-              {upcomingFixtures.slice(0, 3).map((fixture, index) => (
-                <FixtureCard
+              {upcomingFixtures
+                .filter((f) => !dismissedIds.has(f.id))
+                .slice(0, 3)
+                .map((fixture, index) => (
+                <SwipeableFixtureCard
                   key={fixture.id}
-                  homeTeam={fixture.school_a.name}
-                  awayTeam={fixture.school_b.name}
-                  homeTeamShort={getShortName(fixture.school_a.name)}
-                  awayTeamShort={getShortName(fixture.school_b.name)}
-                  homeTeamIcon={fixture.school_a.jersey_url}
-                  awayTeamIcon={fixture.school_b.jersey_url}
-                  homeSchoolId={fixture.school_a.id}
-                  awaySchoolId={fixture.school_b.id}
-                  homeSchoolSlug={fixture.school_a.slug}
-                  awaySchoolSlug={fixture.school_b.slug}
-                  time={formatMatchTime(fixture.match_date, fixture.status)}
-                  venue={fixture.venue}
-                  matchDate={fixture.match_date}
-                  tournamentName={fixture.tournament_name}
-                  matchId={fixture.id}
-                  priority={index < 2}
-                  isPredicted={!!predictions[fixture.id]}
-                  predictedSchoolId={predictions[fixture.id]?.schoolId}
-                  predictedMargin={predictions[fixture.id]?.margin}
-                  onPredictionMade={(schoolId, margin) =>
-                    handlePredictionMade(fixture.id, schoolId, margin)
-                  }
-                />
+                  fixtureId={fixture.id}
+                  onDismiss={(id) => setDismissedIds(prev => new Set(prev).add(id))}
+                >
+                  <FixtureCard
+                    homeTeam={fixture.school_a.name}
+                    awayTeam={fixture.school_b.name}
+                    homeTeamShort={getShortName(fixture.school_a.name)}
+                    awayTeamShort={getShortName(fixture.school_b.name)}
+                    homeTeamIcon={fixture.school_a.jersey_url}
+                    awayTeamIcon={fixture.school_b.jersey_url}
+                    homeSchoolId={fixture.school_a.id}
+                    awaySchoolId={fixture.school_b.id}
+                    homeSchoolSlug={fixture.school_a.slug}
+                    awaySchoolSlug={fixture.school_b.slug}
+                    time={formatMatchTime(fixture.match_date, fixture.status)}
+                    venue={fixture.venue}
+                    matchDate={fixture.match_date}
+                    tournamentName={fixture.tournament_name}
+                    matchId={fixture.id}
+                    priority={index < 2}
+                    isPredicted={!!predictions[fixture.id]}
+                    predictedSchoolId={predictions[fixture.id]?.schoolId}
+                    predictedMargin={predictions[fixture.id]?.margin}
+                    onPredictionMade={(schoolId, margin) =>
+                      handlePredictionMade(fixture.id, schoolId, margin)
+                    }
+                  />
+                </SwipeableFixtureCard>
               ))}
             </div>
           ) : (

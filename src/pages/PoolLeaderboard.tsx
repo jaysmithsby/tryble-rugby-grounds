@@ -14,6 +14,7 @@ import { EditPoolDialog } from "@/components/pools/EditPoolDialog";
 import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
 import { BottomNav } from "@/components/BottomNav";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -73,6 +74,7 @@ export const PoolLeaderboard = () => {
   const [fixturesPage, setFixturesPage] = useState(1);
   const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
   const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // School IDs resolved from pool school names
   const [poolSchoolIds, setPoolSchoolIds] = useState<string[]>([]);
@@ -94,7 +96,7 @@ export const PoolLeaderboard = () => {
     }
   }, [poolSchoolIds, dateRange, activeView]);
 
-  useEffect(() => { setFixturesPage(1); }, [dateRange]);
+  useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [dateRange]);
   useEffect(() => { setLeaderboardPage(1); }, [selectedSeason]);
 
   const loadCurrentUser = async () => {
@@ -623,34 +625,39 @@ export const PoolLeaderboard = () => {
                   {paginatedFixtures.map((f) => {
                     const pred = userPredictions[f.id];
                     return (
-                      <FixtureCard
+                      <SwipeableFixtureCard
                         key={f.id}
-                        homeTeam={f.school_a?.name || "TBD"}
-                        awayTeam={f.school_b?.name || "TBD"}
-                        homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
-                        awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
-                        homeTeamIcon={f.school_a?.jersey_url}
-                        awayTeamIcon={f.school_b?.jersey_url}
-                        homeSchoolId={f.school_a_id}
-                        awaySchoolId={f.school_b_id}
-                        homeSchoolSlug={f.school_a?.slug}
-                        awaySchoolSlug={f.school_b?.slug}
-                        matchDate={f.match_date}
-                        time=""
-                        venue={resolveVenueName(f)}
-                        tournamentName={f.tournament?.name}
-                        matchId={f.id}
-                        isPredicted={!!pred}
-                        predictedSchoolId={pred?.predictedSchoolId}
-                        predictedMargin={pred?.predictedMargin}
-                        onPredictionMade={(schoolId, margin) => {
-                          setUserPredictions(prev => ({
-                            ...prev,
-                            [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
-                          }));
-                        }}
-                        hasHistory={hasHistoryMap[f.id]}
-                      />
+                        fixtureId={f.id}
+                        onDismiss={(id) => setDismissedIds(prev => new Set(prev).add(id))}
+                      >
+                        <FixtureCard
+                          homeTeam={f.school_a?.name || "TBD"}
+                          awayTeam={f.school_b?.name || "TBD"}
+                          homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                          awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                          homeTeamIcon={f.school_a?.jersey_url}
+                          awayTeamIcon={f.school_b?.jersey_url}
+                          homeSchoolId={f.school_a_id}
+                          awaySchoolId={f.school_b_id}
+                          homeSchoolSlug={f.school_a?.slug}
+                          awaySchoolSlug={f.school_b?.slug}
+                          matchDate={f.match_date}
+                          time=""
+                          venue={resolveVenueName(f)}
+                          tournamentName={f.tournament?.name}
+                          matchId={f.id}
+                          isPredicted={!!pred}
+                          predictedSchoolId={pred?.predictedSchoolId}
+                          predictedMargin={pred?.predictedMargin}
+                          onPredictionMade={(schoolId, margin) => {
+                            setUserPredictions(prev => ({
+                              ...prev,
+                              [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
+                            }));
+                          }}
+                          hasHistory={hasHistoryMap[f.id]}
+                        />
+                      </SwipeableFixtureCard>
                     );
                   })}
                 </div>
