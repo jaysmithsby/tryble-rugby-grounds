@@ -42,6 +42,7 @@ export interface ImportError {
 
 export interface ImportResult {
   inserted: number;
+  updated: number;
   skipped: number;
   errors: ImportError[];
 }
