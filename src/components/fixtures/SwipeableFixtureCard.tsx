@@ -14,28 +14,57 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
   const x = useMotionValue(0);
   const opacity = useTransform(x, [-200, -80, 0], [0.3, 0.8, 1]);
   const wasDragged = useRef(false);
+  const isVerticalScroll = useRef(false);
+  const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const directionLocked = useRef(false);
 
-  const handleDragStart = useCallback(() => {
+  // Manual direction detection to avoid framer-motion's dragDirectionLock
+  // which can block vertical scrolling at scroll boundaries
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    touchStartX.current = e.clientX;
+    touchStartY.current = e.clientY;
+    isVerticalScroll.current = false;
+    directionLocked.current = false;
     wasDragged.current = false;
   }, []);
 
   const handleDrag = useCallback((_: any, info: PanInfo) => {
+    // If we haven't locked direction yet, determine it
+    if (!directionLocked.current) {
+      const absX = Math.abs(info.offset.x);
+      const absY = Math.abs(info.offset.y);
+      if (absX > 8 || absY > 8) {
+        directionLocked.current = true;
+        isVerticalScroll.current = absY > absX;
+      }
+    }
+
+    // If vertical scroll detected, force x back to 0
+    if (isVerticalScroll.current) {
+      x.set(0);
+      return;
+    }
+
     if (Math.abs(info.offset.x) > 10) {
       wasDragged.current = true;
     }
-  }, []);
+  }, [x]);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+    if (isVerticalScroll.current) {
+      x.set(0);
+      return;
+    }
     if (info.offset.x < -SWIPE_THRESHOLD && Math.abs(info.offset.y) < Math.abs(info.offset.x)) {
       setIsDismissing(true);
     }
-  }, []);
+  }, [x]);
 
   const handleExitComplete = useCallback(() => {
     onDismiss(fixtureId);
   }, [onDismiss, fixtureId]);
 
-  // Prevent click events from firing after a swipe gesture
   const handleClickCapture = useCallback((e: React.MouseEvent) => {
     if (wasDragged.current) {
       e.stopPropagation();
@@ -49,13 +78,13 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
       {!isDismissing && (
         <motion.div
           key={fixtureId}
+          className="touch-pan-y"
           style={{ x, opacity, overflow: "hidden" }}
           drag="x"
-          dragDirectionLock
           dragConstraints={{ left: -150, right: 0 }}
           dragElastic={{ left: 0.15, right: 0 }}
           dragMomentum={false}
-          onDragStart={handleDragStart}
+          onPointerDown={handlePointerDown}
           onDrag={handleDrag}
           onDragEnd={handleDragEnd}
           onClickCapture={handleClickCapture}
