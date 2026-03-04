@@ -39,16 +39,17 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const [pendingRows, setPendingRows] = useState<CsvFixtureRow[]>([]);
   const [pendingSchoolMappings, setPendingSchoolMappings] = useState<Record<string, string>>({});
 
-  const showResult = (inserted: number, skipped: number, errorCount: number) => {
-    if (inserted === 0 && errorCount > 0 && skipped === 0) {
+  const showResult = (inserted: number, updated: number, skipped: number, errorCount: number) => {
+    if (inserted === 0 && updated === 0 && errorCount > 0 && skipped === 0) {
       toast({ title: "Import Failed", description: `${errorCount} error(s). Check console for details.`, variant: "destructive" });
     } else {
       const parts = [`${inserted} inserted`];
+      if (updated > 0) parts.push(`${updated} scores updated`);
       if (skipped > 0) parts.push(`${skipped} skipped (duplicates)`);
       if (errorCount > 0) parts.push(`${errorCount} error(s) — see console`);
       toast({ title: "Import Complete", description: parts.join(", ") });
     }
-    if (inserted > 0) onSuccess?.();
+    if (inserted > 0 || updated > 0) onSuccess?.();
   };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
