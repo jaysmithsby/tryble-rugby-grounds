@@ -65,6 +65,7 @@ export default function Tournament() {
   const [allFixtures, setAllFixtures] = useState<any[]>([]);
   const [userPredictions, setUserPredictions] = useState<Record<string, { predictedSchoolId: string; predictedMargin: number }>>({});
   const [hasHistoryMap, setHasHistoryMap] = useState<Record<string, boolean>>({});
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // Filters
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
