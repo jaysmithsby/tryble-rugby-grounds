@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, CalendarDays, Users, School } from "lucide-react";
+import { Home, CalendarDays, Users, Trophy, School } from "lucide-react";
 import { usePrefetch } from "@/hooks/usePrefetch";
 
 export const BottomNav = () => {
@@ -66,6 +66,20 @@ export const BottomNav = () => {
           >
             <Users className="w-5 h-5" />
             <span className="text-xs font-medium">Pools</span>
+          </button>
+
+          <button
+            onClick={() => navigate("/logs")}
+            onMouseEnter={handlePrefetch("/logs")}
+            onFocus={handlePrefetch("/logs")}
+            className={`flex flex-col items-center gap-1 transition-colors ${
+              isActive("/logs")
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="text-xs font-medium">Logs</span>
           </button>
           
           <button
