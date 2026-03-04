@@ -372,11 +372,11 @@ async function deduplicateAndImport(
         allErrors.push({ row: 0, message: `Updated score: Existing fixture (${f.match_date.substring(0, 10)}) updated with score ${f.score_a}-${f.score_b}` });
       }
 
-      // Update tournament if existing has none but new data provides one
-      if (f.tournament_id !== null && existing.tournament_id === null) {
+      // Update tournament if new data provides one and it differs from existing
+      if (f.tournament_id !== null && existing.tournament_id !== f.tournament_id) {
         updates.tournament_id = f.tournament_id;
         hasUpdate = true;
-        allErrors.push({ row: 0, message: `Updated tournament: Existing fixture (${f.match_date.substring(0, 10)}) linked to tournament` });
+        allErrors.push({ row: 0, message: `Updated tournament: Existing fixture (${f.match_date.substring(0, 10)}) ${existing.tournament_id ? 'changed' : 'linked to'} tournament edition` });
       }
 
       if (hasUpdate) {
