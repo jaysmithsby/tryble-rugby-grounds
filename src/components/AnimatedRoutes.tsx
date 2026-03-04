@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, matchPath } from "react-router-dom";
 import { motion } from "framer-motion";
 import { lazy, Suspense, useRef, useEffect, useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 
 // Eagerly loaded — core nav pages
 import Index from "@/pages/Index";
