@@ -235,17 +235,16 @@ const Logs = () => {
                       <p className="text-xs font-medium truncate">
                         {schoolA} v {schoolB}
                       </p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="font-mono">
+                      <div className="grid grid-cols-[5rem_1fr_auto] items-center text-xs text-muted-foreground gap-1">
+                        <span className="font-mono tabular-nums truncate">
                           {hasScores ? (
                             <>
-                              {fixture.score_a}-{fixture.score_b}
-                              <span className="ml-0.5">({actualDiff})</span>
+                              {fixture.score_a}–{fixture.score_b} ({actualDiff})
                             </>
                           ) : "—"}
                         </span>
                         <span
-                          className={`font-mono tabular-nums ${
+                          className={`font-mono tabular-nums text-center ${
                             pts >= 5
                               ? "font-bold text-yellow-500"
                               : pts >= 3
@@ -257,7 +256,7 @@ const Logs = () => {
                           <span className="mx-1">→</span>
                           <span className="inline-block w-10 text-left">{pts}pts</span>
                         </span>
-                        <span className="font-mono">
+                        <span className="font-mono tabular-nums text-right whitespace-nowrap">
                           Comm. {commAvg != null ? commAvg : "—"}
                         </span>
                       </div>
