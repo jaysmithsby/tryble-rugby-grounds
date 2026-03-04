@@ -8,15 +8,22 @@ interface SwipeableFixtureCardProps {
 }
 
 const SWIPE_THRESHOLD = 80;
+const VERTICAL_LOCK = 15; // If vertical movement exceeds this before horizontal, cancel drag
 
 export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: SwipeableFixtureCardProps) {
   const [isDismissing, setIsDismissing] = useState(false);
   const x = useMotionValue(0);
   const opacity = useTransform(x, [-200, -80, 0], [0.3, 0.8, 1]);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const handleDragStart = useCallback(() => {
+    isDragging.current = true;
+  }, []);
 
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
-    if (info.offset.x < -SWIPE_THRESHOLD) {
+    isDragging.current = false;
+    // Only dismiss on clear horizontal left swipe
+    if (info.offset.x < -SWIPE_THRESHOLD && Math.abs(info.offset.y) < Math.abs(info.offset.x)) {
       setIsDismissing(true);
     }
   }, []);
@@ -29,14 +36,14 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
     <AnimatePresence onExitComplete={handleExitComplete}>
       {!isDismissing && (
         <motion.div
-          ref={cardRef}
           key={fixtureId}
-          style={{ x, opacity, overflow: "hidden" }}
+          style={{ x, opacity, overflow: "hidden", touchAction: "pan-y" }}
           drag="x"
           dragDirectionLock
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={{ left: 0.3, right: 0 }}
-          dragSnapToOrigin
+          dragConstraints={{ left: -150, right: 0 }}
+          dragElastic={{ left: 0.15, right: 0 }}
+          dragMomentum={false}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           exit={{
             x: -400,
