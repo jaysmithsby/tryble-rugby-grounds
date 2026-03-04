@@ -161,6 +161,7 @@ const Fixtures = () => {
 
   const queryClient = useQueryClient();
   const handleRefresh = useCallback(async () => {
+    setDismissedIds(new Set());
     await queryClient.invalidateQueries({ queryKey: ["fixtures"] });
     await queryClient.invalidateQueries({ queryKey: ["fixture-predictions"] });
   }, [queryClient]);
