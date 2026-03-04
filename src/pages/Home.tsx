@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import trybalLogo from "@/assets/trybal-logo.png";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 import { supabase } from "@/integrations/supabase/client";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
