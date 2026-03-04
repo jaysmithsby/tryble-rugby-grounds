@@ -124,7 +124,7 @@ const Fixtures = () => {
   const [page, setPage] = useState(1);
 
   // Reset page on filter changes
-  useEffect(() => { setPage(1); }, [dateRange, viewMode, selectedProvince, searchQuery]);
+  useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, searchQuery]);
 
   // My-schools: flatten filtered groups, paginate, then re-group
   const allMyFixtures = useMemo(() => filteredGroupedFixtures.flatMap(g => g.fixtures), [filteredGroupedFixtures]);
