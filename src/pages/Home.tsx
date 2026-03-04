@@ -9,6 +9,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 import { supabase } from "@/integrations/supabase/client";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { Trophy, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useEffectiveDate } from "@/hooks/useEffectiveDate";
