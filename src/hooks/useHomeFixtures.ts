@@ -251,7 +251,7 @@ export function useHomeFixtures({
       if (!userId || allFixtureIds.length === 0) return [];
       const { data, error } = await supabase
         .from("predictions")
-        .select("fixture_id, predicted_team, predicted_margin, predicted_school_id")
+        .select("fixture_id, predicted_margin, predicted_school_id")
         .eq("user_id", userId)
         .in("fixture_id", allFixtureIds);
       if (error) { console.error("Error fetching home predictions:", error); return []; }

@@ -60,8 +60,7 @@ const Fixtures = () => {
         return;
       }
 
-      const fixture = groupedFixtures.flatMap(g => g.fixtures).find(f => f.id === fixtureId);
-      const predictedTeam = fixture && schoolId === fixture.school_a_id ? "school_a" : "school_b";
+      const isDraw = schoolId === "draw";
 
       try {
         const { data: existing } = await supabase
@@ -75,20 +74,18 @@ const Fixtures = () => {
           await supabase
             .from("predictions")
             .update({
-              predicted_team: predictedTeam,
               predicted_margin: margin,
-              predicted_school_id: schoolId,
+              predicted_school_id: isDraw ? null : schoolId,
               updated_at: new Date().toISOString(),
-            })
+            } as any)
             .eq("id", existing.id);
         } else {
           await supabase.from("predictions").insert({
             fixture_id: fixtureId,
             user_id: userId,
-            predicted_team: predictedTeam,
             predicted_margin: margin,
-            predicted_school_id: schoolId,
-          });
+            predicted_school_id: isDraw ? null : schoolId,
+          } as any);
         }
       } catch (error) {
         console.error("Failed to save prediction:", error);

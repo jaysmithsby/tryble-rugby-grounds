@@ -39,25 +39,18 @@ const Home = () => {
     async (matchId: string, schoolId: string, margin: number) => {
       if (!user?.id) return;
 
-      const fixture = upcomingFixtures.find((f) => f.id === matchId);
       const isDraw = schoolId === "draw";
-      const predictedTeam = isDraw
-        ? "draw"
-        : fixture && schoolId === fixture.school_a.id
-          ? "school_a"
-          : "school_b";
 
       setLocalPredictions((prev) => ({
         ...prev,
-        [matchId]: { schoolId, margin },
+        [matchId]: { schoolId: isDraw ? "draw" : schoolId, margin },
       }));
 
       const upsertData: Record<string, unknown> = {
         fixture_id: matchId,
         user_id: user.id,
-        predicted_team: predictedTeam,
         predicted_margin: margin,
-        predicted_school_id: isDraw ? fixture?.school_a?.id : schoolId,
+        predicted_school_id: isDraw ? null : schoolId,
       };
 
       const { error } = await supabase.from("predictions").upsert(
