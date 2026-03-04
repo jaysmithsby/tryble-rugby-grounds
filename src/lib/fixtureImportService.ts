@@ -218,7 +218,9 @@ async function mapRow(
   let status: string;
 
   const csvStatus = row.status?.trim();
-  if (csvStatus) {
+  if (csvStatus && csvStatus.toLowerCase() === "cancelled") {
+    status = "cancelled";
+  } else if (csvStatus) {
     status = csvStatus.toLowerCase();
   } else {
     const parsedDate = new Date(matchDate);
@@ -226,9 +228,9 @@ async function mapRow(
     if (parsedDate > now) {
       status = "upcoming";
     } else if (scoreA !== null && scoreB !== null) {
-      status = "completed";
-    } else {
       status = "final";
+    } else {
+      status = "completed";
     }
   }
 

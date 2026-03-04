@@ -240,6 +240,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
     const colors: Record<string, string> = {
       upcoming: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
       in_progress: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+      completed: 'bg-orange-500/20 text-orange-400 border-orange-500/50',
       final: 'bg-green-500/20 text-green-400 border-green-500/50',
       cancelled: 'bg-red-500/20 text-red-400 border-red-500/50',
       holding: 'bg-gray-500/20 text-gray-400 border-gray-500/50',
@@ -276,6 +277,7 @@ export function FixturesTable({ onEdit }: FixturesTableProps) {
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="upcoming">Upcoming</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="final">Final</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
             <SelectItem value="holding">Holding</SelectItem>
