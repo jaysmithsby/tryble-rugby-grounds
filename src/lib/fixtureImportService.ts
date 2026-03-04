@@ -51,9 +51,16 @@ export interface SchoolOption {
   name: string;
 }
 
+export interface TournamentOption {
+  id: string;
+  name: string;
+}
+
 export interface AnalysisResult {
   unknownSchools: string[];
+  unknownTournaments: string[];
   allSchools: SchoolOption[];
+  allTournaments: TournamentOption[];
   maps: LookupMaps;
   rows: CsvFixtureRow[];
   /** If no unknowns, import runs immediately and this is populated */
@@ -69,7 +76,7 @@ export interface LookupMaps {
 
 // ── Lookup prefetch ─────────────────────────────────────────────────────────
 
-async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: SchoolOption[] }> {
+async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: SchoolOption[]; allTournaments: TournamentOption[] }> {
   const [schoolsRes, tournamentsRes, editionsRes] = await Promise.all([
     supabase.from("schools").select("id, name, main_rival, alias"),
     supabase.from("tournaments").select("id, name"),
@@ -90,7 +97,6 @@ async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: School
     schoolIdToRival.set(s.id, s.main_rival ?? null);
     allSchools.push({ id: s.id, name: s.name });
 
-    // Index aliases
     const aliases = (s as any).alias;
     if (Array.isArray(aliases)) {
       for (const a of aliases) {
@@ -102,8 +108,10 @@ async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: School
   }
 
   const tournamentNameToId = new Map<string, string>();
+  const allTournaments: TournamentOption[] = [];
   for (const t of tournamentsRes.data ?? []) {
     tournamentNameToId.set(t.name.toLowerCase().trim(), t.id);
+    allTournaments.push({ id: t.id, name: t.name });
   }
 
   const editionMap = new Map<string, string>();
@@ -111,7 +119,7 @@ async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: School
     editionMap.set(`${e.tournament_id}_${e.year}`, e.id);
   }
 
-  return { maps: { schoolNameToId, schoolIdToRival, tournamentNameToId, editionMap }, allSchools };
+  return { maps: { schoolNameToId, schoolIdToRival, tournamentNameToId, editionMap }, allSchools, allTournaments };
 }
 
 // ── Row mapping ─────────────────────────────────────────────────────────────
@@ -340,7 +348,7 @@ async function runImport(rows: CsvFixtureRow[], maps: LookupMaps): Promise<{ val
 // ── Public API: Step 1 — Analyze ────────────────────────────────────────────
 
 export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<AnalysisResult> {
-  const { maps, allSchools } = await prefetchLookups();
+  const { maps, allSchools, allTournaments } = await prefetchLookups();
 
   // Collect all unique school names from CSV
   const allCsvNames = new Set<string>();
@@ -357,8 +365,22 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
     }
   }
 
-  // If no unknowns, import immediately
-  if (unknownSchools.length === 0) {
+  // Collect all unique tournament names from CSV
+  const allCsvTournaments = new Set<string>();
+  for (const row of rows) {
+    const tName = row.tournament_name?.trim();
+    if (tName) allCsvTournaments.add(tName);
+  }
+
+  const unknownTournaments: string[] = [];
+  for (const name of allCsvTournaments) {
+    if (!maps.tournamentNameToId.has(name.toLowerCase())) {
+      unknownTournaments.push(name);
+    }
+  }
+
+  // If no unknowns at all, import immediately
+  if (unknownSchools.length === 0 && unknownTournaments.length === 0) {
     const { validFixtures, allErrors } = await runImport(rows, maps);
     const existingFps = await fetchExistingFingerprints(validFixtures);
     const newFixtures = validFixtures.filter((f) => {
@@ -372,10 +394,10 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
     const skipped = validFixtures.length - newFixtures.length;
     let inserted = 0;
     if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
-    return { unknownSchools: [], allSchools, maps, rows, importResult: { inserted, skipped, errors: allErrors } };
+    return { unknownSchools: [], unknownTournaments: [], allSchools, allTournaments, maps, rows, importResult: { inserted, skipped, errors: allErrors } };
   }
 
-  return { unknownSchools: unknownSchools.sort(), allSchools, maps, rows };
+  return { unknownSchools: unknownSchools.sort(), unknownTournaments: unknownTournaments.sort(), allSchools, allTournaments, maps, rows };
 }
 
 // ── Public API: Step 2 — Apply mappings & import ────────────────────────────

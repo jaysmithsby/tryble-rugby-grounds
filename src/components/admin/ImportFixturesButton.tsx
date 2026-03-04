@@ -8,9 +8,11 @@ import {
   applyMappingsAndImport,
   type CsvFixtureRow,
   type SchoolOption,
+  type TournamentOption,
   type LookupMaps,
 } from "@/lib/fixtureImportService";
 import { SchoolMappingDialog } from "./SchoolMappingDialog";
+import { TournamentMappingDialog } from "./TournamentMappingDialog";
 
 interface ImportFixturesButtonProps {
   onSuccess?: () => void;
@@ -21,12 +23,21 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Mapping dialog state
-  const [mappingOpen, setMappingOpen] = useState(false);
+  // School mapping dialog state
+  const [schoolMappingOpen, setSchoolMappingOpen] = useState(false);
   const [unknownSchools, setUnknownSchools] = useState<string[]>([]);
   const [allSchools, setAllSchools] = useState<SchoolOption[]>([]);
+
+  // Tournament mapping dialog state
+  const [tournamentMappingOpen, setTournamentMappingOpen] = useState(false);
+  const [unknownTournaments, setUnknownTournaments] = useState<string[]>([]);
+  const [allTournaments, setAllTournaments] = useState<TournamentOption[]>([]);
+  const [detectedSeasons, setDetectedSeasons] = useState<string[]>([]);
+
+  // Shared pending state
   const [pendingMaps, setPendingMaps] = useState<LookupMaps | null>(null);
   const [pendingRows, setPendingRows] = useState<CsvFixtureRow[]>([]);
+  const [pendingSchoolMappings, setPendingSchoolMappings] = useState<Record<string, string>>({});
 
   const showResult = (inserted: number, skipped: number, errorCount: number) => {
     if (inserted === 0 && errorCount > 0 && skipped === 0) {
@@ -58,12 +69,31 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
             if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
             showResult(inserted, skipped, errors.length);
           } else {
-            // Unknowns found — show mapping dialog
-            setUnknownSchools(analysis.unknownSchools);
-            setAllSchools(analysis.allSchools);
+            // Store shared state
             setPendingMaps(analysis.maps);
             setPendingRows(analysis.rows);
-            setMappingOpen(true);
+            setAllSchools(analysis.allSchools);
+            setAllTournaments(analysis.allTournaments);
+
+            // Detect seasons from CSV
+            const seasons = new Set<string>();
+            for (const row of analysis.rows) {
+              const s = row.season?.trim();
+              if (s) seasons.add(s);
+            }
+            setDetectedSeasons([...seasons].sort());
+
+            if (analysis.unknownSchools.length > 0) {
+              // Step 1: Schools first
+              setUnknownSchools(analysis.unknownSchools);
+              setUnknownTournaments(analysis.unknownTournaments);
+              setSchoolMappingOpen(true);
+            } else if (analysis.unknownTournaments.length > 0) {
+              // No unknown schools, go straight to tournaments
+              setUnknownTournaments(analysis.unknownTournaments);
+              setPendingSchoolMappings({});
+              setTournamentMappingOpen(true);
+            }
           }
         } catch (error: any) {
           console.error("Import error:", error);
@@ -81,11 +111,33 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
     });
   };
 
-  const handleMappingConfirm = async (mappings: Record<string, string>) => {
-    setMappingOpen(false);
+  const handleSchoolMappingConfirm = (mappings: Record<string, string>, newSchools: SchoolOption[]) => {
+    setSchoolMappingOpen(false);
+    setPendingSchoolMappings(mappings);
+
+    // Add newly created schools to allSchools for reference
+    if (newSchools.length > 0) {
+      setAllSchools((prev) => [...prev, ...newSchools]);
+    }
+
+    // Proceed to tournament mapping if there are unknown tournaments
+    if (unknownTournaments.length > 0) {
+      setTournamentMappingOpen(true);
+    } else {
+      // No unknown tournaments — go straight to import
+      runFinalImport(mappings);
+    }
+  };
+
+  const handleTournamentMappingConfirm = (_tournamentMappings: Record<string, string>) => {
+    setTournamentMappingOpen(false);
+    runFinalImport(pendingSchoolMappings);
+  };
+
+  const runFinalImport = async (schoolMappings: Record<string, string>) => {
     setLoading(true);
     try {
-      const { inserted, skipped, errors } = await applyMappingsAndImport(mappings, pendingMaps!, pendingRows);
+      const { inserted, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows);
       if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
       showResult(inserted, skipped, errors.length);
     } catch (error: any) {
@@ -128,11 +180,21 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
       </div>
 
       <SchoolMappingDialog
-        open={mappingOpen}
-        onOpenChange={setMappingOpen}
+        open={schoolMappingOpen}
+        onOpenChange={setSchoolMappingOpen}
         unknownSchools={unknownSchools}
         allSchools={allSchools}
-        onConfirm={handleMappingConfirm}
+        onConfirm={handleSchoolMappingConfirm}
+      />
+
+      <TournamentMappingDialog
+        open={tournamentMappingOpen}
+        onOpenChange={setTournamentMappingOpen}
+        unknownTournaments={unknownTournaments}
+        allTournaments={allTournaments}
+        maps={pendingMaps!}
+        seasons={detectedSeasons}
+        onConfirm={handleTournamentMappingConfirm}
       />
     </>
   );
