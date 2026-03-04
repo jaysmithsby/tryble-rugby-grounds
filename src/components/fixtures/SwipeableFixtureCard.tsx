@@ -49,7 +49,7 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
       {!isDismissing && (
         <motion.div
           key={fixtureId}
-          style={{ x, opacity, overflow: "hidden", touchAction: "pan-y" }}
+          style={{ x, opacity, overflow: "hidden" }}
           drag="x"
           dragDirectionLock
           dragConstraints={{ left: -150, right: 0 }}
