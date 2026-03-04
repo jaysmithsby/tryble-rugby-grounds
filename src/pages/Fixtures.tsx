@@ -28,6 +28,7 @@ const Fixtures = () => {
   const [viewMode, setViewMode] = useState<"my-schools" | "all-schools">("my-schools");
   const [selectedProvince, setSelectedProvince] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const startDate = useMemo(() => dateRange.from.toISOString(), [dateRange.from]);
   const endDate = useMemo(
