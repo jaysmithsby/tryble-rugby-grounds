@@ -39,16 +39,17 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const [pendingRows, setPendingRows] = useState<CsvFixtureRow[]>([]);
   const [pendingSchoolMappings, setPendingSchoolMappings] = useState<Record<string, string>>({});
 
-  const showResult = (inserted: number, skipped: number, errorCount: number) => {
-    if (inserted === 0 && errorCount > 0 && skipped === 0) {
+  const showResult = (inserted: number, updated: number, skipped: number, errorCount: number) => {
+    if (inserted === 0 && updated === 0 && errorCount > 0 && skipped === 0) {
       toast({ title: "Import Failed", description: `${errorCount} error(s). Check console for details.`, variant: "destructive" });
     } else {
       const parts = [`${inserted} inserted`];
+      if (updated > 0) parts.push(`${updated} scores updated`);
       if (skipped > 0) parts.push(`${skipped} skipped (duplicates)`);
       if (errorCount > 0) parts.push(`${errorCount} error(s) — see console`);
       toast({ title: "Import Complete", description: parts.join(", ") });
     }
-    if (inserted > 0) onSuccess?.();
+    if (inserted > 0 || updated > 0) onSuccess?.();
   };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,9 +66,9 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
 
           if (analysis.importResult) {
             // No unknowns — imported immediately
-            const { inserted, skipped, errors } = analysis.importResult;
+            const { inserted, updated, skipped, errors } = analysis.importResult;
             if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
-            showResult(inserted, skipped, errors.length);
+            showResult(inserted, updated, skipped, errors.length);
           } else {
             // Store shared state
             setPendingMaps(analysis.maps);
@@ -137,9 +138,9 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
   const runFinalImport = async (schoolMappings: Record<string, string>) => {
     setLoading(true);
     try {
-      const { inserted, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows);
+      const { inserted, updated, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows);
       if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
-      showResult(inserted, skipped, errors.length);
+      showResult(inserted, updated, skipped, errors.length);
     } catch (error: any) {
       console.error("Import error:", error);
       toast({ title: "Import Failed", description: error.message, variant: "destructive" });

@@ -42,6 +42,7 @@ export interface ImportError {
 
 export interface ImportResult {
   inserted: number;
+  updated: number;
   skipped: number;
   errors: ImportError[];
 }
@@ -295,31 +296,81 @@ async function insertFixtures(fixtures: FixtureInsert[]): Promise<number> {
 
 // ── DB dedup lookup ─────────────────────────────────────────────────────────
 
-async function fetchExistingFingerprints(fixtures: FixtureInsert[]): Promise<Set<string>> {
+async function fetchExistingFixtures(fixtures: FixtureInsert[]): Promise<Map<string, { id: string; score_a: number | null; score_b: number | null }>> {
   const dates = [...new Set(fixtures.map((f) => f.match_date.substring(0, 10)))];
-  if (dates.length === 0) return new Set();
+  if (dates.length === 0) return new Map();
 
-  // Query fixtures in the date range and fingerprint client-side
   const sortedDates = [...dates].sort();
   const minDate = sortedDates[0] + "T00:00:00Z";
   const maxDate = sortedDates[sortedDates.length - 1] + "T23:59:59Z";
 
   const { data, error } = await supabase
     .from("fixtures")
-    .select("school_a_id, school_b_id, match_date")
+    .select("id, school_a_id, school_b_id, match_date, score_a, score_b")
     .gte("match_date", minDate)
     .lte("match_date", maxDate);
 
   if (error) {
     console.warn("DB dedup query failed, skipping DB dedup:", error.message);
-    return new Set();
+    return new Map();
   }
 
-  const set = new Set<string>();
+  const map = new Map<string, { id: string; score_a: number | null; score_b: number | null }>();
   for (const row of data ?? []) {
-    set.add(getFixtureFingerprint(row.school_a_id, row.school_b_id, row.match_date));
+    const fp = getFixtureFingerprint(row.school_a_id, row.school_b_id, row.match_date);
+    map.set(fp, { id: row.id, score_a: row.score_a, score_b: row.score_b });
   }
-  return set;
+  return map;
+}
+
+// ── Score update for existing fixtures ──────────────────────────────────────
+
+async function updateExistingScores(
+  updates: { id: string; score_a: number; score_b: number; status: string }[]
+): Promise<number> {
+  let updated = 0;
+  for (const u of updates) {
+    const { error } = await supabase
+      .from("fixtures")
+      .update({ score_a: u.score_a, score_b: u.score_b, status: u.status })
+      .eq("id", u.id);
+    if (!error) updated++;
+  }
+  return updated;
+}
+
+// ── Shared dedup + score-update logic ───────────────────────────────────────
+
+async function deduplicateAndImport(
+  validFixtures: FixtureInsert[],
+  allErrors: ImportError[]
+): Promise<{ inserted: number; updated: number; skipped: number }> {
+  const existingMap = await fetchExistingFixtures(validFixtures);
+  const newFixtures: FixtureInsert[] = [];
+  const scoreUpdates: { id: string; score_a: number; score_b: number; status: string }[] = [];
+  let skipped = 0;
+
+  for (const f of validFixtures) {
+    const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
+    const existing = existingMap.get(fp);
+    if (existing) {
+      if (f.score_a !== null && f.score_b !== null && (existing.score_a === null || existing.score_b === null)) {
+        scoreUpdates.push({ id: existing.id, score_a: f.score_a, score_b: f.score_b, status: "final" });
+        allErrors.push({ row: 0, message: `Updated score: Existing fixture (${f.match_date.substring(0, 10)}) updated with score ${f.score_a}-${f.score_b}` });
+      } else {
+        skipped++;
+        allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
+      }
+    } else {
+      newFixtures.push(f);
+    }
+  }
+
+  let inserted = 0;
+  if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
+  const updated = await updateExistingScores(scoreUpdates);
+
+  return { inserted, updated, skipped };
 }
 
 // ── Import core (shared) ────────────────────────────────────────────────────
@@ -388,19 +439,8 @@ export async function analyzeFixturesCsv(rows: CsvFixtureRow[]): Promise<Analysi
   // If no unknowns at all, import immediately
   if (unknownSchools.length === 0 && unknownTournaments.length === 0) {
     const { validFixtures, allErrors } = await runImport(rows, maps);
-    const existingFps = await fetchExistingFingerprints(validFixtures);
-    const newFixtures = validFixtures.filter((f) => {
-      const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
-      if (existingFps.has(fp)) {
-        allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
-        return false;
-      }
-      return true;
-    });
-    const skipped = validFixtures.length - newFixtures.length;
-    let inserted = 0;
-    if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
-    return { unknownSchools: [], unknownTournaments: [], allSchools, allTournaments, maps, rows, importResult: { inserted, skipped, errors: allErrors } };
+    const { inserted, updated, skipped } = await deduplicateAndImport(validFixtures, allErrors);
+    return { unknownSchools: [], unknownTournaments: [], allSchools, allTournaments, maps, rows, importResult: { inserted, updated, skipped, errors: allErrors } };
   }
 
   return { unknownSchools: unknownSchools.sort(), unknownTournaments: unknownTournaments.sort(), allSchools, allTournaments, maps, rows };
@@ -451,18 +491,7 @@ export async function applyMappingsAndImport(
 
   // Run the import
   const { validFixtures, allErrors } = await runImport(rows, maps);
-  const existingFps = await fetchExistingFingerprints(validFixtures);
-  const newFixtures = validFixtures.filter((f) => {
-    const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
-    if (existingFps.has(fp)) {
-      allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
-      return false;
-    }
-    return true;
-  });
-  const skipped = validFixtures.length - newFixtures.length;
-  let inserted = 0;
-  if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
+  const { inserted, updated, skipped } = await deduplicateAndImport(validFixtures, allErrors);
 
-  return { inserted, skipped, errors: allErrors };
+  return { inserted, updated, skipped, errors: allErrors };
 }
