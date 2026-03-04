@@ -15,22 +15,24 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
   const opacity = useTransform(x, [-200, -80, 0], [0.3, 0.8, 1]);
   const wasDragged = useRef(false);
   const isVerticalScroll = useRef(false);
-  const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
   const directionLocked = useRef(false);
 
-  // Manual direction detection to avoid framer-motion's dragDirectionLock
-  // which can block vertical scrolling at scroll boundaries
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    touchStartX.current = e.clientX;
-    touchStartY.current = e.clientY;
+  const resetGestureState = useCallback(() => {
     isVerticalScroll.current = false;
     directionLocked.current = false;
     wasDragged.current = false;
   }, []);
 
+  const handlePointerDown = useCallback(() => {
+    resetGestureState();
+  }, [resetGestureState]);
+
+  const handlePointerCancel = useCallback(() => {
+    resetGestureState();
+    x.set(0);
+  }, [resetGestureState, x]);
+
   const handleDrag = useCallback((_: any, info: PanInfo) => {
-    // If we haven't locked direction yet, determine it
     if (!directionLocked.current) {
       const absX = Math.abs(info.offset.x);
       const absY = Math.abs(info.offset.y);
@@ -40,7 +42,6 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
       }
     }
 
-    // If vertical scroll detected, force x back to 0
     if (isVerticalScroll.current) {
       x.set(0);
       return;
@@ -56,9 +57,13 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
       x.set(0);
       return;
     }
+
     if (info.offset.x < -SWIPE_THRESHOLD && Math.abs(info.offset.y) < Math.abs(info.offset.x)) {
       setIsDismissing(true);
+      return;
     }
+
+    x.set(0);
   }, [x]);
 
   const handleExitComplete = useCallback(() => {
@@ -79,12 +84,13 @@ export function SwipeableFixtureCard({ fixtureId, onDismiss, children }: Swipeab
         <motion.div
           key={fixtureId}
           className="touch-pan-y"
-          style={{ x, opacity, overflow: "hidden" }}
+          style={{ x, opacity, overflow: "hidden", touchAction: "pan-y" }}
           drag="x"
           dragConstraints={{ left: -150, right: 0 }}
           dragElastic={{ left: 0.15, right: 0 }}
           dragMomentum={false}
           onPointerDown={handlePointerDown}
+          onPointerCancel={handlePointerCancel}
           onDrag={handleDrag}
           onDragEnd={handleDragEnd}
           onClickCapture={handleClickCapture}
