@@ -296,7 +296,7 @@ async function insertFixtures(fixtures: FixtureInsert[]): Promise<number> {
 
 // ── DB dedup lookup ─────────────────────────────────────────────────────────
 
-async function fetchExistingFixtures(fixtures: FixtureInsert[]): Promise<Map<string, { id: string; score_a: number | null; score_b: number | null }>> {
+async function fetchExistingFixtures(fixtures: FixtureInsert[]): Promise<Map<string, { id: string; score_a: number | null; score_b: number | null; tournament_id: string | null }>> {
   const dates = [...new Set(fixtures.map((f) => f.match_date.substring(0, 10)))];
   if (dates.length === 0) return new Map();
 
@@ -306,7 +306,7 @@ async function fetchExistingFixtures(fixtures: FixtureInsert[]): Promise<Map<str
 
   const { data, error } = await supabase
     .from("fixtures")
-    .select("id, school_a_id, school_b_id, match_date, score_a, score_b")
+    .select("id, school_a_id, school_b_id, match_date, score_a, score_b, tournament_id")
     .gte("match_date", minDate)
     .lte("match_date", maxDate);
 
@@ -315,24 +315,30 @@ async function fetchExistingFixtures(fixtures: FixtureInsert[]): Promise<Map<str
     return new Map();
   }
 
-  const map = new Map<string, { id: string; score_a: number | null; score_b: number | null }>();
+  const map = new Map<string, { id: string; score_a: number | null; score_b: number | null; tournament_id: string | null }>();
   for (const row of data ?? []) {
     const fp = getFixtureFingerprint(row.school_a_id, row.school_b_id, row.match_date);
-    map.set(fp, { id: row.id, score_a: row.score_a, score_b: row.score_b });
+    map.set(fp, { id: row.id, score_a: row.score_a, score_b: row.score_b, tournament_id: row.tournament_id });
   }
   return map;
 }
 
 // ── Score update for existing fixtures ──────────────────────────────────────
 
-async function updateExistingScores(
-  updates: { id: string; score_a: number; score_b: number; status: string }[]
+async function updateExistingFixtures(
+  updates: { id: string; score_a?: number; score_b?: number; status?: string; tournament_id?: string }[]
 ): Promise<number> {
   let updated = 0;
   for (const u of updates) {
+    const updatePayload: Record<string, any> = {};
+    if (u.score_a !== undefined) updatePayload.score_a = u.score_a;
+    if (u.score_b !== undefined) updatePayload.score_b = u.score_b;
+    if (u.status !== undefined) updatePayload.status = u.status;
+    if (u.tournament_id !== undefined) updatePayload.tournament_id = u.tournament_id;
+    if (Object.keys(updatePayload).length === 0) continue;
     const { error } = await supabase
       .from("fixtures")
-      .update({ score_a: u.score_a, score_b: u.score_b, status: u.status })
+      .update(updatePayload)
       .eq("id", u.id);
     if (!error) updated++;
   }
@@ -347,16 +353,34 @@ async function deduplicateAndImport(
 ): Promise<{ inserted: number; updated: number; skipped: number }> {
   const existingMap = await fetchExistingFixtures(validFixtures);
   const newFixtures: FixtureInsert[] = [];
-  const scoreUpdates: { id: string; score_a: number; score_b: number; status: string }[] = [];
+  const fixtureUpdates: { id: string; score_a?: number; score_b?: number; status?: string; tournament_id?: string }[] = [];
   let skipped = 0;
 
   for (const f of validFixtures) {
     const fp = getFixtureFingerprint(f.school_a_id, f.school_b_id, f.match_date);
     const existing = existingMap.get(fp);
     if (existing) {
+      const updates: { id: string; score_a?: number; score_b?: number; status?: string; tournament_id?: string } = { id: existing.id };
+      let hasUpdate = false;
+
+      // Update scores if new data provides them and existing doesn't have them
       if (f.score_a !== null && f.score_b !== null && (existing.score_a === null || existing.score_b === null)) {
-        scoreUpdates.push({ id: existing.id, score_a: f.score_a, score_b: f.score_b, status: "final" });
+        updates.score_a = f.score_a;
+        updates.score_b = f.score_b;
+        updates.status = "final";
+        hasUpdate = true;
         allErrors.push({ row: 0, message: `Updated score: Existing fixture (${f.match_date.substring(0, 10)}) updated with score ${f.score_a}-${f.score_b}` });
+      }
+
+      // Update tournament if existing has none but new data provides one
+      if (f.tournament_id !== null && existing.tournament_id === null) {
+        updates.tournament_id = f.tournament_id;
+        hasUpdate = true;
+        allErrors.push({ row: 0, message: `Updated tournament: Existing fixture (${f.match_date.substring(0, 10)}) linked to tournament` });
+      }
+
+      if (hasUpdate) {
+        fixtureUpdates.push(updates);
       } else {
         skipped++;
         allErrors.push({ row: 0, message: `Skipped: Fixture already exists in database (${f.match_date.substring(0, 10)})` });
@@ -368,7 +392,7 @@ async function deduplicateAndImport(
 
   let inserted = 0;
   if (newFixtures.length > 0) inserted = await insertFixtures(newFixtures);
-  const updated = await updateExistingScores(scoreUpdates);
+  const updated = await updateExistingFixtures(fixtureUpdates);
 
   return { inserted, updated, skipped };
 }
