@@ -14,6 +14,7 @@ import { EditPoolDialog } from "@/components/pools/EditPoolDialog";
 import { ScoringInfoCard } from "@/components/pools/ScoringInfoCard";
 import { BottomNav } from "@/components/BottomNav";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
+import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
