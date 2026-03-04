@@ -157,9 +157,18 @@ const Fixtures = () => {
   const totalPages = viewMode === "my-schools" ? totalMyPages : totalAllPages;
   const showPagination = !isLoading && totalPages > 1;
 
+  const queryClient = useQueryClient();
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["fixtures"] });
+    await queryClient.invalidateQueries({ queryKey: ["fixture-predictions"] });
+  }, [queryClient]);
+
+  const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({ onRefresh: handleRefresh });
+
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div ref={containerRef} className="min-h-screen bg-background pb-24 overflow-auto">
       <GlobalHeader />
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
 
       <FixturesFilters
         viewMode={viewMode}

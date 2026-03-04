@@ -99,9 +99,18 @@ const Home = () => {
     );
   }
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-fixtures"] });
+    await queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
+    await queryClient.invalidateQueries({ queryKey: ["home-upcoming-tournaments"] });
+  }, [queryClient]);
+
+  const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({ onRefresh: handleRefresh });
+
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div ref={containerRef} className="min-h-screen bg-background pb-20 overflow-auto">
       <GlobalHeader />
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <div className="space-y-1.5">
