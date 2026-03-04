@@ -91,6 +91,7 @@ const Home = () => {
   };
 
   const handleRefresh = useCallback(async () => {
+    setDismissedIds(new Set());
     await queryClient.invalidateQueries({ queryKey: ["home-upcoming-fixtures"] });
     await queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
     await queryClient.invalidateQueries({ queryKey: ["home-upcoming-tournaments"] });
