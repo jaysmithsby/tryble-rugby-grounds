@@ -31,6 +31,7 @@ export default function SchoolProfile() {
   const [springboksCount, setSpringboksCount] = useState<number | null>(null);
   const [springboksOpen, setSpringboksOpen] = useState(false);
   const springboksRef = useRef<HTMLDivElement>(null);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // Pagination for upcoming fixtures
   const [fixturesPage, setFixturesPage] = useState(1);
