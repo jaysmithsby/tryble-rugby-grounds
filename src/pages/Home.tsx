@@ -40,8 +40,12 @@ const Home = () => {
       if (!user?.id) return;
 
       const fixture = upcomingFixtures.find((f) => f.id === matchId);
-      const predictedTeam =
-        fixture && schoolId === fixture.school_a.id ? "school_a" : "school_b";
+      const isDraw = schoolId === "draw";
+      const predictedTeam = isDraw
+        ? "draw"
+        : fixture && schoolId === fixture.school_a.id
+          ? "school_a"
+          : "school_b";
 
       setLocalPredictions((prev) => ({
         ...prev,
