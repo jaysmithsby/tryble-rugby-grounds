@@ -296,31 +296,47 @@ async function insertFixtures(fixtures: FixtureInsert[]): Promise<number> {
 
 // ── DB dedup lookup ─────────────────────────────────────────────────────────
 
-async function fetchExistingFingerprints(fixtures: FixtureInsert[]): Promise<Set<string>> {
+async function fetchExistingFixtures(fixtures: FixtureInsert[]): Promise<Map<string, { id: string; score_a: number | null; score_b: number | null }>> {
   const dates = [...new Set(fixtures.map((f) => f.match_date.substring(0, 10)))];
-  if (dates.length === 0) return new Set();
+  if (dates.length === 0) return new Map();
 
-  // Query fixtures in the date range and fingerprint client-side
   const sortedDates = [...dates].sort();
   const minDate = sortedDates[0] + "T00:00:00Z";
   const maxDate = sortedDates[sortedDates.length - 1] + "T23:59:59Z";
 
   const { data, error } = await supabase
     .from("fixtures")
-    .select("school_a_id, school_b_id, match_date")
+    .select("id, school_a_id, school_b_id, match_date, score_a, score_b")
     .gte("match_date", minDate)
     .lte("match_date", maxDate);
 
   if (error) {
     console.warn("DB dedup query failed, skipping DB dedup:", error.message);
-    return new Set();
+    return new Map();
   }
 
-  const set = new Set<string>();
+  const map = new Map<string, { id: string; score_a: number | null; score_b: number | null }>();
   for (const row of data ?? []) {
-    set.add(getFixtureFingerprint(row.school_a_id, row.school_b_id, row.match_date));
+    const fp = getFixtureFingerprint(row.school_a_id, row.school_b_id, row.match_date);
+    map.set(fp, { id: row.id, score_a: row.score_a, score_b: row.score_b });
   }
-  return set;
+  return map;
+}
+
+// ── Score update for existing fixtures ──────────────────────────────────────
+
+async function updateExistingScores(
+  updates: { id: string; score_a: number; score_b: number; status: string }[]
+): Promise<number> {
+  let updated = 0;
+  for (const u of updates) {
+    const { error } = await supabase
+      .from("fixtures")
+      .update({ score_a: u.score_a, score_b: u.score_b, status: u.status })
+      .eq("id", u.id);
+    if (!error) updated++;
+  }
+  return updated;
 }
 
 // ── Import core (shared) ────────────────────────────────────────────────────
