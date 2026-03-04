@@ -245,7 +245,7 @@ const Logs = () => {
                           ) : "—"}
                         </span>
                         <span
-                          className={`font-mono ${
+                          className={`font-mono tabular-nums ${
                             pts >= 5
                               ? "font-bold text-yellow-500"
                               : pts >= 3
@@ -253,7 +253,9 @@ const Logs = () => {
                               : ""
                           }`}
                         >
-                          ±{pred.predicted_margin} → {pts}pts
+                          <span className="inline-block w-8 text-right">±{pred.predicted_margin}</span>
+                          <span className="mx-1">→</span>
+                          <span className="inline-block w-10 text-left">{pts}pts</span>
                         </span>
                         <span className="font-mono">
                           Comm. {commAvg != null ? commAvg : "—"}
