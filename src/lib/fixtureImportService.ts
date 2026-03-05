@@ -113,6 +113,16 @@ async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: School
   for (const t of tournamentsRes.data ?? []) {
     tournamentNameToId.set(t.name.toLowerCase().trim(), t.id);
     allTournaments.push({ id: t.id, name: t.name });
+
+    // Register tournament aliases
+    const tAliases = (t as any).alias;
+    if (Array.isArray(tAliases)) {
+      for (const a of tAliases) {
+        if (typeof a === "string" && a.trim()) {
+          tournamentNameToId.set(a.toLowerCase().trim(), t.id);
+        }
+      }
+    }
   }
 
   const editionMap = new Map<string, string>();
