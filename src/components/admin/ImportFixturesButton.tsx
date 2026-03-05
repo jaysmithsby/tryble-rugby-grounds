@@ -130,15 +130,15 @@ export function ImportFixturesButton({ onSuccess }: ImportFixturesButtonProps) {
     }
   };
 
-  const handleTournamentMappingConfirm = (_tournamentMappings: Record<string, string>) => {
+  const handleTournamentMappingConfirm = (tournamentMappings: Record<string, string>) => {
     setTournamentMappingOpen(false);
-    runFinalImport(pendingSchoolMappings);
+    runFinalImport(pendingSchoolMappings, tournamentMappings);
   };
 
-  const runFinalImport = async (schoolMappings: Record<string, string>) => {
+  const runFinalImport = async (schoolMappings: Record<string, string>, tournamentMappings?: Record<string, string>) => {
     setLoading(true);
     try {
-      const { inserted, updated, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows);
+      const { inserted, updated, skipped, errors } = await applyMappingsAndImport(schoolMappings, pendingMaps!, pendingRows, tournamentMappings);
       if (errors.length > 0) console.warn("Import errors:", errors.map((e) => `Row ${e.row}: ${e.message}`));
       showResult(inserted, updated, skipped, errors.length);
     } catch (error: any) {

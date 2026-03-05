@@ -80,7 +80,7 @@ export interface LookupMaps {
 async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: SchoolOption[]; allTournaments: TournamentOption[] }> {
   const [schoolsRes, tournamentsRes, editionsRes] = await Promise.all([
     supabase.from("schools").select("id, name, main_rival, alias"),
-    supabase.from("tournaments").select("id, name"),
+    supabase.from("tournaments").select("id, name, alias"),
     supabase.from("tournament_editions").select("id, tournament_id, year"),
   ]);
 
@@ -113,6 +113,16 @@ async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: School
   for (const t of tournamentsRes.data ?? []) {
     tournamentNameToId.set(t.name.toLowerCase().trim(), t.id);
     allTournaments.push({ id: t.id, name: t.name });
+
+    // Register tournament aliases
+    const tAliases = (t as any).alias;
+    if (Array.isArray(tAliases)) {
+      for (const a of tAliases) {
+        if (typeof a === "string" && a.trim()) {
+          tournamentNameToId.set(a.toLowerCase().trim(), t.id);
+        }
+      }
+    }
   }
 
   const editionMap = new Map<string, string>();
@@ -485,9 +495,10 @@ export async function cleanupExistingDuplicates(): Promise<number> {
 export async function applyMappingsAndImport(
   mappings: Record<string, string>,
   maps: LookupMaps,
-  rows: CsvFixtureRow[]
+  rows: CsvFixtureRow[],
+  tournamentMappings?: Record<string, string>
 ): Promise<ImportResult> {
-  // Persist aliases to database
+  // Persist school aliases to database
   const schoolUpdates = new Map<string, string[]>(); // schoolId → list of new alias names
   for (const [csvName, schoolId] of Object.entries(mappings)) {
     const existing = schoolUpdates.get(schoolId) || [];
@@ -496,7 +507,6 @@ export async function applyMappingsAndImport(
   }
 
   for (const [schoolId, names] of schoolUpdates.entries()) {
-    // Read current aliases, append new ones, update
     const { data } = await supabase.from("schools").select("alias").eq("id", schoolId).single();
     const currentAliases: string[] = Array.isArray((data as any)?.alias) ? (data as any).alias : [];
     for (const name of names) {
@@ -508,7 +518,34 @@ export async function applyMappingsAndImport(
     if (error) console.warn(`Failed to update alias for school ${schoolId}:`, error.message);
   }
 
-  // Update lookup maps with new mappings
+  // Persist tournament aliases to database
+  if (tournamentMappings) {
+    const tournamentUpdates = new Map<string, string[]>();
+    for (const [csvName, tournamentId] of Object.entries(tournamentMappings)) {
+      const existing = tournamentUpdates.get(tournamentId) || [];
+      existing.push(csvName);
+      tournamentUpdates.set(tournamentId, existing);
+    }
+
+    for (const [tournamentId, names] of tournamentUpdates.entries()) {
+      const { data } = await supabase.from("tournaments").select("alias").eq("id", tournamentId).single();
+      const currentAliases: string[] = Array.isArray((data as any)?.alias) ? (data as any).alias : [];
+      for (const name of names) {
+        if (!currentAliases.some((a: string) => a.toLowerCase() === name.toLowerCase())) {
+          currentAliases.push(name);
+        }
+      }
+      const { error } = await supabase.from("tournaments").update({ alias: currentAliases } as any).eq("id", tournamentId);
+      if (error) console.warn(`Failed to update alias for tournament ${tournamentId}:`, error.message);
+    }
+
+    // Update lookup maps with tournament mappings
+    for (const [csvName, tournamentId] of Object.entries(tournamentMappings)) {
+      maps.tournamentNameToId.set(csvName.toLowerCase().trim(), tournamentId);
+    }
+  }
+
+  // Update lookup maps with school mappings
   for (const [csvName, schoolId] of Object.entries(mappings)) {
     maps.schoolNameToId.set(csvName.toLowerCase().trim(), schoolId);
   }
