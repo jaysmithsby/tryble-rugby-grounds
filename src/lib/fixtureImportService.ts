@@ -80,7 +80,7 @@ export interface LookupMaps {
 async function prefetchLookups(): Promise<{ maps: LookupMaps; allSchools: SchoolOption[]; allTournaments: TournamentOption[] }> {
   const [schoolsRes, tournamentsRes, editionsRes] = await Promise.all([
     supabase.from("schools").select("id, name, main_rival, alias"),
-    supabase.from("tournaments").select("id, name"),
+    supabase.from("tournaments").select("id, name, alias"),
     supabase.from("tournament_editions").select("id, tournament_id, year"),
   ]);
 
