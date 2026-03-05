@@ -914,18 +914,21 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          alias: Json | null
           created_at: string
           id: string
           name: string
           updated_at: string
         }
         Insert: {
+          alias?: Json | null
           created_at?: string
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
+          alias?: Json | null
           created_at?: string
           id?: string
           name?: string

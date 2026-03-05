@@ -1,0 +1,1 @@
+ALTER TABLE public.tournaments ADD COLUMN alias jsonb DEFAULT '[]'::jsonb;
