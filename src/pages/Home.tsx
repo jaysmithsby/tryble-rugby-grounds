@@ -8,6 +8,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useConsentStatus } from "@/hooks/useConsentStatus";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { Trophy, ChevronRight } from "lucide-react";
