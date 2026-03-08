@@ -1,52 +1,48 @@
 
 
-## Problem
+## Plan: Redefine Streak as Weekly Participation Streak
 
-When a minor without parental consent tries to predict on a fixture that doesn't involve their school, the prediction dialog opens and appears to work, but the prediction silently fails to save (RLS likely blocks it, or there's no client-side gate). There's no user-facing feedback explaining why.
+### What Changes
 
-## Solution
+**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
 
-Add consent gating at the point where the prediction dialog would open. If the user is a minor needing consent and the fixture doesn't involve their school, show the existing `ConsentRequiredDialog` instead of the `PredictionDialog`.
+### Changes Required
 
-## Changes
+#### 1. New/Updated Database Function — `get_user_season_stats`
 
-There are three places where predictions are initiated. All three need the same gate:
+Update the streak calculation in the existing `get_user_season_stats` function:
 
-### 1. `src/components/fixtures/FixtureRow.tsx` (card click opens dialog)
+- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
+- Check if the user has a prediction for every such fixture that week.
+- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
+- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
 
-Line 297 has the click handler: `onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}`
+#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
 
-- Import `useConsentStatus` and add a `consentDialogOpen` state
-- In the click handler, check if the user is a minor needing consent AND neither `school_a_id` nor `school_b_id` matches the user's school. If so, open `ConsentRequiredDialog` instead of `PredictionDialog`.
-- Need the user's `school_id` — pass it down as a prop or use `useConsentStatus` + a separate query. Since `useConsentStatus` already exists and the hook is lightweight, use it here. But it doesn't expose `school_id`. Two options:
-  - Add `userSchoolId` to the hook's return
-  - Pass `userSchoolId` as a prop from parent
+The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
 
-Since `FixtureRow` is used across Home, Fixtures, Tournament, PoolLeaderboard, and SchoolProfile pages, passing a prop is cleaner than adding another query. But the simplest approach: use `useConsentStatus` (already has `needsConsent`) and add `userSchoolId` to its return value (it already queries `school_id` from profiles).
+- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
+- Remove the local streak calculation from the `analytics` memo.
+- Display the server-provided streak value instead.
 
-**Plan:**
-- Update `useConsentStatus` to also return `userSchoolId` from the profile query
-- In `FixtureRow`, import `useConsentStatus` and `ConsentRequiredDialog`
-- Add `consentDialogOpen` state
-- Before opening prediction dialog, check: if `needsConsent` AND fixture doesn't involve user's school → open consent dialog instead
-- Render `ConsentRequiredDialog` in the component
+#### 3. Wire Up `useUserStats` Streak
 
-### 2. `src/pages/Home.tsx` — `handlePredictionMade` callback
+The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
 
-This is the callback that actually saves the prediction. Even if the dialog gate works, add a guard here too as defense-in-depth. If `needsConsent` and fixture doesn't involve user's school, return early.
+### Technical Detail
 
-### 3. `src/pages/Fixtures.tsx` — `handlePredictionSubmit` callback
+**DB function streak logic** (pseudocode):
+```text
+FOR each week in season (descending):
+  IF week > current_week: SKIP
+  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
+  IF eligible_fixtures = 0: SKIP (no fixtures that week)
+  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
+  IF count(user_predictions) = count(eligible_fixtures): streak += 1
+  ELSE: BREAK
+```
 
-Same defense-in-depth guard as Home.tsx.
-
-### 4. `src/hooks/useConsentStatus.ts`
-
-- Add `school_id` to the profile select query (line ~53)
-- Return `userSchoolId` in the hook's return value
-
-### Summary of files to edit:
-1. **`src/hooks/useConsentStatus.ts`** — Add `userSchoolId` to returned data
-2. **`src/components/fixtures/FixtureRow.tsx`** — Add consent gate before opening prediction dialog, render `ConsentRequiredDialog`
-3. **`src/pages/Home.tsx`** — Add defense-in-depth guard in `handlePredictionMade`
-4. **`src/pages/Fixtures.tsx`** — Add defense-in-depth guard in `handlePredictionSubmit`
+### Files Affected
+- `supabase` — migration to update `get_user_season_stats` function (streak portion)
+- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
 

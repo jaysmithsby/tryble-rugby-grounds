@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Lock, AlertCircle, Trophy, Ban } from "lucide-react";
+import { ChevronDown, Lock, AlertCircle, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { MatchHistory } from "./MatchHistory";
 import { PredictionDialog } from "@/components/home/PredictionDialog";
+import { ConsentRequiredDialog } from "@/components/consent/ConsentRequiredDialog";
+import { useConsentStatus } from "@/hooks/useConsentStatus";
 import { cn } from "@/lib/utils";
 import { resolveVenueName } from "@/lib/venueUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -207,7 +209,9 @@ export const FixtureRow = ({
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [autoHasHistory, setAutoHasHistory] = useState<boolean | null>(null);
+  const { needsConsent, userSchoolId } = useConsentStatus();
 
   const [left, right, leftIsA] = useMemo(() => sortSchoolsAlpha(fixture), [fixture]);
 
@@ -239,6 +243,17 @@ export const FixtureRow = ({
   const handleSchoolClick = (e: React.MouseEvent, slug: string) => {
     e.stopPropagation();
     navigate(`/school/${slug}`);
+  };
+
+  const isUserSchoolFixture = userSchoolId && (fixture.school_a_id === userSchoolId || fixture.school_b_id === userSchoolId);
+
+  const handleCardClick = () => {
+    if (isPredicted || !onPredictionMade) return;
+    if (needsConsent && !isUserSchoolFixture) {
+      setConsentDialogOpen(true);
+      return;
+    }
+    setDialogOpen(true);
   };
 
   const handlePredictionSubmit = (schoolId: string, margin: number) => {
@@ -274,6 +289,11 @@ export const FixtureRow = ({
   if (variant === "card") {
     return (
       <>
+        <ConsentRequiredDialog
+          open={consentDialogOpen}
+          onOpenChange={setConsentDialogOpen}
+          actionDescription="predictions on matches not involving your school"
+        />
         {onPredictionMade && (
           <PredictionDialog
             open={dialogOpen}
@@ -294,7 +314,7 @@ export const FixtureRow = ({
         <Collapsible open={open} onOpenChange={setOpen}>
           <Card
             className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300 cursor-pointer"
-            onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}
+            onClick={handleCardClick}
           >
             <div className="p-4 space-y-3">
               {/* Date + Venue row */}
@@ -380,7 +400,7 @@ export const FixtureRow = ({
   const desktopRow = (
     <TableRow
       className={cn("hover:bg-muted/50", canExpand && "cursor-pointer")}
-      onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}
+      onClick={handleCardClick}
     >
       <TableCell className="text-sm align-middle">{dateVenueContent}</TableCell>
       <TableCell>{matchGrid("sm")}</TableCell>
@@ -402,7 +422,7 @@ export const FixtureRow = ({
   const mobileRow = (
     <div
       className={cn("border border-border/40 rounded-lg p-3 hover:bg-muted/50 transition-colors", canExpand && "cursor-pointer")}
-      onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}
+      onClick={handleCardClick}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs">{dateVenueContent}</span>
@@ -427,6 +447,11 @@ export const FixtureRow = ({
 
   return (
     <>
+      <ConsentRequiredDialog
+        open={consentDialogOpen}
+        onOpenChange={setConsentDialogOpen}
+        actionDescription="predictions on matches not involving your school"
+      />
       {onPredictionMade && (
         <PredictionDialog
           open={dialogOpen}

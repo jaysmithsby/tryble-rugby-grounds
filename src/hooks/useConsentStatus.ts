@@ -16,6 +16,7 @@ interface ConsentStatus {
   isLoading: boolean;
   yearOfBirth: number | null;
   userSchoolName: string | null;
+  userSchoolId: string | null;
 }
 
 function maskEmail(email: string): string {
@@ -65,6 +66,7 @@ export function useConsentStatus(): ConsentStatus & {
         consentStatus: data.consent_status as "pending" | "verified" | "expired" | null,
         parentEmail: data.parent_email,
         userSchoolName: (data.schools as any)?.name || data.school_name_legacy,
+        userSchoolId: data.school_id as string | null,
       };
     },
     staleTime: CACHE_TIMES.USER_PROFILE, // Profile data doesn't change often
@@ -167,6 +169,7 @@ export function useConsentStatus(): ConsentStatus & {
     isLoading: profileLoading || eligibilityLoading,
     yearOfBirth: profileData?.yearOfBirth || null,
     userSchoolName: profileData?.userSchoolName || null,
+    userSchoolId: profileData?.userSchoolId || null,
     sendConsentEmail,
     refetch,
   };

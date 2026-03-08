@@ -12,6 +12,7 @@ import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { useFixturesData } from "@/hooks/useFixturesData";
 import { usePreloadJerseyImages } from "@/components/ui/SchoolJerseyImage";
 import { supabase } from "@/integrations/supabase/client";
+import { useConsentStatus } from "@/hooks/useConsentStatus";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -19,6 +20,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 const Fixtures = () => {
   const { toast } = useToast();
+  const consentStatus = useConsentStatus();
   const now = new Date();
 
   const [dateRange, setDateRange] = useState({
@@ -65,6 +67,15 @@ const Fixtures = () => {
         return;
       }
 
+      // Defense-in-depth: block minors without consent on non-school fixtures
+      if (consentStatus.needsConsent) {
+        const fixture = fixtures.find(f => f.id === fixtureId);
+        if (fixture) {
+          const isUserSchool = fixture.school_a_id === consentStatus.userSchoolId || fixture.school_b_id === consentStatus.userSchoolId;
+          if (!isUserSchool) return;
+        }
+      }
+
       const isDraw = schoolId === "draw";
 
       try {
@@ -97,7 +108,7 @@ const Fixtures = () => {
         toast({ title: "Prediction Failed", description: "Could not save your prediction. Please try again.", variant: "destructive" });
       }
     },
-    [userId, toast, groupedFixtures]
+    [userId, toast, fixtures, consentStatus.needsConsent, consentStatus.userSchoolId]
   );
 
   const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;

@@ -8,6 +8,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useConsentStatus } from "@/hooks/useConsentStatus";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
 import { Trophy, ChevronRight } from "lucide-react";
@@ -22,6 +23,7 @@ const Home = () => {
   const { effectiveDate, seasonYear } = useEffectiveDate();
   const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string; margin: number }>>({});
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const consentStatus = useConsentStatus();
 
   const { user, loading, profileLoaded } = useHomeAuth();
 
@@ -42,6 +44,13 @@ const Home = () => {
   const handlePredictionMade = useCallback(
     async (matchId: string, schoolId: string, margin: number) => {
       if (!user?.id) return;
+
+      // Defense-in-depth: block minors without consent on non-school fixtures
+      const fixture = upcomingFixtures.find(f => f.id === matchId);
+      if (consentStatus.needsConsent && fixture) {
+        const isUserSchool = fixture.school_a.id === consentStatus.userSchoolId || fixture.school_b.id === consentStatus.userSchoolId;
+        if (!isUserSchool) return;
+      }
 
       const isDraw = schoolId === "draw";
 
@@ -73,7 +82,7 @@ const Home = () => {
         queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
       }
     },
-    [user?.id, queryClient, upcomingFixtures]
+    [user?.id, queryClient, upcomingFixtures, consentStatus.needsConsent, consentStatus.userSchoolId]
   );
 
   const formatMatchTime = (matchDate: string, status: string) => {
