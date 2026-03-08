@@ -20,6 +20,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 
 const Fixtures = () => {
   const { toast } = useToast();
+  const consentStatus = useConsentStatus();
   const now = new Date();
 
   const [dateRange, setDateRange] = useState({
