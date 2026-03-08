@@ -9,6 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
 import { MatchHistory } from "./MatchHistory";
 import { PredictionDialog } from "@/components/home/PredictionDialog";
+import { ConsentRequiredDialog } from "@/components/consent/ConsentRequiredDialog";
+import { useConsentStatus } from "@/hooks/useConsentStatus";
 import { cn } from "@/lib/utils";
 import { resolveVenueName } from "@/lib/venueUtils";
 import { supabase } from "@/integrations/supabase/client";
