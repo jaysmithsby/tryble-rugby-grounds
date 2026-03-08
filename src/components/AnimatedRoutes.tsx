@@ -34,6 +34,7 @@ const ForPlayers = lazy(() => import("@/pages/ForPlayers"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const PrivacyNote = lazy(() => import("@/pages/PrivacyNote"));
 const Terms = lazy(() => import("@/pages/Terms"));
+const AgePolicy = lazy(() => import("@/pages/AgePolicy"));
 const About = lazy(() => import("@/pages/About"));
 const LeaderboardDetail = lazy(() => import("@/pages/LeaderboardDetail"));
 
