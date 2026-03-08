@@ -34,6 +34,7 @@ const ForPlayers = lazy(() => import("@/pages/ForPlayers"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const PrivacyNote = lazy(() => import("@/pages/PrivacyNote"));
 const Terms = lazy(() => import("@/pages/Terms"));
+const AgePolicy = lazy(() => import("@/pages/AgePolicy"));
 const About = lazy(() => import("@/pages/About"));
 const LeaderboardDetail = lazy(() => import("@/pages/LeaderboardDetail"));
 
@@ -123,6 +124,7 @@ export const AnimatedRoutes = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/privacy-note" element={<PrivacyNote />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/age-policy" element={<AgePolicy />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />

@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Apple, PlayCircle, Mail } from "lucide-react";
+import { Apple, PlayCircle } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -10,42 +9,31 @@ const Footer = () => {
         {/* CTA Section */}
         <div className="text-center mb-16 pb-16 border-b border-border">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Back Your School?
+            Get in the Game
           </h2>
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join the tribe. Make your call. Earn your bragging rights.
+            Trybal is free to download on Android and iOS. Pick your school, follow the season, and join the tribe.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button size="lg" className="shadow-glow">
               <Apple className="mr-2 h-5 w-5" />
-              Download on iOS
+              Free on iOS
             </Button>
             <Button size="lg" variant="secondary">
               <PlayCircle className="mr-2 h-5 w-5" />
-              Get it on Android
+              Free on Android
             </Button>
           </div>
         </div>
 
-        {/* Newsletter */}
-        <div className="max-w-md mx-auto mb-16">
-          <div className="text-center mb-6">
-            <h3 className="text-xl font-bold mb-2">Stay in the Loop</h3>
-            <p className="text-sm text-muted-foreground">
-              Rugby news, new features, and school updates — straight to your inbox
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              className="bg-background/50 border-border"
-            />
-            <Button className="shrink-0">
-              <Mail className="h-4 w-4 mr-2" />
-              Subscribe
-            </Button>
-          </div>
+        {/* Contact */}
+        <div className="text-center mb-16">
+          <p className="text-muted-foreground">
+            Got questions? Drop us a line at{" "}
+            <a href="mailto:trybalrugby@gmail.com" className="text-primary hover:underline font-medium">
+              trybalrugby@gmail.com
+            </a>
+          </p>
         </div>
 
         {/* Links */}
@@ -53,7 +41,7 @@ const Footer = () => {
           <div>
             <h3 className="font-bold text-lg mb-4 text-primary">Trybal</h3>
             <p className="text-sm text-muted-foreground">
-              The digital home of South African schoolboy rugby.
+              South Africa's home of schoolboy rugby.
             </p>
           </div>
 
@@ -70,24 +58,23 @@ const Footer = () => {
             <h4 className="font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/about" className="hover:text-primary transition-colors">About Us</Link></li>
-              <li><a href="#" className="hover:text-primary transition-colors">CSR Programs</a></li>
-              <li><a href="mailto:hello@trybal.co.za" className="hover:text-primary transition-colors">Contact</a></li>
+              <li><a href="mailto:trybalrugby@gmail.com" className="hover:text-primary transition-colors">Contact</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Youth Safety</a></li>
+              <li><Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
+              <li><Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/age-policy" className="hover:text-primary transition-colors">Age Policy</Link></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom */}
         <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Trybal. All rights reserved. Built for school rugby fans, by school rugby fans.</p>
+          <p>&copy; 2026 Trybal. All rights reserved.</p>
         </div>
       </div>
     </footer>

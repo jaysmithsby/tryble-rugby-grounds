@@ -57,15 +57,15 @@ const Hero = () => {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black mb-6 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent leading-tight">
-          For the Badge.
+          Your Tribe. Your Rugby.
         </h1>
 
         <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-3xl mx-auto leading-relaxed">
-          Back your school. Call the score. Earn bragging rights.
+          South Africa's home of schoolboy rugby. Follow your school. Track every First XV fixture. Predict the results. Settle the debate.
         </p>
 
         <p className="text-base text-muted-foreground/70 mb-12 max-w-2xl mx-auto">
-          South Africa's school rugby prediction platform. No betting. No odds. Just pride, rivalry, and legacy.
+          No betting. No gambling. Just pure schoolboy rugby.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -78,16 +78,16 @@ const Hero = () => {
           </Button>
           <Button size="lg" variant="secondary" className="text-lg px-8 py-6 hover:scale-105 transition-all opacity-60 cursor-not-allowed">
             <Apple className="mr-2 h-5 w-5" />
-            Coming to iOS
+            Free on iOS
           </Button>
           <Button size="lg" variant="secondary" className="text-lg px-8 py-6 hover:scale-105 transition-all opacity-60 cursor-not-allowed">
             <PlayCircle className="mr-2 h-5 w-5" />
-            Coming to Android
+            Free on Android
           </Button>
         </div>
 
         <p className="mt-8 text-sm text-muted-foreground/70">
-          No gambling. Just school spirit and friendly competition.
+          Free to download. No betting. No gambling. Just pure schoolboy rugby.
         </p>
       </div>
     </div>

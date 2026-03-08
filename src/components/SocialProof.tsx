@@ -1,5 +1,5 @@
 const stats = [
-  { value: "10K+", label: "Predictions Locked In" },
+  { value: "200+", label: "Schools and Counting" },
   { value: "50+", label: "Schools Represented" },
   { value: "9", label: "Provinces Active" },
   { value: "85%", label: "Weekly Return Rate" },
@@ -11,10 +11,10 @@ const SocialProof = () => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            The Tribe Is Growing
+            Built by the Community, for the Community
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            From KZN derbies to Cape Town classics — supporters across the country are making their calls
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Trybal isn't built in a boardroom. It's built by people who lived it — who remember the bus trips, the rivalry weeks, and the results that defined a generation. We're working with schools across South Africa to make sure every fixture, every school, and every stat is accurate.
           </p>
         </div>
 
@@ -64,6 +64,15 @@ const SocialProof = () => {
               "Love staying connected to my school's rugby. Trybal makes it feel like I'm back on the touchline every Saturday."
             </p>
           </div>
+        </div>
+
+        <div className="text-center mt-12">
+          <p className="text-muted-foreground">
+            Know a result we're missing? Got a fixture list for your school?{" "}
+            <a href="mailto:trybalrugby@gmail.com" className="text-primary hover:underline font-medium">
+              We want to hear from you.
+            </a>
+          </p>
         </div>
       </div>
     </section>
