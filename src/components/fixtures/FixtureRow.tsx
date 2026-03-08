@@ -442,6 +442,11 @@ export const FixtureRow = ({
 
   return (
     <>
+      <ConsentRequiredDialog
+        open={consentDialogOpen}
+        onOpenChange={setConsentDialogOpen}
+        actionDescription="predictions on matches not involving your school"
+      />
       {onPredictionMade && (
         <PredictionDialog
           open={dialogOpen}
