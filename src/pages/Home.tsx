@@ -23,6 +23,7 @@ const Home = () => {
   const { effectiveDate, seasonYear } = useEffectiveDate();
   const [localPredictions, setLocalPredictions] = useState<Record<string, { schoolId: string; margin: number }>>({});
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const consentStatus = useConsentStatus();
 
   const { user, loading, profileLoaded } = useHomeAuth();
 
