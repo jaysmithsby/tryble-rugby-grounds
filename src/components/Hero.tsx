@@ -57,15 +57,15 @@ const Hero = () => {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black mb-6 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent leading-tight">
-          For the Badge.
+          Your Tribe. Your Rugby.
         </h1>
 
         <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-3xl mx-auto leading-relaxed">
-          Back your school. Call the score. Earn bragging rights.
+          South Africa's home of schoolboy rugby. Follow your school. Track every First XV fixture. Predict the results. Settle the debate.
         </p>
 
         <p className="text-base text-muted-foreground/70 mb-12 max-w-2xl mx-auto">
-          South Africa's school rugby prediction platform. No betting. No odds. Just pride, rivalry, and legacy.
+          No betting. No gambling. Just pure schoolboy rugby.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
