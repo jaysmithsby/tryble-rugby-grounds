@@ -44,6 +44,13 @@ const Home = () => {
     async (matchId: string, schoolId: string, margin: number) => {
       if (!user?.id) return;
 
+      // Defense-in-depth: block minors without consent on non-school fixtures
+      const fixture = upcomingFixtures.find(f => f.id === matchId);
+      if (consentStatus.needsConsent && fixture) {
+        const isUserSchool = fixture.school_a.id === consentStatus.userSchoolId || fixture.school_b.id === consentStatus.userSchoolId;
+        if (!isUserSchool) return;
+      }
+
       const isDraw = schoolId === "draw";
 
       setLocalPredictions((prev) => ({
