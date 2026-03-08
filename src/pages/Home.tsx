@@ -82,7 +82,7 @@ const Home = () => {
         queryClient.invalidateQueries({ queryKey: ["home-predictions"] });
       }
     },
-    [user?.id, queryClient, upcomingFixtures]
+    [user?.id, queryClient, upcomingFixtures, consentStatus.needsConsent, consentStatus.userSchoolId]
   );
 
   const formatMatchTime = (matchDate: string, status: string) => {

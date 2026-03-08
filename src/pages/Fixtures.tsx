@@ -108,7 +108,7 @@ const Fixtures = () => {
         toast({ title: "Prediction Failed", description: "Could not save your prediction. Please try again.", variant: "destructive" });
       }
     },
-    [userId, toast, groupedFixtures]
+    [userId, toast, fixtures, consentStatus.needsConsent, consentStatus.userSchoolId]
   );
 
   const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;
