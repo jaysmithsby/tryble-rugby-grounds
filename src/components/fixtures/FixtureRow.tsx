@@ -417,7 +417,7 @@ export const FixtureRow = ({
   const mobileRow = (
     <div
       className={cn("border border-border/40 rounded-lg p-3 hover:bg-muted/50 transition-colors", canExpand && "cursor-pointer")}
-      onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}
+      onClick={handleCardClick}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs">{dateVenueContent}</span>
