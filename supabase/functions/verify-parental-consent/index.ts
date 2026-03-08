@@ -3,6 +3,7 @@
  * 
  * PUBLIC ENDPOINT - No authentication required
  * Parents verify consent via token in email link.
+ * Supports dryRun mode to check token validity without verifying.
  * 
  * SECURITY CONTROLS:
  * - Token-based verification
@@ -52,10 +53,19 @@ function log(level: LogLevel, message: string, context?: Record<string, unknown>
 
 interface VerifyRequest {
   token: string;
+  dryRun?: boolean;
+}
+
+async function getChildName(supabase: any, childUserId: string): Promise<string> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("first_name")
+    .eq("id", childUserId)
+    .single();
+  return profile?.first_name || "Your child";
 }
 
 serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -65,18 +75,18 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { token }: VerifyRequest = await req.json();
+    const { token, dryRun }: VerifyRequest = await req.json();
 
     if (!token) {
       throw new Error("Missing consent token");
     }
 
-    log("info", "Processing consent verification");
+    log("info", `Processing consent verification (dryRun: ${!!dryRun})`);
 
-    // Look up the consent request
+    // Look up the consent request (no join - query profiles separately)
     const { data: consentRequest, error: lookupError } = await supabase
       .from("parental_consent_requests")
-      .select("*, profiles!parental_consent_requests_child_user_id_fkey(first_name)")
+      .select("*")
       .eq("consent_token", token)
       .maybeSingle();
 
@@ -100,21 +110,16 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    const childFirstName = await getChildName(supabase, consentRequest.child_user_id);
+
     // Check if already verified
     if (consentRequest.status === "verified") {
-      // Get child's name for the response
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("first_name")
-        .eq("id", consentRequest.child_user_id)
-        .single();
-
       log("info", "Consent already verified");
       return new Response(
         JSON.stringify({
           success: true,
           alreadyVerified: true,
-          childFirstName: profile?.first_name || "Your child",
+          childFirstName,
           message: "Consent has already been verified",
         }),
         {
@@ -133,6 +138,7 @@ serve(async (req: Request): Promise<Response> => {
           success: false,
           error: "This consent link has expired",
           code: "TOKEN_EXPIRED",
+          childFirstName,
         }),
         {
           status: 400,
@@ -152,6 +158,23 @@ serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // If dry run, return token info without verifying
+    if (dryRun) {
+      log("info", "Dry run - token is valid");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          alreadyVerified: false,
+          childFirstName,
+          message: "Token is valid",
+        }),
+        {
+          status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
@@ -181,15 +204,7 @@ serve(async (req: Request): Promise<Response> => {
 
     if (updateProfileError) {
       log("error", "Error updating profile", { error: updateProfileError.message });
-      // Don't fail the request, consent is still valid
     }
-
-    // Get child's name for the response
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("first_name")
-      .eq("id", consentRequest.child_user_id)
-      .single();
 
     log("info", "Parental consent verified successfully");
 
@@ -197,7 +212,7 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         alreadyVerified: false,
-        childFirstName: profile?.first_name || "Your child",
+        childFirstName,
         message: "Consent verified successfully",
       }),
       {

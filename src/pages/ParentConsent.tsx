@@ -315,10 +315,10 @@ const ParentConsent = () => {
               <ExternalLink className="w-3 h-3" />
             </Link>
             <a 
-              href="mailto:safety@trybal.app"
+              href="mailto:safety@trybal.co.za"
               className="flex items-center gap-1 text-primary hover:underline"
             >
-              📧 Contact safety@trybal.app
+              📧 Contact safety@trybal.co.za
             </a>
           </div>
 
