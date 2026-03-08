@@ -68,84 +68,124 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
     }
   }, [state, initialCheckDone]);
 
-  // Handle verification success from URL token
+  // Handle verification success from parent (Auth.tsx detected hash-based or token-based verification)
   useEffect(() => {
     if (initialVerified && initialCheckDone) {
-      // User just verified their email, advance to profile step
-      setState(prev => ({ ...prev, step: 3 }));
+      setState(prev => {
+        // Only advance if on step 1 or 2 (pre-verification steps)
+        if (prev.step <= 2) {
+          return { ...prev, step: 3 };
+        }
+        return prev;
+      });
     }
   }, [initialVerified, initialCheckDone]);
 
-  // Check if user is already authenticated and verified - run only once on mount
+  // Check auth state on mount AND listen for auth changes to handle race conditions
   useEffect(() => {
     let isMounted = true;
     
+    const resolveStep = async (user: any): Promise<Partial<OnboardingState> | "home" | null> => {
+      if (!user) return null;
+
+      if (user.email_confirmed_at) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, onboarding_completed_at")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.onboarding_completed_at) {
+          return "home";
+        } else if (profile?.first_name) {
+          return {
+            userId: user.id,
+            email: user.email || "",
+            firstName: profile.first_name,
+            step: 4,
+          };
+        } else {
+          return {
+            userId: user.id,
+            email: user.email || "",
+            step: 3,
+          };
+        }
+      } else {
+        return {
+          userId: user.id,
+          email: user.email || "",
+          step: 2,
+        };
+      }
+    };
+
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!isMounted) return;
       
-      if (user) {
-        // Only advance past verification if email is actually confirmed
-        if (user.email_confirmed_at) {
-          // User is verified, check if profile is complete
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("first_name, onboarding_completed_at")
-            .eq("id", user.id)
-            .single();
+      const result = await resolveStep(user);
+      if (!isMounted) return;
 
-          if (!isMounted) return;
-
-          if (profile?.onboarding_completed_at) {
-            // Onboarding complete, go to home
-            localStorage.removeItem(STORAGE_KEY);
-            navigate("/home");
-            return;
-          } else if (profile?.first_name) {
-            // Has profile but not completed onboarding
-            setState(prev => ({
-              ...prev,
-              userId: user.id,
-              email: user.email || "",
-              firstName: profile.first_name,
-              step: 4, // Go to welcome
-            }));
-          } else {
-            // Verified but no profile yet
-            setState(prev => ({
-              ...prev,
-              userId: user.id,
-              email: user.email || "",
-              step: 3, // Go to profile setup
-            }));
+      if (result === "home") {
+        localStorage.removeItem(STORAGE_KEY);
+        navigate("/home");
+        return;
+      }
+      
+      if (result) {
+        setState(prev => {
+          // Only update if we're on step 1 to avoid disrupting in-progress flows
+          if (prev.step === 1) {
+            return { ...prev, ...result };
           }
-        } else {
-          // User exists but is NOT verified
-          setState(prev => {
-            // Only update if we're on step 1 to avoid disrupting other flows
-            if (prev.step === 1) {
-              return {
-                ...prev,
-                userId: user.id,
-                email: user.email || "",
-                step: 2, // Stay on/go to verification step
-              };
-            }
-            return prev;
-          });
-        }
+          // If on step 2 and user is now verified, advance to step 3
+          if (prev.step === 2 && result.step && result.step > 2) {
+            return { ...prev, ...result };
+          }
+          return prev;
+        });
       }
       
       setInitialCheckDone(true);
     };
 
     checkAuth();
+
+    // Also listen for auth state changes to catch verification events mid-flow
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted || !initialCheckDone) return;
+
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
+          const result = await resolveStep(session.user);
+          if (!isMounted) return;
+
+          if (result === "home") {
+            localStorage.removeItem(STORAGE_KEY);
+            navigate("/home");
+            return;
+          }
+
+          if (result) {
+            setState(prev => {
+              // Auto-advance from verification step when user becomes verified
+              if (prev.step === 2 && result.step && result.step > 2) {
+                return { ...prev, ...result };
+              }
+              return prev;
+            });
+          }
+        }
+      }
+    );
     
     return () => {
       isMounted = false;
+      subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, initialCheckDone]);
 
   // Smooth transitions between steps
   const updateStepWithTransition = useCallback((newStep: number) => {
@@ -194,7 +234,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
       }
 
       if (data.user && data.session) {
-        // Store the state first
         const newState = {
           ...state,
           email,
@@ -202,8 +241,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
           step: 2,
         };
         
-        // Send verification email via our custom edge function
-        // We have a session from signup, so we can call the function immediately
         try {
           const { error: emailError } = await supabase.functions.invoke("send-verification-email", {});
           
@@ -220,8 +257,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         
         updateState(newState);
       } else if (data.user) {
-        // User created but no session (shouldn't happen with email/password signup)
-        // Still advance to verification step
         updateState({
           ...state,
           email,
@@ -247,7 +282,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
 
   // Step 2: Change Email (go back to step 1)
   const handleChangeEmail = async () => {
-    // Sign out the unverified user
     await supabase.auth.signOut();
     setState(defaultState);
     localStorage.removeItem(STORAGE_KEY);
@@ -266,11 +300,9 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
 
     setLoading(true);
     try {
-      // Determine if user is a minor
       const currentYear = new Date().getFullYear();
       const isMinor = currentYear - data.yearOfBirth < 18;
       
-      // Update the profile
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
@@ -281,7 +313,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
           school_name_legacy: data.schoolName,
           contact_method: "email",
           contact_value: state.email,
-          // Set account type and consent fields for minors
           account_type: isMinor ? "minor" : "adult",
           parent_email: isMinor ? data.parentEmail : null,
           consent_status: isMinor ? "pending" : null,
@@ -290,7 +321,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
 
       if (updateError) throw updateError;
 
-      // If minor, trigger consent email
       if (isMinor && data.parentEmail) {
         try {
           await supabase.functions.invoke("send-parental-consent", {
@@ -301,7 +331,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
           });
         } catch (emailError) {
           console.error("Failed to send consent email:", emailError);
-          // Don't block onboarding if email fails
         }
       }
 
@@ -315,7 +344,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         step: 4,
       });
 
-      // Auto-follow the primary school
       if (data.schoolId && state.userId) {
         try {
           await supabase.from("user_school_follows").insert({
@@ -361,7 +389,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
     if (!state.userId) return;
 
     try {
-      // Mark onboarding as complete
       await supabase
         .from("profiles")
         .update({ onboarding_completed_at: new Date().toISOString() })
@@ -370,7 +397,6 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
       localStorage.removeItem(STORAGE_KEY);
       navigate("/home");
     } catch (e) {
-      // Still navigate even if update fails
       localStorage.removeItem(STORAGE_KEY);
       navigate("/home");
     }
@@ -478,7 +504,7 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
 
   // Progress indicator (hide for verification step and welcome)
   const showProgress = state.step !== 2 && state.step !== 4;
-  const progressSteps = [1, 3, 5, 6, 7]; // Skip verification (2) and welcome (4) in progress
+  const progressSteps = [1, 3, 5, 6, 7];
   const currentProgressIndex = progressSteps.indexOf(state.step);
 
   return (
