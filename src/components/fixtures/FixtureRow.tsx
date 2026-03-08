@@ -395,7 +395,7 @@ export const FixtureRow = ({
   const desktopRow = (
     <TableRow
       className={cn("hover:bg-muted/50", canExpand && "cursor-pointer")}
-      onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}
+      onClick={handleCardClick}
     >
       <TableCell className="text-sm align-middle">{dateVenueContent}</TableCell>
       <TableCell>{matchGrid("sm")}</TableCell>
