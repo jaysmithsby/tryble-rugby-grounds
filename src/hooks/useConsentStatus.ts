@@ -16,6 +16,7 @@ interface ConsentStatus {
   isLoading: boolean;
   yearOfBirth: number | null;
   userSchoolName: string | null;
+  userSchoolId: string | null;
 }
 
 function maskEmail(email: string): string {
