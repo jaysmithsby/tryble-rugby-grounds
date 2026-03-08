@@ -78,11 +78,11 @@ const Hero = () => {
           </Button>
           <Button size="lg" variant="secondary" className="text-lg px-8 py-6 hover:scale-105 transition-all opacity-60 cursor-not-allowed">
             <Apple className="mr-2 h-5 w-5" />
-            Coming to iOS
+            Free on iOS
           </Button>
           <Button size="lg" variant="secondary" className="text-lg px-8 py-6 hover:scale-105 transition-all opacity-60 cursor-not-allowed">
             <PlayCircle className="mr-2 h-5 w-5" />
-            Coming to Android
+            Free on Android
           </Button>
         </div>
 
