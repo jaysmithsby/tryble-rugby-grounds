@@ -344,7 +344,7 @@ serve(async (req: Request): Promise<Response> => {
       <div class="help-section">
         <strong>Questions?</strong><br />
         📚 <a href="${origin}/for-parents">Read our Safety Guide</a><br />
-        📧 <a href="mailto:safety@trybal.app">safety@trybal.app</a>
+        📧 <a href="mailto:safety@trybal.co.za">safety@trybal.co.za</a>
       </div>
     </div>
     
@@ -358,7 +358,7 @@ serve(async (req: Request): Promise<Response> => {
     `;
 
     const emailResult = await sendEmailWithRetry({
-      from: "Trybal <noreply@trybal.app>",
+      from: "Trybal <noreply@trybal.co.za>",
       to: [normalizedEmail],
       subject: `Parental Consent Request for ${childFirstName}`,
       html: emailHtml,

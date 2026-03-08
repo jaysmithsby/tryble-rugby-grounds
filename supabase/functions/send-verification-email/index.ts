@@ -239,7 +239,7 @@ serve(async (req: Request): Promise<Response> => {
     `;
 
     const emailResult = await sendEmailWithRetry({
-      from: "Trybal <noreply@trybal.app>",
+      from: "Trybal <noreply@trybal.co.za>",
       to: [email],
       subject: "Verify your Trybal email",
       html: emailHtml,
