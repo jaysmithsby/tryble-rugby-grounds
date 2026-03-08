@@ -12,6 +12,7 @@ import { FixtureTable } from "@/components/fixtures/FixtureTable";
 import { useFixturesData } from "@/hooks/useFixturesData";
 import { usePreloadJerseyImages } from "@/components/ui/SchoolJerseyImage";
 import { supabase } from "@/integrations/supabase/client";
+import { useConsentStatus } from "@/hooks/useConsentStatus";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
