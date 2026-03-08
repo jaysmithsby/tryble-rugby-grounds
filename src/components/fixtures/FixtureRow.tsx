@@ -245,6 +245,17 @@ export const FixtureRow = ({
     navigate(`/school/${slug}`);
   };
 
+  const isUserSchoolFixture = userSchoolId && (fixture.school_a_id === userSchoolId || fixture.school_b_id === userSchoolId);
+
+  const handleCardClick = () => {
+    if (isPredicted || !onPredictionMade) return;
+    if (needsConsent && !isUserSchoolFixture) {
+      setConsentDialogOpen(true);
+      return;
+    }
+    setDialogOpen(true);
+  };
+
   const handlePredictionSubmit = (schoolId: string, margin: number) => {
     onPredictionMade?.(schoolId, margin);
   };
