@@ -67,6 +67,15 @@ const Fixtures = () => {
         return;
       }
 
+      // Defense-in-depth: block minors without consent on non-school fixtures
+      if (consentStatus.needsConsent) {
+        const fixture = fixtures.find(f => f.id === fixtureId);
+        if (fixture) {
+          const isUserSchool = fixture.school_a_id === consentStatus.userSchoolId || fixture.school_b_id === consentStatus.userSchoolId;
+          if (!isUserSchool) return;
+        }
+      }
+
       const isDraw = schoolId === "draw";
 
       try {
