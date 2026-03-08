@@ -106,55 +106,44 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Look up user by email using admin API
-    const { data: listData, error: listError } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 1,
-    });
+    // Look up user by email: query profiles table (contact_value stores email),
+    // then verify auth status via admin API
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("contact_value", email)
+      .limit(1)
+      .maybeSingle();
 
-    if (listError) {
-      console.error("Admin listUsers error:", listError.message);
+    if (profileError) {
+      console.error("Profile lookup error:", profileError.message);
       return new Response(
         JSON.stringify(GENERIC_SUCCESS),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // listUsers doesn't support email filter directly, so we need to use a different approach
-    // Use getUserByEmail via admin API (undocumented but available)
-    // Actually, let's query by looking up the user from our email_verification_tokens or auth.users
-    // The correct approach: use supabase.auth.admin.listUsers and filter manually,
-    // or better — use the getUserById approach after finding the user ID
-    // Best approach: just query for the user by email
-    let targetUser = null;
-    
-    // Try to find user by iterating (listUsers with filter)
-    // Actually, the Supabase admin API supports filtering by email in newer versions
-    // Let's use a direct approach: query all users matching this email
-    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 50,
-    });
-
-    if (usersError) {
-      console.error("Admin listUsers error:", usersError.message);
+    if (!profileData) {
+      // No user found — return generic success (no enumeration)
+      console.log("No profile found for email, returning generic success");
       return new Response(
         JSON.stringify(GENERIC_SUCCESS),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Find exact match
-    targetUser = usersData.users.find(u => u.email?.toLowerCase() === email);
+    // Verify auth user exists and check confirmation status
+    const { data: authData, error: authError } = await supabase.auth.admin.getUserById(profileData.id);
 
-    if (!targetUser) {
-      // User not found — return generic success (no enumeration)
-      console.log("No user found for email, returning generic success");
+    if (authError || !authData?.user) {
+      console.error("Auth user lookup error:", authError?.message);
       return new Response(
         JSON.stringify(GENERIC_SUCCESS),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    const targetUser = authData.user;
 
     // Check if already verified
     if (targetUser.email_confirmed_at) {
