@@ -150,6 +150,7 @@ export function useHomeFixtures({
     },
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.REFERENCE,
+    refetchOnMount: "always",
   });
 
   const allSchoolIds = followedData?.schoolIds || [];
