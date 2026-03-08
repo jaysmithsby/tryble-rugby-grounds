@@ -233,30 +233,20 @@ const SignUpFlow = ({ onSwitchToSignIn, initialVerified = false }: SignUpFlowPro
         return;
       }
 
-      if (data.user && data.session) {
-        const newState = {
-          ...state,
-          email,
-          userId: data.user.id,
-          step: 2,
-        };
-        
+      if (data.user) {
+        // Send branded verification email (works without session since edge function uses admin API)
         try {
-          const { error: emailError } = await supabase.functions.invoke("send-verification-email", {});
+          const { error: emailError } = await supabase.functions.invoke("send-verification-email", {
+            body: { email },
+          });
           
           if (emailError) {
             console.error("Failed to send verification email:", emailError);
-            toast({
-              title: "Account created",
-              description: "Please check your email for the verification link. If you don't see it, you can request a new one.",
-            });
           }
         } catch (emailErr) {
           console.error("Error calling send-verification-email:", emailErr);
         }
-        
-        updateState(newState);
-      } else if (data.user) {
+
         updateState({
           ...state,
           email,
