@@ -21,11 +21,48 @@ const Auth = () => {
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [hashProcessing, setHashProcessing] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Detect if URL contains Supabase hash-based auth redirect
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && (hash.includes("access_token") || hash.includes("type=signup") || hash.includes("type=recovery"))) {
+      setHashProcessing(true);
+    }
+  }, []);
+
+  // Listen for auth state changes — handles hash-based redirects from Supabase verification emails
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          if (session.user.email_confirmed_at) {
+            // User arrived via verification link and is now verified
+            setVerified(true);
+            setHashProcessing(false);
+            setMode("signup"); // Ensure we're in signup flow to continue onboarding
+          } else {
+            setHashProcessing(false);
+          }
+        }
+
+        if (event === "TOKEN_REFRESHED" && session?.user?.email_confirmed_at) {
+          setVerified(true);
+          setHashProcessing(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Attempt biometric login on mount
   useEffect(() => {
+    // Skip biometric if we're processing a hash redirect
+    if (hashProcessing) return;
+
     let cancelled = false;
 
     const attemptBiometricLogin = async () => {
@@ -45,7 +82,6 @@ const Auth = () => {
           return;
         }
 
-        // setSession handles expired access_token by using refresh_token
         const { error } = await supabase.auth.setSession({
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
@@ -65,15 +101,24 @@ const Auth = () => {
 
     attemptBiometricLogin();
     return () => { cancelled = true; };
-  }, [navigate]);
+  }, [navigate, hashProcessing]);
 
-  // Handle verification token from URL
+  // Handle custom verification token from URL (?token=...)
   useEffect(() => {
     const token = searchParams.get("token");
     if (token) {
       handleVerification(token);
     }
   }, [searchParams]);
+
+  // Safety timeout for hash processing — if onAuthStateChange doesn't fire within 5s, stop waiting
+  useEffect(() => {
+    if (!hashProcessing) return;
+    const timeout = setTimeout(() => {
+      setHashProcessing(false);
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [hashProcessing]);
 
   const handleVerification = async (token: string) => {
     setVerifying(true);
@@ -109,8 +154,8 @@ const Auth = () => {
     }
   };
 
-  // Show loading state while verifying or doing biometric auth
-  if (verifying || biometricLoading) {
+  // Show loading state while verifying, doing biometric auth, or processing hash redirect
+  if (verifying || biometricLoading || hashProcessing) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <GlobalHeader />
