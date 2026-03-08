@@ -201,6 +201,7 @@ export function useHomeFixtures({
     },
     enabled: !!userId && profileLoaded,
     staleTime: CACHE_TIMES.REFERENCE,
+    refetchOnMount: "always",
   });
 
   const fourteenDaysFromNow = new Date(effectiveDate.getTime() + 14 * 24 * 60 * 60 * 1000);
