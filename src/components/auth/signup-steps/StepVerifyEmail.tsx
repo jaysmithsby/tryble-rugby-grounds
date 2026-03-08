@@ -70,7 +70,9 @@ const StepVerifyEmail = ({ email, onVerified, onChangeEmail }: StepVerifyEmailPr
     setResending(true);
     try {
       // Use our custom edge function to resend
-      const { error } = await supabase.functions.invoke("send-verification-email", {});
+      const { error } = await supabase.functions.invoke("send-verification-email", {
+        body: { email },
+      });
 
       if (error) throw error;
 
