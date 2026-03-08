@@ -64,13 +64,13 @@ const HoldingPage = () => {
 
           {/* Main Heading */}
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white font-montserrat leading-tight">
-            Trybal — The ultimate platform for South African schoolboy rugby.
+            Your Tribe. Your Rugby.
             <span className="block mt-2 text-[#FFD60A]">Coming March 2026</span>
           </h1>
 
           {/* Tagline */}
           <p className="text-lg md:text-xl text-[#FFD60A] font-inter">
-            "Where School Pride Meets Predictions"
+            South Africa's home of schoolboy rugby. Follow your school. Track every First XV fixture. Settle the debate.
           </p>
 
           {/* Navigation Buttons */}
