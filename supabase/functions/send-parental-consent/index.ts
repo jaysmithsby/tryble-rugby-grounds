@@ -358,7 +358,7 @@ serve(async (req: Request): Promise<Response> => {
     `;
 
     const emailResult = await sendEmailWithRetry({
-      from: "Trybal <noreply@trybal.app>",
+      from: "Trybal <noreply@trybal.co.za>",
       to: [normalizedEmail],
       subject: `Parental Consent Request for ${childFirstName}`,
       html: emailHtml,
