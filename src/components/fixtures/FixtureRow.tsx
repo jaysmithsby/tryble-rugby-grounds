@@ -209,7 +209,9 @@ export const FixtureRow = ({
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [autoHasHistory, setAutoHasHistory] = useState<boolean | null>(null);
+  const { needsConsent, userSchoolId } = useConsentStatus();
 
   const [left, right, leftIsA] = useMemo(() => sortSchoolsAlpha(fixture), [fixture]);
 

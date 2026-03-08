@@ -168,6 +168,7 @@ export function useConsentStatus(): ConsentStatus & {
     isLoading: profileLoading || eligibilityLoading,
     yearOfBirth: profileData?.yearOfBirth || null,
     userSchoolName: profileData?.userSchoolName || null,
+    userSchoolId: profileData?.userSchoolId || null,
     sendConsentEmail,
     refetch,
   };
