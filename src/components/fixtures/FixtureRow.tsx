@@ -309,7 +309,7 @@ export const FixtureRow = ({
         <Collapsible open={open} onOpenChange={setOpen}>
           <Card
             className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300 cursor-pointer"
-            onClick={() => !isPredicted && onPredictionMade && setDialogOpen(true)}
+            onClick={handleCardClick}
           >
             <div className="p-4 space-y-3">
               {/* Date + Venue row */}
