@@ -65,6 +65,7 @@ export function useConsentStatus(): ConsentStatus & {
         consentStatus: data.consent_status as "pending" | "verified" | "expired" | null,
         parentEmail: data.parent_email,
         userSchoolName: (data.schools as any)?.name || data.school_name_legacy,
+        userSchoolId: data.school_id as string | null,
       };
     },
     staleTime: CACHE_TIMES.USER_PROFILE, // Profile data doesn't change often
