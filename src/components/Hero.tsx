@@ -87,7 +87,7 @@ const Hero = () => {
         </div>
 
         <p className="mt-8 text-sm text-muted-foreground/70">
-          No gambling. Just school spirit and friendly competition.
+          Free to download. No betting. No gambling. Just pure schoolboy rugby.
         </p>
       </div>
     </div>

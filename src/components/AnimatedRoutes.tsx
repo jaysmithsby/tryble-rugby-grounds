@@ -124,6 +124,7 @@ export const AnimatedRoutes = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/privacy-note" element={<PrivacyNote />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/age-policy" element={<AgePolicy />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />

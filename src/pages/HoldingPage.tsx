@@ -102,7 +102,7 @@ const HoldingPage = () => {
           {/* Beta Signup */}
           <div className="pt-12 max-w-md mx-auto">
             <h3 className="text-white font-semibold mb-4 font-montserrat">
-              Join our Beta Community
+              Help us build the ultimate schoolboy rugby database
             </h3>
             <form onSubmit={handleBetaSignup} className="flex gap-2">
               <Input

@@ -1,25 +1,25 @@
-import { BarChart3, Users, Award, Newspaper } from "lucide-react";
+import { School, BarChart3, Calendar, Search } from "lucide-react";
 
 const features = [
   {
+    icon: School,
+    title: "Follow Your School",
+    description: "Select your school and make it yours. Get First XV fixture updates, results, and a profile page packed with history, colours, and stats. Then follow your biggest rivals — because you'll want to keep an eye on them.",
+  },
+  {
     icon: BarChart3,
-    title: "Make Your Call",
-    description: "Pick the winner and the margin. The closer you are, the more points you earn. No odds. No betting. Just knowledge.",
+    title: "Predictions & Leaderboards",
+    description: "Think you know schoolboy rugby better than your chommies? Prove it. Make your predictions, climb the leaderboard, and earn bragging rights that actually mean something.",
   },
   {
-    icon: Users,
-    title: "Compete on Every Level",
-    description: "Leaderboards by school, province, and nationally. Create private pools with mates. See who really reads the game.",
+    icon: Calendar,
+    title: "Every First XV Fixture, Every Weekend",
+    description: "From the opening round to interschools — Trybal tracks First XV fixtures across the country so you never miss a result. We're building the most complete schoolboy rugby fixture database in South Africa.",
   },
   {
-    icon: Award,
-    title: "Earn Your Stripes",
-    description: "Unlock badges for perfect weekends, derby wins, and prediction streaks. Bragging rights you can actually show off.",
-  },
-  {
-    icon: Newspaper,
-    title: "Stay in the Loop",
-    description: "School rugby news, match previews, and trivia. Everything a true supporter needs, in one place.",
+    icon: Search,
+    title: "School Profiles & History",
+    description: "Explore the schools that shaped South African rugby. Colours, crests, records, and rivalries — if it happened on a school rugby field, it belongs on Trybal.",
   },
 ];
 
@@ -28,9 +28,9 @@ const Features = () => {
     <section className="py-24 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">Built for the Touchline</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">What You Get</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Everything a schoolboy rugby supporter needs. Nothing they don't.
+            Every school. Every fixture. One app.
           </p>
         </div>
 
