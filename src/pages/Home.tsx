@@ -127,7 +127,7 @@ const Home = () => {
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         <div className="space-y-1.5">
           <h1 className="text-3xl md:text-4xl font-black text-foreground leading-tight">
-            For the Badge.
+            Join the Tribe.
           </h1>
           <p className="text-base text-muted-foreground">
             Back your school. Call the score.
