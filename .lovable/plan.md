@@ -1,63 +1,48 @@
-## Plan: Auto-match Jersey Images to Schools
 
-### Problem
 
-1. Uploaded PNG jerseys in the `school-jerseys` bucket aren't automatically linked to schools
-2. The filename (e.g. `Bishops.png`, `Bellville.png`) needs to be matched to the school's name or any of the alias names (e.g. "Bishops Diocesan College", "Hoërskool Bellville")
+## Plan: Redefine Streak as Weekly Participation Streak
 
-### What Already Works
+### What Changes
 
-- The `SchoolJerseyImage` component already renders both SVG and PNG — no format restriction exists
-- Schools like "Glenwood High School" already have `.png` jersey URLs working fine
+**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
 
-### What Needs to Change
+### Changes Required
 
-**1. Add "Auto-Match Jerseys" button to Admin Schools tab**
+#### 1. New/Updated Database Function — `get_user_season_stats`
 
-New component `src/components/admin/MatchJerseysButton.tsx`:
+Update the streak calculation in the existing `get_user_season_stats` function:
 
-- Lists all files in the `school-jerseys` storage bucket
-- Fetches all schools (with name, nickname, alias, current jersey_url)
-- For each file, strips the extension and tries to match against:
-  - School `name` (contains match, case-insensitive)
-  - School `nickname` (exact match, case-insensitive)
-  - School `alias` array entries
-- Only updates schools where `jersey_url` is currently NULL (won't overwrite existing)
-- Shows a preview dialog of proposed matches before applying
-- Builds the full public URL: `https://{project}.supabase.co/storage/v1/object/public/school-jerseys/{filename}`
+- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
+- Check if the user has a prediction for every such fixture that week.
+- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
+- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
 
-**2. Wire button into Admin page**
+#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
 
-Add the button to the Schools management section toolbar area.
+The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
 
-### Matching Logic (pseudocode)
+- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
+- Remove the local streak calculation from the `analytics` memo.
+- Display the server-provided streak value instead.
 
+#### 3. Wire Up `useUserStats` Streak
+
+The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
+
+### Technical Detail
+
+**DB function streak logic** (pseudocode):
 ```text
-For each file in bucket (e.g. "Bishops.png"):
-  stem = "Bishops" (remove extension)
-  normalized = stem.replace(/_/g, " ")
-  
-  Find school where:
-    - nickname === normalized (case-insensitive), OR
-    - name contains normalized (case-insensitive), OR  
-    - any alias entry matches normalized
-    
-  If school found AND school.jersey_url is NULL:
-    → propose update jersey_url = public URL of file
+FOR each week in season (descending):
+  IF week > current_week: SKIP
+  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
+  IF eligible_fixtures = 0: SKIP (no fixtures that week)
+  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
+  IF count(user_predictions) = count(eligible_fixtures): streak += 1
+  ELSE: BREAK
 ```
 
-### Example Matches
+### Files Affected
+- `supabase` — migration to update `get_user_season_stats` function (streak portion)
+- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
 
-
-| File            | School Match             | Method                                                        |
-| --------------- | ------------------------ | ------------------------------------------------------------- |
-| `Bishops.png`   | Bishops Diocesan College | nickname="Bishops"                                            |
-| `Bellville.png` | Hoërskool Bellville      | nickname="Bellies" — won't match, name contains "Bellville" ✓ |
-| `Framesby.png`  | Hoërskool Framesby       | nickname="Framesby"                                           |
-| `Glenwood.png`  | Glenwood High School     | name contains "Glenwood" (already has jersey_url, skip)       |
-
-
-### Files to Create/Edit
-
-- **Create**: `src/components/admin/MatchJerseysButton.tsx` — button + preview dialog with match results
-- **Edit**: `src/pages/Admin.tsx` — add the button to the Schools tab toolbar

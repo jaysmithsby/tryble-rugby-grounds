@@ -21,6 +21,7 @@ import { SchoolRequestsTable } from "./SchoolRequestsTable";
 import { TestingCenter } from "./TestingCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdsTable } from "./AdsTable";
+import { MatchJerseysButton } from "./MatchJerseysButton";
 import { NewsTable } from "./NewsTable";
 import { SchoolOnboardingTab } from "./SchoolOnboardingTab";
 
@@ -101,7 +102,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <h2 className="text-2xl font-bold text-foreground">Schools Manager</h2>
                 <p className="text-muted-foreground mt-1">Manage school profiles, crests, regions, and visibility settings</p>
               </div>
-              <Button onClick={() => setCreateDialogOpen(true)} className="gap-2"><Plus className="h-4 w-4" />New School</Button>
+              <div className="flex gap-2">
+                <MatchJerseysButton onSuccess={handleSchoolSuccess} />
+                <Button onClick={() => setCreateDialogOpen(true)} className="gap-2"><Plus className="h-4 w-4" />New School</Button>
+              </div>
             </div>
             <SchoolsTable onEdit={handleEditSchool} refreshTrigger={schoolsRefreshTrigger} />
           </TabsContent>
