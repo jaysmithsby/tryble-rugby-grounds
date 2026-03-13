@@ -64,7 +64,7 @@ const HoldingPage = () => {
 
           {/* Main Heading */}
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white font-montserrat leading-tight">
-            Your Tribe. Your Rugby.
+            Your School. Your Rugby.
             <span className="block mt-2 text-[#FFD60A]">Coming March 2026</span>
           </h1>
 
