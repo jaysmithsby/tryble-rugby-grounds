@@ -63,7 +63,8 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
 
       for (const file of jerseyFiles) {
         const stem = file.name.replace(/\.[^.]+$/, "");
-        const normalized = stem.replace(/_/g, " ").replace(/ë/g, "e").trim();
+        // Strip trailing -2, -3 etc. suffixes and normalise diacritics
+        const normalized = stem.replace(/[-_]\d+$/, "").replace(/_/g, " ").replace(/ë/g, "e").trim();
         const normalizedLower = normalized.toLowerCase();
 
         let matched = false;
