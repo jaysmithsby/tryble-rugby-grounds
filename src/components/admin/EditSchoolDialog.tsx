@@ -251,10 +251,19 @@ export function EditSchoolDialog({
         }
       }
 
+      // Generate updated slug from the name
+      const slug = formData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
       const { error } = await supabase
         .from("schools")
         .update({
           name: formData.name,
+          slug,
           nickname: formData.nickname || null,
           province: formData.province || null,
           website: formData.website || null,
@@ -287,11 +296,16 @@ export function EditSchoolDialog({
 
       onOpenChange(false);
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating school:", error);
+      const message = error?.message?.includes("schools_name_key")
+        ? "A school with this name already exists."
+        : error?.message?.includes("schools_slug_key")
+        ? "A school with a similar name already exists (slug conflict)."
+        : error?.message || "Could not update the school. Please try again.";
       toast({
         title: "Update Failed",
-        description: "Could not update the school. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {
