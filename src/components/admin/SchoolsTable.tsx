@@ -218,6 +218,23 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("schools")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Deleted", description: "School permanently deleted." });
+      fetchSchools();
+    } catch (error) {
+      console.error("Error deleting school:", error);
+      toast({ title: "Delete Failed", description: "Could not delete the school.", variant: "destructive" });
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
   const handleRestore = async (id: string) => {
     try {
       const { error } = await supabase
