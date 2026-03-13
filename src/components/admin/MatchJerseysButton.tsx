@@ -63,7 +63,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
 
       for (const file of jerseyFiles) {
         const stem = file.name.replace(/\.[^.]+$/, "");
-        const normalized = stem.replace(/_/g, " ").trim();
+        const normalized = stem.replace(/_/g, " ").replace(/ë/g, "e").trim();
         const normalizedLower = normalized.toLowerCase();
 
         let matched = false;
