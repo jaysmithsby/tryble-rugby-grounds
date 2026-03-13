@@ -21,6 +21,7 @@ import { SchoolRequestsTable } from "./SchoolRequestsTable";
 import { TestingCenter } from "./TestingCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdsTable } from "./AdsTable";
+import { MatchJerseysButton } from "./MatchJerseysButton";
 import { NewsTable } from "./NewsTable";
 import { SchoolOnboardingTab } from "./SchoolOnboardingTab";
 
