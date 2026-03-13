@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil, Archive, ArchiveRestore, Loader2, Search, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Pencil, Archive, ArchiveRestore, Trash2, Loader2, Search, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,6 +86,7 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const [restoreId, setRestoreId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -214,6 +215,23 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
       toast({ title: "Archive Failed", description: "Could not archive the school.", variant: "destructive" });
     } finally {
       setArchiveId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("schools")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Deleted", description: "School permanently deleted." });
+      fetchSchools();
+    } catch (error) {
+      console.error("Error deleting school:", error);
+      toast({ title: "Delete Failed", description: "Could not delete the school.", variant: "destructive" });
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -500,6 +518,15 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
                           <Archive className="h-3.5 w-3.5 text-orange-500" />
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setDeleteId(school.id)}
+                        title="Delete permanently"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -539,6 +566,27 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => restoreId && handleRestore(restoreId)}>Restore</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Permanently delete this school?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{schools.find(s => s.id === deleteId)?.name}</strong> will be permanently removed from the database. This action cannot be undone. All associated data references (fixtures, follows, profiles) may be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteId && handleDelete(deleteId)}
+            >
+              Delete Permanently
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
