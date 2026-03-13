@@ -21,7 +21,7 @@ import {
 export interface Tournament {
   id: string;
   name: string;
-  alias?: string[];
+  alias?: any;
 }
 
 export interface TournamentEdition {
