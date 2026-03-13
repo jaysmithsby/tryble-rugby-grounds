@@ -101,7 +101,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
           // Check alias array
           const aliases = Array.isArray(school.alias) ? school.alias : [];
           for (const a of aliases) {
-            if (typeof a === "string" && a.toLowerCase() === normalizedLower) {
+            if (typeof a === "string" && a.toLowerCase().replace(/ë/g, "e") === normalizedLower) {
               proposed.push({
                 schoolId: school.id,
                 schoolName: school.name,
