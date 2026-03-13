@@ -86,6 +86,7 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const [restoreId, setRestoreId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
