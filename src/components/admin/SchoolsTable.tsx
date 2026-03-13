@@ -518,6 +518,15 @@ export function SchoolsTable({ onEdit, refreshTrigger }: SchoolsTableProps) {
                           <Archive className="h-3.5 w-3.5 text-orange-500" />
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setDeleteId(school.id)}
+                        title="Delete permanently"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
