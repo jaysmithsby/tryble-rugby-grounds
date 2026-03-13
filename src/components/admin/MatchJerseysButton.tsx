@@ -73,7 +73,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
           if (school.jersey_url) continue;
 
           // Check nickname (exact, case-insensitive)
-          if (school.nickname && school.nickname.toLowerCase() === normalizedLower) {
+          if (school.nickname && school.nickname.toLowerCase().replace(/ë/g, "e") === normalizedLower) {
             proposed.push({
               schoolId: school.id,
               schoolName: school.name,
@@ -86,7 +86,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
           }
 
           // Check name (contains, case-insensitive)
-          if (school.name.toLowerCase().includes(normalizedLower)) {
+          if (school.name.toLowerCase().replace(/ë/g, "e").includes(normalizedLower)) {
             proposed.push({
               schoolId: school.id,
               schoolName: school.name,
@@ -101,7 +101,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
           // Check alias array
           const aliases = Array.isArray(school.alias) ? school.alias : [];
           for (const a of aliases) {
-            if (typeof a === "string" && a.toLowerCase() === normalizedLower) {
+            if (typeof a === "string" && a.toLowerCase().replace(/ë/g, "e") === normalizedLower) {
               proposed.push({
                 schoolId: school.id,
                 schoolName: school.name,
