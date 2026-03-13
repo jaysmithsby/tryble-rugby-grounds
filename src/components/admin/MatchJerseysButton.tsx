@@ -73,7 +73,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
           if (school.jersey_url) continue;
 
           // Check nickname (exact, case-insensitive)
-          if (school.nickname && school.nickname.toLowerCase() === normalizedLower) {
+          if (school.nickname && school.nickname.toLowerCase().replace(/ë/g, "e") === normalizedLower) {
             proposed.push({
               schoolId: school.id,
               schoolName: school.name,
