@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil, Archive, ArchiveRestore, Loader2, Search, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Pencil, Archive, ArchiveRestore, Trash2, Loader2, Search, RefreshCcw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
