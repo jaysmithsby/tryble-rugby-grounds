@@ -251,40 +251,64 @@ export function EditSchoolDialog({
         }
       }
 
-      // Generate updated slug from the name
-      const slug = formData.name
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
+      // Only regenerate slug if the name actually changed
+      let slugToUse: string | undefined;
+      if (formData.name !== school.name) {
+        let baseSlug = formData.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+
+        // Check for slug collisions (exclude current school)
+        let candidateSlug = baseSlug;
+        let suffix = 2;
+        while (true) {
+          const { data: existing } = await supabase
+            .from("schools")
+            .select("id")
+            .eq("slug", candidateSlug)
+            .neq("id", school.id)
+            .limit(1);
+          if (!existing || existing.length === 0) break;
+          candidateSlug = `${baseSlug}-${suffix}`;
+          suffix++;
+        }
+        slugToUse = candidateSlug;
+      }
+
+      const updatePayload: Record<string, any> = {
+        name: formData.name,
+        nickname: formData.nickname || null,
+        province: formData.province || null,
+        website: formData.website || null,
+        icon_url: formData.icon_url || null,
+        emblem_url: formData.emblem_url || null,
+        jersey_url: jerseyUrl || null,
+        jersey_config: formData.jersey_config as any,
+        main_rival: formData.main_rival || null,
+        established_year: formData.established_year
+          ? parseInt(formData.established_year)
+          : null,
+        springboks_count: formData.springboks_count
+          ? parseInt(formData.springboks_count)
+          : null,
+        trivia_fact: formData.trivia_fact || null,
+        motto: formData.motto || null,
+        primary_color: formData.primary_color || null,
+        secondary_color: formData.secondary_color || null,
+        status: formData.status,
+        is_visible: formData.is_visible,
+      };
+
+      if (slugToUse) {
+        updatePayload.slug = slugToUse;
+      }
 
       const { error } = await supabase
         .from("schools")
-        .update({
-          name: formData.name,
-          slug,
-          nickname: formData.nickname || null,
-          province: formData.province || null,
-          website: formData.website || null,
-          icon_url: formData.icon_url || null,
-          emblem_url: formData.emblem_url || null,
-          jersey_url: jerseyUrl || null,
-          jersey_config: formData.jersey_config as any,
-          main_rival: formData.main_rival || null,
-          established_year: formData.established_year
-            ? parseInt(formData.established_year)
-            : null,
-          springboks_count: formData.springboks_count
-            ? parseInt(formData.springboks_count)
-            : null,
-          trivia_fact: formData.trivia_fact || null,
-          motto: formData.motto || null,
-          primary_color: formData.primary_color || null,
-          secondary_color: formData.secondary_color || null,
-          status: formData.status,
-          is_visible: formData.is_visible,
-        })
+        .update(updatePayload)
         .eq("id", school.id);
 
       if (error) throw error;
