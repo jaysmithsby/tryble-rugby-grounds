@@ -86,7 +86,7 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
           }
 
           // Check name (contains, case-insensitive)
-          if (school.name.toLowerCase().includes(normalizedLower)) {
+          if (school.name.toLowerCase().replace(/ë/g, "e").includes(normalizedLower)) {
             proposed.push({
               schoolId: school.id,
               schoolName: school.name,
