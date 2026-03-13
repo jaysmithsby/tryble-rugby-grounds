@@ -68,6 +68,8 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
         const leftIsA = match.school_a_id === leftSchoolId;
         const leftScore = leftIsA ? match.score_a : match.score_b;
         const rightScore = leftIsA ? match.score_b : match.score_a;
+        const leftWins = leftScore != null && rightScore != null && leftScore > rightScore;
+        const rightWins = leftScore != null && rightScore != null && rightScore > leftScore;
 
         return (
           <div
@@ -78,13 +80,13 @@ export const MatchHistory = ({ leftSchoolId, rightSchoolId }: MatchHistoryProps)
               <span className="text-xs text-muted-foreground shrink-0">
                 {format(new Date(match.match_date), "d MMM yyyy")}
               </span>
-              <span className={cn("font-mono text-sm ml-auto", leftIsA ? "font-bold text-foreground" : "text-muted-foreground")}>
+              <span className={cn("font-mono text-sm ml-auto", leftWins ? "font-bold text-foreground" : "text-muted-foreground")}>
                 {leftScore ?? "–"}
               </span>
             </div>
             <span className="text-xs text-muted-foreground text-center">-</span>
             <div className="flex items-center">
-              <span className={cn("font-mono text-sm", !leftIsA ? "font-bold text-foreground" : "text-muted-foreground")}>
+              <span className={cn("font-mono text-sm", rightWins ? "font-bold text-foreground" : "text-muted-foreground")}>
                 {rightScore ?? "–"}
               </span>
             </div>
