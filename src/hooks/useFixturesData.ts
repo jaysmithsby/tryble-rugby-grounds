@@ -9,6 +9,7 @@ interface FixtureSchool {
   slug: string;
   jersey_url: string | null;
   province: string | null;
+  is_archived: boolean;
 }
 
 interface FixtureWithSchools {
