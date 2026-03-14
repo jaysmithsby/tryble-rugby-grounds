@@ -12,6 +12,8 @@ interface FixtureCardProps {
   awaySchoolId?: string;
   homeSchoolSlug?: string;
   awaySchoolSlug?: string;
+  homeIsArchived?: boolean;
+  awayIsArchived?: boolean;
   time: string;
   venue: string;
   matchDate?: string;
