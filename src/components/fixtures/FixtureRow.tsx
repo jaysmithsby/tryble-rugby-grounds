@@ -329,52 +329,34 @@ export const FixtureRow = ({
           />
         )}
         <Collapsible open={open} onOpenChange={setOpen}>
-          <Card
-            className="bg-gradient-card border-border/40 shadow-card hover:shadow-glow transition-all duration-300 cursor-pointer"
+          <div
+            className={cn("bg-card border border-border/40 rounded-lg p-3 shadow-card hover:shadow-glow transition-all duration-300", !isPredicted && onPredictionMade && "cursor-pointer")}
             onClick={handleCardClick}
           >
-            <div className="p-4 space-y-3">
-              {/* Date + Venue row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">{dateStr}</span>
-                  {venue !== "TBD" && <span className="text-xs text-muted-foreground">{venue}</span>}
-                </div>
-                <div className="flex items-center gap-1.5 -mr-1">
-                  {isCancelled && (
-                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1">
-                      <Ban className="w-3 h-3" />Cancelled
-                    </Badge>
-                  )}
-                  <div className="w-6 h-6 flex items-center justify-center">
-                    {canExpand ? (
-                      <CollapsibleTrigger asChild>
-                        <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
-                          {chevronIcon}
-                        </button>
-                      </CollapsibleTrigger>
-                    ) : isPredicted ? (
-                      <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-
-              {/* Teams row */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex flex-col items-center gap-2 flex-1">
-                  <SchoolBlock school={left} isHome={leftIsA} size="md" onNavigate={handleSchoolClick} priority={priority} />
-                </div>
-                <div className="flex flex-col items-center gap-1 min-w-[80px]">
-                  {centerArea}
-                </div>
-                <div className="flex flex-col items-center gap-2 flex-1">
-                  <SchoolBlock school={right} isHome={!leftIsA} size="md" onNavigate={handleSchoolClick} priority={priority} />
-                </div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs">
+                <span className="font-bold">{dateStr}</span>
+                {venue !== "TBD" && <span className="text-muted-foreground ml-2 text-xs">{venue}</span>}
+                {isCancelled && (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1 ml-2">
+                    <Ban className="w-3 h-3" />Cancelled
+                  </Badge>
+                )}
+              </span>
+              <div className="w-6 h-6 flex items-center justify-center -mr-1">
+                {canExpand ? (
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="p-1" onClick={(e) => e.stopPropagation()}>
+                      {chevronIcon}
+                    </button>
+                  </CollapsibleTrigger>
+                ) : isPredicted ? (
+                  <Lock className="w-4 h-4 text-primary" aria-label="Prediction Locked" />
+                ) : null}
               </div>
             </div>
-          </Card>
+            {matchGrid("sm")}
+          </div>
           <CollapsibleContent>
             {left.id && right.id && (
               <div className="bg-muted/30 rounded-b-lg border border-t-0 border-border/40 -mt-1">
