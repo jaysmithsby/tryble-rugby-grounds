@@ -5,6 +5,7 @@ interface FixtureSchool {
   name: string;
   slug: string;
   jersey_url: string | null;
+  is_archived?: boolean;
 }
 
 interface FixtureListCardProps {
