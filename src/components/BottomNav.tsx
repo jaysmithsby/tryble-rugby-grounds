@@ -32,8 +32,8 @@ export const BottomNav = () => {
             onFocus={handlePrefetch("/home")}
             className={`flex flex-col items-center gap-1 transition-colors ${
               isActive("/home")
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
+                ? "text-accent"
+                : "text-nav-bar-foreground/70 hover:text-nav-bar-foreground"
             }`}
           >
             <Home className="w-5 h-5" />
