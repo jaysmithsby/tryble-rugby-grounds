@@ -291,7 +291,7 @@ export const FixtureRow = ({
       onPredictionMade={isPast ? undefined : onPredictionMade}
       predictedSchoolName={predictedSchoolName}
       predictedMargin={predictedMargin}
-      compact={variant === "table"}
+      compact
       isPast={isPast}
       scoreLeft={leftScore}
       scoreRight={rightScore}
