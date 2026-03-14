@@ -362,11 +362,6 @@ export const FixtureRow = ({
               <span className="text-xs">
                 <span className="font-bold">{dateStr}</span>
                 {venue !== "TBD" && <span className="text-muted-foreground ml-2 text-xs">{venue}</span>}
-                {isCancelled && (
-                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1 ml-2">
-                    <Ban className="w-3 h-3" />Cancelled
-                  </Badge>
-                )}
               </span>
               <div className="w-6 h-6 flex items-center justify-center -mr-1">
                 {canExpand ? (
