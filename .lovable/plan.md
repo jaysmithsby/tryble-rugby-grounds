@@ -1,48 +1,37 @@
 
 
-## Plan: Redefine Streak as Weekly Participation Streak
+## Remove Pool Lock Feature
 
-### What Changes
+### Summary
+Remove the pool editing lock mechanism that prevents pool modifications 1 hour before match kickoff. Pools will always be editable; prediction restrictions will be handled by fixture state checks instead.
 
-**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
+### Changes
 
-### Changes Required
+**1. `src/pages/PoolLeaderboard.tsx`**
+- Remove state: `isEditable`, `lockReason`, `lockCountdown`
+- Remove the entire `checkEditableLock` function
+- Remove `checkEditableLock` call from `loadPoolData`
+- Remove `Lock` and `Clock` imports (if no longer used), remove `differenceInMinutes` and `format` imports if only used for lock logic
+- Pass `isEditable={true}` (or remove the prop) from `EditPoolDialog`; remove `lockReason` prop
+- Remove the two lock warning UI blocks (lines 451-463)
 
-#### 1. New/Updated Database Function — `get_user_season_stats`
+**2. `src/components/pools/EditPoolDialog.tsx`**
+- Remove `isEditable` and `lockReason` props from the interface
+- Remove the early return that renders a disabled "Locked" button
+- Remove the `lockReason` warning banner inside the dialog
+- Simplify: the dialog is always accessible
 
-Update the streak calculation in the existing `get_user_season_stats` function:
+**3. `src/components/pools/PoolMembersList.tsx`**
+- Remove `isEditable` from props interface
+- Change `canRemove` logic to just `isAdmin && !isCreator && !isSelf`
 
-- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
-- Check if the user has a prediction for every such fixture that week.
-- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
-- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+**4. `src/components/pools/PoolSchoolsList.tsx`**
+- Remove `isEditable` from props interface
+- Change `canEdit` to just `isAdmin`
 
-#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
-
-The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
-
-- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
-- Remove the local streak calculation from the `analytics` memo.
-- Display the server-provided streak value instead.
-
-#### 3. Wire Up `useUserStats` Streak
-
-The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
-
-### Technical Detail
-
-**DB function streak logic** (pseudocode):
-```text
-FOR each week in season (descending):
-  IF week > current_week: SKIP
-  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
-  IF eligible_fixtures = 0: SKIP (no fixtures that week)
-  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
-  IF count(user_predictions) = count(eligible_fixtures): streak += 1
-  ELSE: BREAK
-```
-
-### Files Affected
-- `supabase` — migration to update `get_user_season_stats` function (streak portion)
-- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
+### Files
+- `src/pages/PoolLeaderboard.tsx`
+- `src/components/pools/EditPoolDialog.tsx`
+- `src/components/pools/PoolMembersList.tsx`
+- `src/components/pools/PoolSchoolsList.tsx`
 
