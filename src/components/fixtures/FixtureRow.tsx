@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronDown, Lock, AlertCircle, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Card } from "@/components/ui/card";
+
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SchoolJerseyImage } from "@/components/ui/SchoolJerseyImage";
