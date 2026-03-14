@@ -67,8 +67,6 @@ interface EditPoolDialogProps {
 
 export const EditPoolDialog = ({
   pool,
-  isEditable,
-  lockReason,
   onPoolUpdated,
   triggerElement,
 }: EditPoolDialogProps) => {
