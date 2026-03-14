@@ -297,7 +297,7 @@ export default function Tournament() {
         const { count } = await supabase
           .from("fixtures")
           .select("id", { count: "exact", head: true })
-          .eq("status", "completed")
+          .neq("status", "upcoming")
           .or(`and(school_a_id.eq.${aId},school_b_id.eq.${bId}),and(school_a_id.eq.${bId},school_b_id.eq.${aId})`);
         map[f.id] = (count ?? 0) > 0;
       })
