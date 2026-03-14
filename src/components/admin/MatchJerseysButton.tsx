@@ -69,7 +69,24 @@ export function MatchJerseysButton({ onSuccess }: MatchJerseysButtonProps) {
 
         let matched = false;
 
-        for (const school of schools || []) {
+        // Priority 1: UUID-based matching from filename
+        const uuidMatch = file.name.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (uuidMatch) {
+          const uuid = uuidMatch[0].toLowerCase();
+          const schoolById = (schools || []).find(s => s.id === uuid);
+          if (schoolById && !schoolById.jersey_url) {
+            proposed.push({
+              schoolId: schoolById.id,
+              schoolName: schoolById.name,
+              filename: file.name,
+              jerseyUrl: `${projectUrl}/storage/v1/object/public/school-jerseys/${file.name}`,
+              matchMethod: `id="${uuid}"`,
+            });
+            matched = true;
+          }
+        }
+
+        if (!matched) for (const school of schools || []) {
           // Skip schools that already have a jersey_url
           if (school.jersey_url) continue;
 

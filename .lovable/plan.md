@@ -1,19 +1,48 @@
 
 
-## Add UUID-based matching to Match Jerseys
+## Plan: Redefine Streak as Weekly Participation Streak
 
-### Change
+### What Changes
 
-In `src/components/admin/MatchJerseysButton.tsx`, add a UUID extraction step **before** the existing nickname/name/alias matching loop. If the filename contains a valid UUID pattern (e.g. `1d0665d0-4d4c-4ccc-9498-3131f581474c (Fish Hoek).png`), match directly by school ID — highest priority, skipping name-based matching.
+**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
 
-### Implementation (single file)
+### Changes Required
 
-**`src/components/admin/MatchJerseysButton.tsx`** — inside the `for (const file of jerseyFiles)` loop, before the school loop:
+#### 1. New/Updated Database Function — `get_user_season_stats`
 
-1. Extract UUID from filename using regex: `/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i`
-2. If found, look up the school by ID in the fetched schools array
-3. If school exists and has no `jersey_url`, propose the match with method `id="${uuid}"`
-4. Set `matched = true` and skip the name-based loop entirely
+Update the streak calculation in the existing `get_user_season_stats` function:
 
-This is ~10 lines inserted at line 70, before the existing `for (const school of schools)` loop.
+- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
+- Check if the user has a prediction for every such fixture that week.
+- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
+- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+
+#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+
+The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
+
+- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
+- Remove the local streak calculation from the `analytics` memo.
+- Display the server-provided streak value instead.
+
+#### 3. Wire Up `useUserStats` Streak
+
+The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
+
+### Technical Detail
+
+**DB function streak logic** (pseudocode):
+```text
+FOR each week in season (descending):
+  IF week > current_week: SKIP
+  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
+  IF eligible_fixtures = 0: SKIP (no fixtures that week)
+  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
+  IF count(user_predictions) = count(eligible_fixtures): streak += 1
+  ELSE: BREAK
+```
+
+### Files Affected
+- `supabase` — migration to update `get_user_season_stats` function (streak portion)
+- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
 
