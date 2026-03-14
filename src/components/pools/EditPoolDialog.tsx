@@ -61,8 +61,6 @@ interface EditPoolDialogProps {
     color_id?: string | null;
     schools?: string[] | null;
   };
-  isEditable: boolean;
-  lockReason?: string;
   onPoolUpdated: () => void;
   triggerElement?: React.ReactNode;
 }
