@@ -1,49 +1,48 @@
-## Auto-sync Tournament Edition Dates from Fixtures
 
-### Approach
 
-Use a **database trigger** (not an edge function) since this needs to fire automatically on every fixture INSERT/UPDATE/DELETE. A trigger is more reliable and has zero latency compared to an edge function that would need to be called manually.
+## Plan: Redefine Streak as Weekly Participation Streak
 
-### Changes
+### What Changes
 
-**1. Database migration — create trigger function + trigger**
+**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
 
-Create `update_edition_dates_from_fixtures()` that:
+### Changes Required
 
-- Fires AFTER INSERT, UPDATE, DELETE on `fixtures`
-- When a fixture's `tournament_id or match_date` changes or is set/cleared, recalculates dates for both the old and new edition
-- Sets `start_date = MIN(match_date)` and `end_date = MAX(match_date)` from all fixtures linked to that edition
-- If no fixtures remain, sets both dates to the edition's `created_at` (fallback)
+#### 1. New/Updated Database Function — `get_user_season_stats`
 
-```sql
-CREATE OR REPLACE FUNCTION update_edition_dates_from_fixtures()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
-AS $$ ... $$;
+Update the streak calculation in the existing `get_user_season_stats` function:
 
-CREATE TRIGGER trg_sync_edition_dates
-AFTER INSERT OR UPDATE OR DELETE ON fixtures
-FOR EACH ROW EXECUTE FUNCTION update_edition_dates_from_fixtures();
+- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
+- Check if the user has a prediction for every such fixture that week.
+- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
+- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+
+#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+
+The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
+
+- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
+- Remove the local streak calculation from the `analytics` memo.
+- Display the server-provided streak value instead.
+
+#### 3. Wire Up `useUserStats` Streak
+
+The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
+
+### Technical Detail
+
+**DB function streak logic** (pseudocode):
+```text
+FOR each week in season (descending):
+  IF week > current_week: SKIP
+  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
+  IF eligible_fixtures = 0: SKIP (no fixtures that week)
+  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
+  IF count(user_predictions) = count(eligible_fixtures): streak += 1
+  ELSE: BREAK
 ```
 
-**2. `CreateEditionDialog.tsx` — remove date fields from form**
+### Files Affected
+- `supabase` — migration to update `get_user_season_stats` function (streak portion)
+- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
 
-- Remove `start_date` and `end_date` from the zod schema and form fields
-- Set default values for `start_date`/`end_date` to `now()` in the insert call (the trigger will overwrite once fixtures are assigned)
-- Add a note: "Dates are set automatically from linked fixtures"
-
-**3. `EditEditionDialog.tsx` — make dates read-only**
-
-- Remove `start_date` and `end_date` from the form schema
-- Display the current dates as read-only text (not editable inputs)
-- Remove them from the `onSubmit` update payload
-- Add a note: "Dates are set automatically from linked fixtures"
-
-**4. `TournamentsTable.tsx` — no changes needed**
-
-The table already reads `start_date`/`end_date` from the edition data; it will reflect the auto-computed values.
-
-### Files
-
-- New migration SQL (trigger + function)
-- `src/components/admin/CreateEditionDialog.tsx`
-- `src/components/admin/EditEditionDialog.tsx`

@@ -19,11 +19,10 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { saProvinces } from "@/data/saProvinces";
+import { Info } from "lucide-react";
 
 const formSchema = z.object({
   year: z.coerce.number().min(2000).max(2100),
-  start_date: z.string().min(1, "Start date is required"),
-  end_date: z.string().min(1, "End date is required"),
   host_school: z.string().optional(),
   venue: z.string().optional(),
   province: z.string().optional(),
@@ -49,7 +48,7 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { year: new Date().getFullYear(), start_date: "", end_date: "", host_school: "", venue: "", province: "", format_notes: "", sponsor_name: "", is_active: true },
+    defaultValues: { year: new Date().getFullYear(), host_school: "", venue: "", province: "", format_notes: "", sponsor_name: "", is_active: true },
   });
 
   useEffect(() => {
@@ -58,8 +57,6 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
       setLogoUrl(edition.logo_url || "");
       form.reset({
         year: edition.year,
-        start_date: new Date(edition.start_date).toISOString().slice(0, 16),
-        end_date: new Date(edition.end_date).toISOString().slice(0, 16),
         host_school: edition.host_school || "",
         venue: edition.venue || "",
         province: edition.province || "",
@@ -87,14 +84,17 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!edition?.id) return;
     setLoading(true);
     try {
       const { error } = await supabase.from("tournament_editions" as any).update({
         year: values.year,
-        start_date: values.start_date,
-        end_date: values.end_date,
         host_school: values.host_school || null,
         venue: values.venue || null,
         province: values.province || null,
@@ -125,13 +125,21 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
                 <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="start_date" render={({ field }) => (
-                  <FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="end_date" render={({ field }) => (
-                  <FormItem><FormLabel>End Date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+              <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">Dates are set automatically from linked fixtures.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Start Date</p>
+                    <p className="text-sm">{formatDate(edition?.start_date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">End Date</p>
+                    <p className="text-sm">{formatDate(edition?.end_date)}</p>
+                  </div>
+                </div>
               </div>
 
               <FormField control={form.control} name="host_school" render={({ field }) => (
@@ -176,8 +184,6 @@ export function EditEditionDialog({ open, onOpenChange, edition, tournamentName,
                   {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 object-contain rounded border border-border p-1 mt-1" />}
                 </div>
               </div>
-
-
 
               <FormField control={form.control} name="is_active" render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border border-border p-4">

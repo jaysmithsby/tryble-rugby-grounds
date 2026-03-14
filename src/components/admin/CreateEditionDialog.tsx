@@ -18,11 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { saProvinces } from "@/data/saProvinces";
+import { Info } from "lucide-react";
 
 const formSchema = z.object({
   year: z.coerce.number().min(2000).max(2100),
-  start_date: z.string().min(1, "Start date is required"),
-  end_date: z.string().min(1, "End date is required"),
   host_school: z.string().optional(),
   venue: z.string().optional(),
   province: z.string().optional(),
@@ -49,7 +48,6 @@ export function CreateEditionDialog({ open, onOpenChange, tournament, onSuccess 
     resolver: zodResolver(formSchema),
     defaultValues: {
       year: new Date().getFullYear(),
-      start_date: "", end_date: "",
       host_school: "", venue: "", province: "", format_notes: "", sponsor_name: "",
       is_active: true,
     },
@@ -58,7 +56,7 @@ export function CreateEditionDialog({ open, onOpenChange, tournament, onSuccess 
   useEffect(() => {
     if (open) {
       form.reset({
-        year: new Date().getFullYear(), start_date: "", end_date: "",
+        year: new Date().getFullYear(),
         host_school: "", venue: "", province: "", format_notes: "", sponsor_name: "",
         is_active: true,
       });
@@ -87,11 +85,12 @@ export function CreateEditionDialog({ open, onOpenChange, tournament, onSuccess 
     if (!tournament) return;
     setLoading(true);
     try {
+      const now = new Date().toISOString();
       const { error } = await supabase.from("tournament_editions" as any).insert({
         tournament_id: tournament.id,
         year: values.year,
-        start_date: values.start_date,
-        end_date: values.end_date,
+        start_date: now,
+        end_date: now,
         host_school: values.host_school || null,
         venue: values.venue || null,
         province: values.province || null,
@@ -130,21 +129,9 @@ export function CreateEditionDialog({ open, onOpenChange, tournament, onSuccess 
                 </FormItem>
               )} />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="start_date" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl><Input type="datetime-local" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="end_date" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl><Input type="datetime-local" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3">
+                <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">Start and end dates are set automatically from the fixtures linked to this edition.</p>
               </div>
 
               <FormField control={form.control} name="host_school" render={({ field }) => (
