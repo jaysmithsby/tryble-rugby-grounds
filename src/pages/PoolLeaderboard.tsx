@@ -588,8 +588,8 @@ export const PoolLeaderboard = () => {
                           awaySchoolSlug={f.school_b?.slug}
                           matchDate={f.match_date}
                           time=""
-                          venue={resolveVenueName(f)}
-                          tournamentName={f.tournament?.name}
+                          venue={resolveVenueName({ ...f, tournament: f.tournament_edition?.tournament })}
+                          tournamentName={f.tournament_edition?.tournament?.name}
                           matchId={f.id}
                           isPredicted={!!pred}
                           predictedSchoolId={pred?.predictedSchoolId}
