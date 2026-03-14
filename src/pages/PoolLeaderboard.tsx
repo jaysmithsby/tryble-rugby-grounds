@@ -20,7 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getPoolIconComponent, getPoolColorValue } from "@/components/pools/PoolIconSelector";
 import { resolveVenueName } from "@/lib/venueUtils";
-import { differenceInMinutes, format, endOfYear } from "date-fns";
+import { endOfYear } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type PoolMember = {
