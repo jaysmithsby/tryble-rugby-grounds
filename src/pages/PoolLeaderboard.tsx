@@ -354,8 +354,6 @@ export const PoolLeaderboard = () => {
           {isAdmin && (
             <EditPoolDialog
               pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id, schools: pool.schools }}
-              isEditable={isEditable}
-              lockReason={lockReason}
               onPoolUpdated={loadPoolData}
               triggerElement={
                 <button type="button" className="p-1.5 hover:opacity-80 transition-opacity shrink-0">
