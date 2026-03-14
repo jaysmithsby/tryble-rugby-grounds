@@ -397,11 +397,6 @@ export const FixtureRow = ({
       {fixture.tournament && fixture.venue_type !== "tournament" && (
         <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
       )}
-      {isCancelled && (
-        <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1 ml-2">
-          <Ban className="w-3 h-3" />Cancelled
-        </Badge>
-      )}
     </>
   );
 
