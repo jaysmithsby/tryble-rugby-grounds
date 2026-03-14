@@ -172,15 +172,12 @@ const CenterArea = ({
     );
   }
 
-  // Priority 2 & 3: Past, no score
+  // Priority 2: Past, no score — "Scoring"
   if (isPast) {
     return (
       <div className={wrapClass}>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
-          <span className={cn("font-mono font-semibold text-muted-foreground text-right", scoreSizeClass)}>?</span>
-          <span className={cn("font-mono text-muted-foreground", scoreSizeClass)}>-</span>
-          <span className={cn("font-mono font-semibold text-muted-foreground text-left", scoreSizeClass)}>?</span>
-        </div>
+        <TicketCheck className={cn("text-muted-foreground", iconSize)} />
+        <span className={cn("font-semibold text-muted-foreground text-center", labelSize)}>Scoring</span>
         {isPredicted && (
           <span className="text-[10px] text-muted-foreground text-center leading-tight">
             {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
