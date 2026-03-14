@@ -247,6 +247,8 @@ const Fixtures = () => {
                       venue_type: fixture.venue_type,
                       venue_id: fixture.venue_id,
                       status: fixture.status,
+                      score_a: fixture.score_a,
+                      score_b: fixture.score_b,
                       school_a: fixture.school_a,
                       school_b: fixture.school_b,
                       tournament: fixture.tournament_edition?.tournament ?? null,
