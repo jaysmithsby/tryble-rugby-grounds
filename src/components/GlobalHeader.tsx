@@ -24,6 +24,22 @@ const GlobalHeader = ({ children }: GlobalHeaderProps) => {
   const navigate = useNavigate();
   const { setTheme, theme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdmin();
+  }, []);
 
   const handleSignOut = async () => {
     setOpen(false);
