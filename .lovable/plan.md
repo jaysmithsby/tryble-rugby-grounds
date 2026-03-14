@@ -1,48 +1,56 @@
 
 
-## Plan: Redefine Streak as Weekly Participation Streak
+## Comprehensive UI Color and Accessibility Overhaul
 
-### What Changes
+### What changes
 
-**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
+**1. New background and nav bar colors**
+- Page background: Pitch Grey `#F5F5F5` → HSL `0 0% 96%` (light mode)
+- GlobalHeader: Grubber Green `#1B4332` → HSL `150 41% 18%` with white text/icons
+- BottomNav: Match the dark green nav bar style for visual cohesion
 
-### Changes Required
+**2. Light mode CSS variable updates** (`src/index.css`)
+- `--background`: `0 0% 96%` (Pitch Grey instead of pure white)
+- `--card`: `0 0% 100%` (white cards on grey bg for depth)
+- `--muted`: `0 0% 92%` (slightly darker to maintain contrast on new bg)
+- `--muted-foreground`: `0 0% 35%` (darken from 45% to pass WCAG AA 4.5:1 on Pitch Grey)
+- Add new variable `--nav-bar`: `150 41% 18%` and `--nav-bar-foreground`: `0 0% 98%`
 
-#### 1. New/Updated Database Function — `get_user_season_stats`
+**3. GlobalHeader** (`src/components/GlobalHeader.tsx`)
+- Replace `bg-background/95` with dark green `bg-[hsl(var(--nav-bar))]`
+- All text/icons to white (`text-[hsl(var(--nav-bar-foreground))]`)
+- Burger menu icon to white; border to transparent or green-tinted
+- Logo should already be light-compatible (PNG with transparency)
 
-Update the streak calculation in the existing `get_user_season_stats` function:
+**4. BottomNav** (`src/components/BottomNav.tsx`)
+- Same dark green background as header
+- Active icon: Rugby Gold accent (`text-accent`)
+- Inactive icons: white at 70% opacity
+- Active label: white, inactive label: white/70
 
-- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
-- Check if the user has a prediction for every such fixture that week.
-- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
-- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+**5. Cards get more lift** (`src/components/ui/card.tsx`)
+- Add slightly stronger shadow on light mode for card-on-grey contrast
+- Already `bg-card` which will now be pure white
 
-#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+**6. Button contrast fixes** (`src/components/ui/button.tsx`)
+- `outline` variant: ensure border is visible on Pitch Grey bg
+- `ghost` variant: hover state uses higher contrast
 
-The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
+**7. Dark mode**
+- Keep existing dark mode mostly unchanged (already good contrast)
+- Add `--nav-bar` and `--nav-bar-foreground` dark equivalents
 
-- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
-- Remove the local streak calculation from the `analytics` memo.
-- Display the server-provided streak value instead.
+### Files to edit
+- `src/index.css` — CSS variables
+- `src/components/GlobalHeader.tsx` — dark green nav bar
+- `src/components/BottomNav.tsx` — dark green bottom nav
+- `src/components/ui/card.tsx` — shadow bump
+- `tailwind.config.ts` — add `nav-bar` color tokens
 
-#### 3. Wire Up `useUserStats` Streak
-
-The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
-
-### Technical Detail
-
-**DB function streak logic** (pseudocode):
-```text
-FOR each week in season (descending):
-  IF week > current_week: SKIP
-  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
-  IF eligible_fixtures = 0: SKIP (no fixtures that week)
-  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
-  IF count(user_predictions) = count(eligible_fixtures): streak += 1
-  ELSE: BREAK
-```
-
-### Files Affected
-- `supabase` — migration to update `get_user_season_stats` function (streak portion)
-- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
+### WCAG AA compliance notes
+- All text on Pitch Grey background: foreground `0 0% 12%` on `0 0% 96%` = contrast ratio ~13:1 (passes)
+- Muted text on Pitch Grey: `0 0% 35%` on `0 0% 96%` = ~5.5:1 (passes AA)
+- White text on `#1B4332`: `#FAFAFA` on `#1B4332` = ~10:1 (passes AAA)
+- Gold accent text on dark green: `#E5A800` on `#1B4332` = ~4.8:1 (passes AA for large text; icons are fine)
+- Active green on white card: `#1B7A3D` on white = ~5.2:1 (passes AA)
 
