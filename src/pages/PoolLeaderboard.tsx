@@ -248,10 +248,9 @@ export const PoolLeaderboard = () => {
           id, match_date, venue_type, venue_id, school_a_id, school_b_id, status, score_a, score_b,
           school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
           school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
-          tournament:tournaments(id, name)
+          tournament_edition:tournament_editions!fixtures_tournament_id_fkey(id, tournament:tournaments!tournament_editions_tournament_id_fkey(name))
         `)
         .eq("is_visible", true)
-        .eq("venue_type", "school")
         .or(`school_a_id.in.(${poolSchoolIds.join(",")}),school_b_id.in.(${poolSchoolIds.join(",")})`)
         .gte("match_date", dateRange.from.toISOString())
         .lte("match_date", dateRange.to.toISOString())
@@ -589,8 +588,8 @@ export const PoolLeaderboard = () => {
                           awaySchoolSlug={f.school_b?.slug}
                           matchDate={f.match_date}
                           time=""
-                          venue={resolveVenueName(f)}
-                          tournamentName={f.tournament?.name}
+                          venue={resolveVenueName({ ...f, tournament: f.tournament_edition?.tournament })}
+                          tournamentName={f.tournament_edition?.tournament?.name}
                           matchId={f.id}
                           isPredicted={!!pred}
                           predictedSchoolId={pred?.predictedSchoolId}
