@@ -131,6 +131,7 @@ const CenterArea = ({
   predictedMargin,
   compact,
   isPast,
+  isCancelled,
   scoreLeft,
   scoreRight,
 }: {
@@ -140,11 +141,24 @@ const CenterArea = ({
   predictedMargin?: number;
   compact?: boolean;
   isPast?: boolean;
+  isCancelled?: boolean;
   scoreLeft?: number | null;
   scoreRight?: number | null;
 }) => {
   const wrapClass = cn("flex flex-col items-center justify-center gap-1", compact ? "min-h-[36px]" : "min-h-[48px]");
   const scoreSizeClass = compact ? "text-sm" : "text-xl";
+  const iconSize = compact ? "w-4 h-4" : "w-5 h-5";
+  const labelSize = compact ? "text-[10px]" : "text-xs";
+
+  // Priority 0: Cancelled
+  if (isCancelled) {
+    return (
+      <div className={wrapClass}>
+        <Ban className={cn("text-foreground", iconSize)} />
+        <span className={cn("font-semibold text-foreground text-center", labelSize)}>Cancelled</span>
+      </div>
+    );
+  }
 
   // Priority 1: Past with scores
   if (isPast && scoreLeft != null && scoreRight != null) {
@@ -181,8 +195,8 @@ const CenterArea = ({
   if (isPredicted) {
     return (
       <div className={wrapClass}>
-        <Lock className={cn("text-primary", compact ? "w-4 h-4" : "w-5 h-5")} />
-        <span className={cn("font-semibold text-primary text-center", compact ? "text-[10px]" : "text-xs")}>
+        <Lock className={cn("text-primary", iconSize)} />
+        <span className={cn("font-semibold text-primary text-center", labelSize)}>
           {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
         </span>
       </div>
@@ -193,8 +207,8 @@ const CenterArea = ({
   if (onPredictionMade) {
     return (
       <div className={wrapClass}>
-        <AlertCircle className={cn("text-destructive", compact ? "w-4 h-4" : "w-5 h-5")} />
-        <span className={cn("font-semibold text-destructive", compact ? "text-[10px]" : "text-xs")}>Pick needed</span>
+        <LockOpen className={cn("text-destructive", iconSize)} />
+        <span className={cn("font-semibold text-destructive", labelSize)}>Make Pick</span>
       </div>
     );
   }
