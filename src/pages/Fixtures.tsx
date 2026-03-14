@@ -184,7 +184,7 @@ const Fixtures = () => {
   const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({ onRefresh: handleRefresh });
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-background pb-24 overflow-auto">
+    <div ref={containerRef} className="min-h-screen bg-background pb-24">
       <GlobalHeader />
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
 

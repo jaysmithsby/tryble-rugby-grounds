@@ -17,11 +17,14 @@ export function usePullToRefresh({
   const pulling = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const isAtTop = () => {
+    return window.scrollY <= 0 && document.documentElement.scrollTop <= 0;
+  };
+
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
       if (isRefreshing || e.touches.length !== 1) return;
-      const el = containerRef.current;
-      if (!el || el.scrollTop > 0) return;
+      if (!isAtTop()) return;
       startY.current = e.touches[0].clientY;
       pulling.current = true;
     },
@@ -32,8 +35,7 @@ export function usePullToRefresh({
     (e: TouchEvent) => {
       if (!pulling.current || isRefreshing || e.touches.length !== 1) return;
 
-      const el = containerRef.current;
-      if (!el || el.scrollTop > 0) {
+      if (!isAtTop()) {
         pulling.current = false;
         setPullDistance(0);
         return;
