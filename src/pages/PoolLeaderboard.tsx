@@ -595,6 +595,9 @@ export const PoolLeaderboard = () => {
                           time=""
                           venue={resolveVenueName({ ...f, tournament: f.tournament_edition?.tournament })}
                           tournamentName={f.tournament_edition?.tournament?.name}
+                          scoreA={f.score_a}
+                          scoreB={f.score_b}
+                          status={f.status}
                           matchId={f.id}
                           isPredicted={!!pred}
                           predictedSchoolId={pred?.predictedSchoolId}
