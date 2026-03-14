@@ -53,10 +53,7 @@ export const PoolLeaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Lock state
-  const [isEditable, setIsEditable] = useState(true);
-  const [lockReason, setLockReason] = useState<string | undefined>();
-  const [lockCountdown, setLockCountdown] = useState<string | null>(null);
+
 
   // View state
   const [activeView, setActiveView] = useState<"leaderboard" | "fixtures">("leaderboard");
