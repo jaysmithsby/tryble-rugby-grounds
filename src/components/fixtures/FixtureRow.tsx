@@ -209,10 +209,11 @@ const CenterArea = ({
     );
   }
 
-  // Priority 6: Future, no prediction context
+  // Priority 6: Future, no prediction context — Ticket + "VS"
   return (
     <div className={wrapClass}>
-      <span className={cn("font-semibold text-muted-foreground", compact ? "text-sm" : "text-xl font-bold")}>VS</span>
+      <Ticket className={cn("text-muted-foreground", iconSize)} />
+      <span className={cn("font-semibold text-muted-foreground text-center", labelSize)}>VS</span>
     </div>
   );
 };
