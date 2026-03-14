@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Lock, AlertCircle, Ban } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronDown, Lock, LockOpen, Ban } from "lucide-react";
 import { format } from "date-fns";
 
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -131,6 +130,7 @@ const CenterArea = ({
   predictedMargin,
   compact,
   isPast,
+  isCancelled,
   scoreLeft,
   scoreRight,
 }: {
@@ -140,11 +140,24 @@ const CenterArea = ({
   predictedMargin?: number;
   compact?: boolean;
   isPast?: boolean;
+  isCancelled?: boolean;
   scoreLeft?: number | null;
   scoreRight?: number | null;
 }) => {
   const wrapClass = cn("flex flex-col items-center justify-center gap-1", compact ? "min-h-[36px]" : "min-h-[48px]");
   const scoreSizeClass = compact ? "text-sm" : "text-xl";
+  const iconSize = compact ? "w-4 h-4" : "w-5 h-5";
+  const labelSize = compact ? "text-[10px]" : "text-xs";
+
+  // Priority 0: Cancelled
+  if (isCancelled) {
+    return (
+      <div className={wrapClass}>
+        <Ban className={cn("text-foreground", iconSize)} />
+        <span className={cn("font-semibold text-foreground text-center", labelSize)}>Cancelled</span>
+      </div>
+    );
+  }
 
   // Priority 1: Past with scores
   if (isPast && scoreLeft != null && scoreRight != null) {
@@ -181,8 +194,8 @@ const CenterArea = ({
   if (isPredicted) {
     return (
       <div className={wrapClass}>
-        <Lock className={cn("text-primary", compact ? "w-4 h-4" : "w-5 h-5")} />
-        <span className={cn("font-semibold text-primary text-center", compact ? "text-[10px]" : "text-xs")}>
+        <Lock className={cn("text-primary", iconSize)} />
+        <span className={cn("font-semibold text-primary text-center", labelSize)}>
           {predictedSchoolName ? `${predictedSchoolName} by ${predictedMargin}` : "Draw"}
         </span>
       </div>
@@ -193,8 +206,8 @@ const CenterArea = ({
   if (onPredictionMade) {
     return (
       <div className={wrapClass}>
-        <AlertCircle className={cn("text-destructive", compact ? "w-4 h-4" : "w-5 h-5")} />
-        <span className={cn("font-semibold text-destructive", compact ? "text-[10px]" : "text-xs")}>Pick needed</span>
+        <LockOpen className={cn("text-destructive", iconSize)} />
+        <span className={cn("font-semibold text-destructive", labelSize)}>Make Pick</span>
       </div>
     );
   }
@@ -293,6 +306,7 @@ export const FixtureRow = ({
       predictedMargin={predictedMargin}
       compact
       isPast={isPast}
+      isCancelled={isCancelled}
       scoreLeft={leftScore}
       scoreRight={rightScore}
     />
@@ -347,11 +361,6 @@ export const FixtureRow = ({
               <span className="text-xs">
                 <span className="font-bold">{dateStr}</span>
                 {venue !== "TBD" && <span className="text-muted-foreground ml-2 text-xs">{venue}</span>}
-                {isCancelled && (
-                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1 ml-2">
-                    <Ban className="w-3 h-3" />Cancelled
-                  </Badge>
-                )}
               </span>
               <div className="w-6 h-6 flex items-center justify-center -mr-1">
                 {canExpand ? (
@@ -386,11 +395,6 @@ export const FixtureRow = ({
       {venue !== "TBD" && <span className="text-muted-foreground ml-2 text-xs">{venue}</span>}
       {fixture.tournament && fixture.venue_type !== "tournament" && (
         <span className="text-[10px] text-muted-foreground ml-1">({fixture.tournament.name})</span>
-      )}
-      {isCancelled && (
-        <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-1 ml-2">
-          <Ban className="w-3 h-3" />Cancelled
-        </Badge>
       )}
     </>
   );
