@@ -5,6 +5,7 @@ interface FixtureSchool {
   name: string;
   slug: string;
   jersey_url: string | null;
+  is_archived?: boolean;
 }
 
 interface FixtureListCardProps {
@@ -61,6 +62,8 @@ export const FixtureListCard = ({
       awaySchoolId={fixture.school_b.id}
       homeSchoolSlug={fixture.school_a.slug}
       awaySchoolSlug={fixture.school_b.slug}
+      homeIsArchived={fixture.school_a.is_archived}
+      awayIsArchived={fixture.school_b.is_archived}
       time=""
       venue={getVenue(fixture)}
       matchDate={fixture.match_date}
