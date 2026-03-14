@@ -307,6 +307,7 @@ export const FixtureRow = ({
       predictedMargin={predictedMargin}
       compact
       isPast={isPast}
+      isCancelled={isCancelled}
       scoreLeft={leftScore}
       scoreRight={rightScore}
     />
