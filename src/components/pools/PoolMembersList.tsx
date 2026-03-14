@@ -27,7 +27,6 @@ interface PoolMembersListProps {
   members: PoolMember[];
   creatorId: string;
   currentUserId: string | null;
-  isEditable: boolean;
   onMemberRemoved: () => void;
   poolId: string;
 }
