@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Lock, AlertCircle, Ban } from "lucide-react";
+import { ChevronDown, Lock, LockOpen, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
