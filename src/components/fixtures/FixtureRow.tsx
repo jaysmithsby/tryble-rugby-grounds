@@ -21,6 +21,7 @@ export interface FixtureSchool {
   slug: string;
   jersey_url: string | null;
   province: string | null;
+  is_archived?: boolean;
 }
 
 export interface Fixture {
