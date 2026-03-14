@@ -84,6 +84,20 @@ const GlobalHeader = ({ children }: GlobalHeaderProps) => {
 
               <Separator />
 
+              {/* Admin (role-gated) */}
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => navTo("/admin")}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-muted transition-colors"
+                  >
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    Admin Dashboard
+                  </button>
+                  <Separator />
+                </>
+              )}
+
               {/* Appearance */}
               <div className="px-4 py-3 space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Appearance</p>
