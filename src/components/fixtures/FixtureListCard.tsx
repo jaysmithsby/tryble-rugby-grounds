@@ -15,6 +15,8 @@ interface FixtureListCardProps {
     venue_type: string | null;
     venue_id: string | null;
     status: string;
+    score_a?: number | null;
+    score_b?: number | null;
     school_a: FixtureSchool;
     school_b: FixtureSchool;
     tournament?: { id: string; name: string } | null;

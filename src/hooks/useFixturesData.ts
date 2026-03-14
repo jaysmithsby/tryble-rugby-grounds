@@ -18,6 +18,8 @@ interface FixtureWithSchools {
   venue_type: string | null;
   venue_id: string | null;
   status: string;
+  score_a: number | null;
+  score_b: number | null;
   school_a_id: string;
   school_b_id: string;
   school_a: FixtureSchool;
