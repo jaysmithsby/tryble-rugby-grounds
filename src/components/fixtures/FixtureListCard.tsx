@@ -15,6 +15,8 @@ interface FixtureListCardProps {
     venue_type: string | null;
     venue_id: string | null;
     status: string;
+    score_a?: number | null;
+    score_b?: number | null;
     school_a: FixtureSchool;
     school_b: FixtureSchool;
     tournament?: { id: string; name: string } | null;
@@ -67,6 +69,9 @@ export const FixtureListCard = ({
       time=""
       venue={getVenue(fixture)}
       matchDate={fixture.match_date}
+      scoreA={fixture.score_a}
+      scoreB={fixture.score_b}
+      status={fixture.status}
       tournamentName={fixture.tournament?.name}
       matchId={fixture.id}
       isPredicted={isPredicted}
