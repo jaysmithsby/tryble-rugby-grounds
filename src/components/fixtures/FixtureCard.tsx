@@ -14,6 +14,9 @@ interface FixtureCardProps {
   awaySchoolSlug?: string;
   homeIsArchived?: boolean;
   awayIsArchived?: boolean;
+  scoreA?: number | null;
+  scoreB?: number | null;
+  status?: string;
   time: string;
   venue: string;
   matchDate?: string;
@@ -39,6 +42,9 @@ export const FixtureCard = ({
   awaySchoolSlug,
   homeIsArchived,
   awayIsArchived,
+  scoreA,
+  scoreB,
+  status,
   venue,
   matchDate,
   tournamentName,
@@ -75,6 +81,9 @@ export const FixtureCard = ({
       is_archived: awayIsArchived,
     } as FixtureSchool,
     tournament: tournamentName ? { id: "", name: tournamentName } : null,
+    score_a: scoreA,
+    score_b: scoreB,
+    status: status,
   };
 
   return (
