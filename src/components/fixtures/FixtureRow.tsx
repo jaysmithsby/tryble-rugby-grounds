@@ -438,7 +438,7 @@ export const FixtureRow = ({
   // Mobile card row
   const mobileRow = (
     <div
-      className={cn("border border-border/40 rounded-lg p-3 hover:bg-muted/50 transition-colors", canExpand && "cursor-pointer")}
+      className={cn("bg-card border border-border/40 rounded-lg p-3 shadow-card hover:shadow-glow transition-all duration-300", canExpand && "cursor-pointer")}
       onClick={handleCardClick}
     >
       <div className="flex items-center justify-between mb-2">
