@@ -25,7 +25,6 @@ interface PoolSchoolsListProps {
   schools: string[];
   poolId: string;
   isAdmin: boolean;
-  isEditable: boolean;
   onSchoolsUpdated: () => void;
 }
 
