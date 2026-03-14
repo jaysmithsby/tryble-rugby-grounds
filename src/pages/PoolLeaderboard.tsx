@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Lock, Clock, Users, Trophy, Hash, Calendar } from "lucide-react";
+import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Users, Trophy, Hash, Calendar } from "lucide-react";
 import { BoxWhiskerChart, computeBoxWhisker } from "@/components/ui/BoxWhiskerChart";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
