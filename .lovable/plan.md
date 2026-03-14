@@ -1,48 +1,32 @@
 
 
-## Plan: Redefine Streak as Weekly Participation Streak
+## Fix: Fixtures Page Scroll Getting Stuck on Mobile
 
-### What Changes
+### Root Cause
 
-**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
+The Fixtures page (and Home page) use `overflow-auto` on their container div to create a nested scrollable element. This is required by the `usePullToRefresh` hook, which checks `el.scrollTop` to decide when to activate.
 
-### Changes Required
+The problem: on mobile, this nested scroll container creates a **scroll trap**. When the user reaches the bottom, iOS/Android momentum scrolling stops at the boundary. The pull-to-refresh `touchmove` handler (registered with `passive: false`) then calls `e.preventDefault()` when `scrollTop === 0` and the user swipes down even slightly — which **blocks normal upward scroll recovery**.
 
-#### 1. New/Updated Database Function — `get_user_season_stats`
+Additionally, the Table component's own `overflow-auto` wrapper (in `table.tsx`) creates a second nested scroll context on desktop, though on mobile the table view is hidden.
 
-Update the streak calculation in the existing `get_user_season_stats` function:
+### Fix
 
-- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
-- Check if the user has a prediction for every such fixture that week.
-- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
-- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+**1. Refactor `usePullToRefresh` to use `window.scrollY` instead of `el.scrollTop`** (`src/hooks/usePullToRefresh.ts`)
+- Remove the requirement for the container to be `overflow-auto`
+- Check `window.scrollY === 0` (or `document.documentElement.scrollTop === 0`) to decide if pull-to-refresh should activate
+- Attach touch listeners to the container element but use window scroll position for the scroll-top check
+- This lets the page use natural body scrolling
 
-#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+**2. Remove `overflow-auto` from page containers** (`src/pages/Fixtures.tsx`, `src/pages/Home.tsx`)
+- Change `overflow-auto` to `overflow-visible` or remove it entirely
+- The body/viewport handles scrolling natively, eliminating the scroll trap
 
-The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
+**3. Keep Table `overflow-auto` for horizontal scroll on desktop only** (`src/components/ui/table.tsx`)
+- No change needed — this is already hidden on mobile via `hidden sm:block`
 
-- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
-- Remove the local streak calculation from the `analytics` memo.
-- Display the server-provided streak value instead.
-
-#### 3. Wire Up `useUserStats` Streak
-
-The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
-
-### Technical Detail
-
-**DB function streak logic** (pseudocode):
-```text
-FOR each week in season (descending):
-  IF week > current_week: SKIP
-  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
-  IF eligible_fixtures = 0: SKIP (no fixtures that week)
-  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
-  IF count(user_predictions) = count(eligible_fixtures): streak += 1
-  ELSE: BREAK
-```
-
-### Files Affected
-- `supabase` — migration to update `get_user_season_stats` function (streak portion)
-- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
+### Files to edit
+- `src/hooks/usePullToRefresh.ts` — use `window.scrollY` instead of `el.scrollTop`
+- `src/pages/Fixtures.tsx` — remove `overflow-auto`
+- `src/pages/Home.tsx` — remove `overflow-auto`
 
