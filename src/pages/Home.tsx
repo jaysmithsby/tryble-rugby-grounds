@@ -120,7 +120,7 @@ const Home = () => {
   }
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-background pb-20 overflow-auto">
+    <div ref={containerRef} className="min-h-screen bg-background pb-20">
       <GlobalHeader />
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
 
