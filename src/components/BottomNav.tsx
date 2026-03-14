@@ -88,8 +88,8 @@ export const BottomNav = () => {
             onFocus={handlePrefetch("/schools")}
             className={`flex flex-col items-center gap-1 transition-colors ${
               isActive("/schools")
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
+                ? "text-accent"
+                : "text-nav-bar-foreground/70 hover:text-nav-bar-foreground"
             }`}
           >
             <School className="w-5 h-5" />

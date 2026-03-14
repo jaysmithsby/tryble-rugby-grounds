@@ -102,6 +102,9 @@ All colors MUST be HSL.
     --input: 0 0% 20%;
     --ring: 142 76% 36%;
 
+    --nav-bar: 150 41% 12%;
+    --nav-bar-foreground: 0 0% 98%;
+
     --gradient-hero: linear-gradient(135deg, hsl(142 76% 36% / 0.15), hsl(45 93% 47% / 0.1));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 12%), hsl(0 0% 8%));
     --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4);
