@@ -302,6 +302,16 @@ export const FixtureRow = ({
     <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
   ) : null;
 
+  const matchGrid = (size: "sm" | "md") => (
+    <div className={cn("grid items-center gap-2", "grid-cols-[1fr_60px_1fr]")}>
+      <SchoolBlock school={left} isHome={leftIsA} size={size} onNavigate={handleSchoolClick} />
+      <div className="flex items-center justify-center">
+        {centerArea}
+      </div>
+      <SchoolBlock school={right} isHome={!leftIsA} size={size} onNavigate={handleSchoolClick} />
+    </div>
+  );
+
   // ===== CARD VARIANT =====
   if (variant === "card") {
     return (
