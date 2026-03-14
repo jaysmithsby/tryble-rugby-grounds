@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
-import { Menu, X, Sun, Moon, Monitor, LogOut, User, FileText, Shield } from "lucide-react";
+import { Menu, X, Sun, Moon, Monitor, LogOut, User, FileText, Shield, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import trybalLogo from "@/assets/trybal-logo.png";
 import {
@@ -24,6 +24,22 @@ const GlobalHeader = ({ children }: GlobalHeaderProps) => {
   const navigate = useNavigate();
   const { setTheme, theme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdmin();
+  }, []);
 
   const handleSignOut = async () => {
     setOpen(false);
@@ -67,6 +83,20 @@ const GlobalHeader = ({ children }: GlobalHeaderProps) => {
               </button>
 
               <Separator />
+
+              {/* Admin (role-gated) */}
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => navTo("/admin")}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-muted transition-colors"
+                  >
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    Admin Dashboard
+                  </button>
+                  <Separator />
+                </>
+              )}
 
               {/* Appearance */}
               <div className="px-4 py-3 space-y-2">
