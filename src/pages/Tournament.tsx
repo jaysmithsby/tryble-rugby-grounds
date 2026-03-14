@@ -503,39 +503,48 @@ export default function Tournament() {
                   {paginatedFixtures.map((f) => {
                     const pred = userPredictions[f.id];
                     return (
-                      <SwipeableFixtureCard
-                        key={f.id}
-                        fixtureId={f.id}
-                        onDismiss={(id) => setDismissedIds(prev => new Set(prev).add(id))}
-                      >
-                        <FixtureCard
-                          homeTeam={f.school_a?.name || "TBD"}
-                          awayTeam={f.school_b?.name || "TBD"}
-                          homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
-                          awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
-                          homeTeamIcon={f.school_a?.jersey_url}
-                          awayTeamIcon={f.school_b?.jersey_url}
-                          homeSchoolId={f.school_a_id}
-                          awaySchoolId={f.school_b_id}
-                          homeSchoolSlug={f.school_a?.slug}
-                          awaySchoolSlug={f.school_b?.slug}
-                          matchDate={f.match_date}
-                          time=""
-                          venue={resolveVenueName(f)}
-                          tournamentName={tournamentName}
-                          matchId={f.id}
-                          isPredicted={isFollowing ? !!pred : undefined}
-                          predictedSchoolId={isFollowing ? pred?.predictedSchoolId : undefined}
-                          predictedMargin={isFollowing ? pred?.predictedMargin : undefined}
-                          onPredictionMade={isFollowing ? (schoolId, margin) => {
-                            setUserPredictions(prev => ({
-                              ...prev,
-                              [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
-                            }));
-                          } : undefined}
-                          hasHistory={hasHistoryMap[f.id]}
-                        />
-                      </SwipeableFixtureCard>
+                    {(() => {
+                      const matchDay = new Date(f.match_date);
+                      matchDay.setHours(0, 0, 0, 0);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const isFuture = matchDay > today;
+                      return (
+                        <SwipeableFixtureCard
+                          key={f.id}
+                          fixtureId={f.id}
+                          onDismiss={(id) => setDismissedIds(prev => new Set(prev).add(id))}
+                        >
+                          <FixtureCard
+                            homeTeam={f.school_a?.name || "TBD"}
+                            awayTeam={f.school_b?.name || "TBD"}
+                            homeTeamShort={f.school_a?.name?.substring(0, 3) || "TBD"}
+                            awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
+                            homeTeamIcon={f.school_a?.jersey_url}
+                            awayTeamIcon={f.school_b?.jersey_url}
+                            homeSchoolId={f.school_a_id}
+                            awaySchoolId={f.school_b_id}
+                            homeSchoolSlug={f.school_a?.slug}
+                            awaySchoolSlug={f.school_b?.slug}
+                            matchDate={f.match_date}
+                            time=""
+                            venue={resolveVenueName(f)}
+                            tournamentName={tournamentName}
+                            matchId={f.id}
+                            isPredicted={isFollowing && isFuture ? !!pred : isFollowing ? !!pred : undefined}
+                            predictedSchoolId={isFollowing ? pred?.predictedSchoolId : undefined}
+                            predictedMargin={isFollowing ? pred?.predictedMargin : undefined}
+                            onPredictionMade={isFollowing && isFuture ? (schoolId, margin) => {
+                              setUserPredictions(prev => ({
+                                ...prev,
+                                [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
+                              }));
+                            } : undefined}
+                            hasHistory={hasHistoryMap[f.id]}
+                          />
+                        </SwipeableFixtureCard>
+                      );
+                    })()}
                     );
                   })}
                 </div>
