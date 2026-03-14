@@ -32,7 +32,6 @@ export const PoolSchoolsList = ({
   schools,
   poolId,
   isAdmin,
-  isEditable,
   onSchoolsUpdated,
 }: PoolSchoolsListProps) => {
   const { toast } = useToast();
