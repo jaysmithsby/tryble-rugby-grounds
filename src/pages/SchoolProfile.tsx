@@ -145,6 +145,10 @@ export default function SchoolProfile() {
         .maybeSingle();
 
       if (schoolError) throw schoolError;
+      if (schoolData?.is_archived) {
+        setSchool(null);
+        return;
+      }
       setSchool(schoolData);
 
       if (!schoolData) return;

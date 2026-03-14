@@ -84,8 +84,8 @@ export const useFixturesData = ({
           score_b,
           school_a_id,
           school_b_id,
-          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province),
-          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province),
+          school_a:schools!fixtures_school_a_id_fkey(id, name, slug, jersey_url, province, is_archived),
+          school_b:schools!fixtures_school_b_id_fkey(id, name, slug, jersey_url, province, is_archived),
           tournament_edition:tournament_editions(id, tournament:tournaments(id, name))
         `)
         .eq("is_visible", true)

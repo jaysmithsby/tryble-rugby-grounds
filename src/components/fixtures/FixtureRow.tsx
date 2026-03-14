@@ -87,26 +87,42 @@ const SchoolBlock = ({
   size: "sm" | "md";
   onNavigate: (e: React.MouseEvent, slug: string) => void;
   priority?: boolean;
-}) => (
-  <button
-    type="button"
-    className="flex flex-col items-center gap-1.5 w-full hover:opacity-80 transition-opacity"
-    onClick={(e) => onNavigate(e, school.slug)}
-  >
-    <SchoolJerseyImage
-      src={school.jersey_url}
-      alt={school.name}
-      fallbackText={size === "sm" ? school.name?.substring(0, 2) || "" : getShortName(school.name)}
-      size={size}
-      variant={isHome ? "primary" : "accent"}
-      priority={priority}
-      containerClassName="border-border"
-    />
-    <span className={cn("text-xs text-center line-clamp-2 leading-tight font-medium h-[2lh]", size === "sm" ? "max-w-[120px]" : "")}>
-      {school.name}
-    </span>
-  </button>
-);
+}) => {
+  const content = (
+    <>
+      <SchoolJerseyImage
+        src={school.jersey_url}
+        alt={school.name}
+        fallbackText={size === "sm" ? school.name?.substring(0, 2) || "" : getShortName(school.name)}
+        size={size}
+        variant={isHome ? "primary" : "accent"}
+        priority={priority}
+        containerClassName="border-border"
+      />
+      <span className={cn("text-xs text-center line-clamp-2 leading-tight font-medium h-[2lh]", size === "sm" ? "max-w-[120px]" : "")}>
+        {school.name}
+      </span>
+    </>
+  );
+
+  if (school.is_archived) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 w-full opacity-60">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="flex flex-col items-center gap-1.5 w-full hover:opacity-80 transition-opacity"
+      onClick={(e) => onNavigate(e, school.slug)}
+    >
+      {content}
+    </button>
+  );
+};
 
 const CenterArea = ({
   isPredicted,
