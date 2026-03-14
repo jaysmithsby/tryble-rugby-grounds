@@ -37,7 +37,7 @@ const GlobalHeader = ({ children }: GlobalHeaderProps) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-nav-bar/20 bg-nav-bar backdrop-blur-sm">
       <div className="container mx-auto px-4 py-2.5 flex items-center justify-between">
         <button onClick={() => navigate("/home")} className="shrink-0">
           <img src={trybalLogo} alt="Trybal" className="h-9" />
@@ -45,7 +45,7 @@ const GlobalHeader = ({ children }: GlobalHeaderProps) => {
 
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-nav-bar-foreground hover:bg-white/10 hover:text-nav-bar-foreground">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open menu</span>
             </Button>
