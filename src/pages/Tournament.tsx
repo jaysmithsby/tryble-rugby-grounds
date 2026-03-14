@@ -502,6 +502,11 @@ export default function Tournament() {
                 <div className="space-y-3 mt-3">
                   {paginatedFixtures.map((f) => {
                     const pred = userPredictions[f.id];
+                    const matchDay = new Date(f.match_date);
+                    matchDay.setHours(0, 0, 0, 0);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const isFuture = matchDay > today;
                     return (
                       <SwipeableFixtureCard
                         key={f.id}
@@ -524,10 +529,10 @@ export default function Tournament() {
                           venue={resolveVenueName(f)}
                           tournamentName={tournamentName}
                           matchId={f.id}
-                          isPredicted={isFollowing ? !!pred : undefined}
+                          isPredicted={isFollowing && isFuture ? !!pred : isFollowing ? !!pred : undefined}
                           predictedSchoolId={isFollowing ? pred?.predictedSchoolId : undefined}
                           predictedMargin={isFollowing ? pred?.predictedMargin : undefined}
-                          onPredictionMade={isFollowing ? (schoolId, margin) => {
+                          onPredictionMade={isFollowing && isFuture ? (schoolId, margin) => {
                             setUserPredictions(prev => ({
                               ...prev,
                               [f.id]: { predictedSchoolId: schoolId, predictedMargin: margin }
