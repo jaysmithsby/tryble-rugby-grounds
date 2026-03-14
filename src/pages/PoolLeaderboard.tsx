@@ -101,45 +101,7 @@ export const PoolLeaderboard = () => {
     setCurrentUserId(user?.id || null);
   };
 
-  const checkEditableLock = async (poolSchools: string[]) => {
-    if (!poolSchools || poolSchools.length === 0) {
-      setIsEditable(true);
-      setLockReason(undefined);
-      return;
-    }
-    try {
-      const { data: schoolsData } = await supabase
-        .from("schools").select("id, name").in("name", poolSchools);
-      if (!schoolsData || schoolsData.length === 0) { setIsEditable(true); return; }
-      const schoolIds = schoolsData.map(s => s.id);
-      const now = new Date();
-      const { data: fixtures } = await supabase
-        .from("fixtures").select("match_date")
-        .or(`school_a_id.in.(${schoolIds.join(",")}),school_b_id.in.(${schoolIds.join(",")})`)
-        .gte("match_date", now.toISOString())
-        .order("match_date", { ascending: true }).limit(1);
-      if (fixtures && fixtures.length > 0) {
-        const firstMatch = new Date(fixtures[0].match_date);
-        const minutesUntilMatch = differenceInMinutes(firstMatch, now);
-        if (minutesUntilMatch <= 60) {
-          setIsEditable(false);
-          setLockReason("Pool is locked - match starting soon");
-        } else if (minutesUntilMatch <= 120) {
-          setIsEditable(true);
-          setLockCountdown(`Editing closes in ${minutesUntilMatch - 60} minutes`);
-          setLockReason(`Editing closes at ${format(new Date(firstMatch.getTime() - 60 * 60 * 1000), "h:mm a")}`);
-        } else {
-          setIsEditable(true);
-          setLockReason(undefined);
-        }
-      } else {
-        setIsEditable(true);
-      }
-    } catch (error) {
-      console.error("Error checking edit lock:", error);
-      setIsEditable(true);
-    }
-  };
+
 
   const loadPoolData = async () => {
     if (!poolId) return;
