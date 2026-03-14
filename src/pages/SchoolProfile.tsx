@@ -320,6 +320,8 @@ export default function SchoolProfile() {
                           awayTeamShort={f.school_b?.name?.substring(0, 3) || "TBD"}
                           homeTeamIcon={f.school_a?.jersey_url}
                           awayTeamIcon={f.school_b?.jersey_url}
+                          homeIsArchived={f.school_a?.is_archived}
+                          awayIsArchived={f.school_b?.is_archived}
                           homeSchoolId={f.school_a_id}
                           awaySchoolId={f.school_b_id}
                           homeSchoolSlug={f.school_a?.slug}
