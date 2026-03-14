@@ -81,6 +81,9 @@ export const FixtureCard = ({
       is_archived: awayIsArchived,
     } as FixtureSchool,
     tournament: tournamentName ? { id: "", name: tournamentName } : null,
+    score_a: scoreA,
+    score_b: scoreB,
+    status: status,
   };
 
   return (

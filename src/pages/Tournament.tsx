@@ -525,6 +525,9 @@ export default function Tournament() {
                           homeSchoolSlug={f.school_a?.slug}
                           awaySchoolSlug={f.school_b?.slug}
                           matchDate={f.match_date}
+                          scoreA={f.score_a}
+                          scoreB={f.score_b}
+                          status={f.status}
                           time=""
                           venue={resolveVenueName(f)}
                           tournamentName={tournamentName}
