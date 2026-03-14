@@ -250,8 +250,6 @@ export const FixtureRow = ({
   const isCancelled = fixture.status === "cancelled";
   const leftScore = leftIsA ? (fixture.score_a ?? null) : (fixture.score_b ?? null);
   const rightScore = leftIsA ? (fixture.score_b ?? null) : (fixture.score_a ?? null);
-  const leftScore = leftIsA ? (fixture.score_a ?? null) : (fixture.score_b ?? null);
-  const rightScore = leftIsA ? (fixture.score_b ?? null) : (fixture.score_a ?? null);
 
   useEffect(() => {
     if (hasHistory !== undefined) return;
