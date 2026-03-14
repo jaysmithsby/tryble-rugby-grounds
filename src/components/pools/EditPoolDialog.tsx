@@ -135,14 +135,7 @@ export const EditPoolDialog = ({
     }
   };
 
-  if (!isEditable) {
-    return (
-      <Button variant="outline" size="sm" disabled>
-        <Settings className="w-4 h-4 mr-2" />
-        Locked
-      </Button>
-    );
-  }
+
 
   const SelectedIcon = getPoolIconComponent(iconConfig.iconId);
   const selectedColor = getPoolColorValue(iconConfig.colorId);

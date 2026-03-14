@@ -110,7 +110,7 @@ export const PoolMembersList = ({
         {members.map((member) => {
           const isCreator = member.user_id === creatorId;
           const isSelf = member.user_id === currentUserId;
-          const canRemove = isAdmin && isEditable && !isCreator && !isSelf;
+          const canRemove = isAdmin && !isCreator && !isSelf;
 
           return (
             <div

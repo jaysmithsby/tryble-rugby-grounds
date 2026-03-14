@@ -112,7 +112,7 @@ export const PoolLeaderboard = () => {
       if (poolError) throw poolError;
       setPool(poolData);
 
-      await checkEditableLock(poolData.schools || []);
+
 
       if (poolData.schools && poolData.schools.length > 0) {
         const { data: schoolsData } = await supabase

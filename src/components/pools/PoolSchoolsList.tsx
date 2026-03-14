@@ -44,7 +44,7 @@ export const PoolSchoolsList = ({
     select: "id, name, icon_url",
   });
 
-  const canEdit = isAdmin && isEditable;
+  const canEdit = isAdmin;
 
   const filteredSchools = availableSchools.filter((school) =>
     school.name.toLowerCase().includes(searchQuery.toLowerCase())
