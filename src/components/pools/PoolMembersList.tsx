@@ -35,7 +35,6 @@ export const PoolMembersList = ({
   members,
   creatorId,
   currentUserId,
-  isEditable,
   onMemberRemoved,
   poolId,
 }: PoolMembersListProps) => {
