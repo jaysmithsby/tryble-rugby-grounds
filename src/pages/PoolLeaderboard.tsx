@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Users, Trophy, Hash, Calendar } from "lucide-react";
+import { Share2, Copy, ChevronDown, ChevronLeft, ChevronRight, Users, Trophy, Hash, Calendar } from "lucide-react";
 import { BoxWhiskerChart, computeBoxWhisker } from "@/components/ui/BoxWhiskerChart";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -334,12 +334,28 @@ export const PoolLeaderboard = () => {
       <div className="px-4 pt-4 pb-2 max-w-7xl mx-auto space-y-1">
         {/* Row 1: Icon + Name + Actions */}
         <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0"
-            style={{ borderColor: poolColor, backgroundColor: `${poolColor}15` }}
-          >
-            {PoolIcon && <PoolIcon className="w-4 h-4" style={{ color: poolColor }} />}
-          </div>
+          {isAdmin ? (
+            <EditPoolDialog
+              pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id, schools: pool.schools }}
+              onPoolUpdated={loadPoolData}
+              triggerElement={
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 hover:opacity-80 transition-opacity"
+                  style={{ borderColor: poolColor, backgroundColor: `${poolColor}15` }}
+                >
+                  {PoolIcon && <PoolIcon className="w-4 h-4" style={{ color: poolColor }} />}
+                </button>
+              }
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0"
+              style={{ borderColor: poolColor, backgroundColor: `${poolColor}15` }}
+            >
+              {PoolIcon && <PoolIcon className="w-4 h-4" style={{ color: poolColor }} />}
+            </div>
+          )}
           <h1 className="text-lg font-bold truncate flex-1">{pool.name}</h1>
           <PoolInvite
             poolName={pool.name}
@@ -350,17 +366,6 @@ export const PoolLeaderboard = () => {
               </button>
             }
           />
-          {isAdmin && (
-            <EditPoolDialog
-              pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id, schools: pool.schools }}
-              onPoolUpdated={loadPoolData}
-              triggerElement={
-                <button type="button" className="p-1.5 hover:opacity-80 transition-opacity shrink-0">
-                  <Pen className="w-4 h-4 text-muted-foreground" />
-                </button>
-              }
-            />
-          )}
         </div>
 
         {/* Row 2: Metadata */}
