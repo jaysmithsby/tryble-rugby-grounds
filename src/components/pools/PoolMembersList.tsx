@@ -27,7 +27,6 @@ interface PoolMembersListProps {
   members: PoolMember[];
   creatorId: string;
   currentUserId: string | null;
-  isEditable: boolean;
   onMemberRemoved: () => void;
   poolId: string;
 }
@@ -36,7 +35,6 @@ export const PoolMembersList = ({
   members,
   creatorId,
   currentUserId,
-  isEditable,
   onMemberRemoved,
   poolId,
 }: PoolMembersListProps) => {
@@ -112,7 +110,7 @@ export const PoolMembersList = ({
         {members.map((member) => {
           const isCreator = member.user_id === creatorId;
           const isSelf = member.user_id === currentUserId;
-          const canRemove = isAdmin && isEditable && !isCreator && !isSelf;
+          const canRemove = isAdmin && !isCreator && !isSelf;
 
           return (
             <div

@@ -25,7 +25,6 @@ interface PoolSchoolsListProps {
   schools: string[];
   poolId: string;
   isAdmin: boolean;
-  isEditable: boolean;
   onSchoolsUpdated: () => void;
 }
 
@@ -33,7 +32,6 @@ export const PoolSchoolsList = ({
   schools,
   poolId,
   isAdmin,
-  isEditable,
   onSchoolsUpdated,
 }: PoolSchoolsListProps) => {
   const { toast } = useToast();
@@ -46,7 +44,7 @@ export const PoolSchoolsList = ({
     select: "id, name, icon_url",
   });
 
-  const canEdit = isAdmin && isEditable;
+  const canEdit = isAdmin;
 
   const filteredSchools = availableSchools.filter((school) =>
     school.name.toLowerCase().includes(searchQuery.toLowerCase())

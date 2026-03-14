@@ -61,16 +61,12 @@ interface EditPoolDialogProps {
     color_id?: string | null;
     schools?: string[] | null;
   };
-  isEditable: boolean;
-  lockReason?: string;
   onPoolUpdated: () => void;
   triggerElement?: React.ReactNode;
 }
 
 export const EditPoolDialog = ({
   pool,
-  isEditable,
-  lockReason,
   onPoolUpdated,
   triggerElement,
 }: EditPoolDialogProps) => {
@@ -139,14 +135,7 @@ export const EditPoolDialog = ({
     }
   };
 
-  if (!isEditable) {
-    return (
-      <Button variant="outline" size="sm" disabled>
-        <Settings className="w-4 h-4 mr-2" />
-        Locked
-      </Button>
-    );
-  }
+
 
   const SelectedIcon = getPoolIconComponent(iconConfig.iconId);
   const selectedColor = getPoolColorValue(iconConfig.colorId);
@@ -180,11 +169,8 @@ export const EditPoolDialog = ({
 
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           <div className="space-y-4 pt-4">
-            {lockReason && (
-              <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded p-2">
-                ⚠️ {lockReason}
-              </p>
-            )}
+
+
 
             {/* Icon + Name row */}
             <div className="flex items-center gap-3">

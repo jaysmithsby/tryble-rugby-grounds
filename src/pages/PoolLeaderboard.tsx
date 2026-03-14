@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Lock, Clock, Users, Trophy, Hash, Calendar } from "lucide-react";
+import { Share2, Pen, Copy, ChevronDown, ChevronLeft, ChevronRight, Users, Trophy, Hash, Calendar } from "lucide-react";
 import { BoxWhiskerChart, computeBoxWhisker } from "@/components/ui/BoxWhiskerChart";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getPoolIconComponent, getPoolColorValue } from "@/components/pools/PoolIconSelector";
 import { resolveVenueName } from "@/lib/venueUtils";
-import { differenceInMinutes, format, endOfYear } from "date-fns";
+import { endOfYear } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type PoolMember = {
@@ -53,10 +53,7 @@ export const PoolLeaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Lock state
-  const [isEditable, setIsEditable] = useState(true);
-  const [lockReason, setLockReason] = useState<string | undefined>();
-  const [lockCountdown, setLockCountdown] = useState<string | null>(null);
+
 
   // View state
   const [activeView, setActiveView] = useState<"leaderboard" | "fixtures">("leaderboard");
@@ -104,45 +101,7 @@ export const PoolLeaderboard = () => {
     setCurrentUserId(user?.id || null);
   };
 
-  const checkEditableLock = async (poolSchools: string[]) => {
-    if (!poolSchools || poolSchools.length === 0) {
-      setIsEditable(true);
-      setLockReason(undefined);
-      return;
-    }
-    try {
-      const { data: schoolsData } = await supabase
-        .from("schools").select("id, name").in("name", poolSchools);
-      if (!schoolsData || schoolsData.length === 0) { setIsEditable(true); return; }
-      const schoolIds = schoolsData.map(s => s.id);
-      const now = new Date();
-      const { data: fixtures } = await supabase
-        .from("fixtures").select("match_date")
-        .or(`school_a_id.in.(${schoolIds.join(",")}),school_b_id.in.(${schoolIds.join(",")})`)
-        .gte("match_date", now.toISOString())
-        .order("match_date", { ascending: true }).limit(1);
-      if (fixtures && fixtures.length > 0) {
-        const firstMatch = new Date(fixtures[0].match_date);
-        const minutesUntilMatch = differenceInMinutes(firstMatch, now);
-        if (minutesUntilMatch <= 60) {
-          setIsEditable(false);
-          setLockReason("Pool is locked - match starting soon");
-        } else if (minutesUntilMatch <= 120) {
-          setIsEditable(true);
-          setLockCountdown(`Editing closes in ${minutesUntilMatch - 60} minutes`);
-          setLockReason(`Editing closes at ${format(new Date(firstMatch.getTime() - 60 * 60 * 1000), "h:mm a")}`);
-        } else {
-          setIsEditable(true);
-          setLockReason(undefined);
-        }
-      } else {
-        setIsEditable(true);
-      }
-    } catch (error) {
-      console.error("Error checking edit lock:", error);
-      setIsEditable(true);
-    }
-  };
+
 
   const loadPoolData = async () => {
     if (!poolId) return;
@@ -153,7 +112,7 @@ export const PoolLeaderboard = () => {
       if (poolError) throw poolError;
       setPool(poolData);
 
-      await checkEditableLock(poolData.schools || []);
+
 
       if (poolData.schools && poolData.schools.length > 0) {
         const { data: schoolsData } = await supabase
@@ -395,8 +354,6 @@ export const PoolLeaderboard = () => {
           {isAdmin && (
             <EditPoolDialog
               pool={{ id: pool.id, name: pool.name, icon_id: pool.icon_id, color_id: pool.color_id, schools: pool.schools }}
-              isEditable={isEditable}
-              lockReason={lockReason}
               onPoolUpdated={loadPoolData}
               triggerElement={
                 <button type="button" className="p-1.5 hover:opacity-80 transition-opacity shrink-0">
@@ -448,19 +405,8 @@ export const PoolLeaderboard = () => {
           </Collapsible>
         )}
 
-        {/* Lock warnings */}
-        {!isEditable && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mt-2">
-            <Lock className="w-3.5 h-3.5" />
-            <span>Pool locked for this week's matches</span>
-          </div>
-        )}
-        {lockCountdown && isEditable && (
-          <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 rounded-lg px-3 py-2 mt-2">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{lockCountdown}</span>
-          </div>
-        )}
+
+
       </div>
 
       {/* ===== MODE TOGGLE ===== */}
