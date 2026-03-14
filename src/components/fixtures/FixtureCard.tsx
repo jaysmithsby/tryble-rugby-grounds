@@ -37,6 +37,8 @@ export const FixtureCard = ({
   awaySchoolId,
   homeSchoolSlug,
   awaySchoolSlug,
+  homeIsArchived,
+  awayIsArchived,
   venue,
   matchDate,
   tournamentName,
