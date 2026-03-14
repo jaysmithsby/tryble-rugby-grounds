@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Lock, LockOpen, Ban } from "lucide-react";
 import { format } from "date-fns";
-import { format } from "date-fns";
 
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
