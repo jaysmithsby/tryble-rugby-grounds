@@ -405,19 +405,8 @@ export const PoolLeaderboard = () => {
           </Collapsible>
         )}
 
-        {/* Lock warnings */}
-        {!isEditable && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mt-2">
-            <Lock className="w-3.5 h-3.5" />
-            <span>Pool locked for this week's matches</span>
-          </div>
-        )}
-        {lockCountdown && isEditable && (
-          <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 rounded-lg px-3 py-2 mt-2">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{lockCountdown}</span>
-          </div>
-        )}
+
+
       </div>
 
       {/* ===== MODE TOGGLE ===== */}
