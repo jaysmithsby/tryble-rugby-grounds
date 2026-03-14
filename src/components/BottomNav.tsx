@@ -23,7 +23,7 @@ export const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 border-t border-border/40 bg-background/95 backdrop-blur-sm z-50">
+    <nav className="fixed bottom-0 left-0 right-0 border-t border-nav-bar/20 bg-nav-bar backdrop-blur-sm z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-around items-center">
           <button
