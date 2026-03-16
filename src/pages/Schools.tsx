@@ -239,7 +239,7 @@ export default function Schools() {
   // Reset to page 1 on filter/mode change
   useMemo(() => {
     pagination.goToPage(1);
-  }, [debouncedSearch, province, mode, tournamentDateRange]);
+  }, [selectedSchoolNames, selectedTournamentNames, province, mode, tournamentDateRange]);
 
   const pageItems = useMemo(
     () => activeList.slice(pagination.from, pagination.to + 1),
