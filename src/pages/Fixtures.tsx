@@ -114,21 +114,20 @@ const Fixtures = () => {
   const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;
   const showEmptyNoFixtures = !isLoading && groupedFixtures.length === 0 && !showEmptyMySchools;
 
-  // Filter grouped fixtures by search query for my-schools view
+  // Filter grouped fixtures by selected schools for my-schools view
   const filteredGroupedFixtures = useMemo(() => {
-    if (!searchQuery) return groupedFixtures;
-    const q = searchQuery.toLowerCase();
+    if (selectedSchools.length === 0) return groupedFixtures;
     return groupedFixtures
       .map((group) => ({
         ...group,
         fixtures: group.fixtures.filter(
           (f) =>
-            f.school_a?.name?.toLowerCase().includes(q) ||
-            f.school_b?.name?.toLowerCase().includes(q)
+            selectedSchools.includes(f.school_a?.name) ||
+            selectedSchools.includes(f.school_b?.name)
         ),
       }))
       .filter((group) => group.fixtures.length > 0);
-  }, [groupedFixtures, searchQuery]);
+  }, [groupedFixtures, selectedSchools]);
 
   // Flatten all fixtures for pagination
   const FIXTURES_PER_PAGE = 8;
