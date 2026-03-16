@@ -454,34 +454,11 @@ export default function Tournament() {
             {/* Filter row */}
             <div className="flex items-center gap-2 mb-3">
               {participatingSchools.length > 0 && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8 px-2.5 shrink-0">
-                      <Filter className="h-3.5 w-3.5" />
-                      {selectedSchools.length > 0
-                        ? `Schools (${selectedSchools.length}/${participatingSchools.length})`
-                        : "All Schools"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3 max-h-64 overflow-y-auto" align="start">
-                    <div className="space-y-2">
-                      {participatingSchools.map((school) => (
-                        <label key={school} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                          <Checkbox
-                            checked={selectedSchools.includes(school)}
-                            onCheckedChange={() => toggleSchoolFilter(school)}
-                          />
-                          <span className="truncate">{school}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {selectedSchools.length > 0 && (
-                      <button onClick={() => setSelectedSchools([])} className="text-xs text-primary mt-2 hover:underline">
-                        Clear all
-                      </button>
-                    )}
-                  </PopoverContent>
-                </Popover>
+                <SchoolMultiSelectFilter
+                  schools={participatingSchools}
+                  selectedSchools={selectedSchools}
+                  onSelectionChange={setSelectedSchools}
+                />
               )}
               
             </div>
