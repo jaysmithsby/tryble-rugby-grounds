@@ -160,13 +160,12 @@ const Fixtures = () => {
   // All-schools: filter dismissed, then paginate
   const filteredAllFixtures = useMemo(() => {
     let list = fixtures.filter(f => !dismissedIds.has(f.id));
-    if (!searchQuery) return list;
-    const q = searchQuery.toLowerCase();
+    if (selectedSchools.length === 0) return list;
     return list.filter(f =>
-      f.school_a?.name?.toLowerCase().includes(q) ||
-      f.school_b?.name?.toLowerCase().includes(q)
+      selectedSchools.includes(f.school_a?.name) ||
+      selectedSchools.includes(f.school_b?.name)
     );
-  }, [fixtures, searchQuery, dismissedIds]);
+  }, [fixtures, selectedSchools, dismissedIds]);
   const totalAllPages = Math.max(1, Math.ceil(filteredAllFixtures.length / FIXTURES_PER_PAGE));
   const paginatedAllFixtures = filteredAllFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
 
