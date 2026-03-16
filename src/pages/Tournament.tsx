@@ -5,7 +5,6 @@ import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
 import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Calendar, Star, Users, Trophy, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { Calendar, Star, Users, Trophy, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, endOfYear } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
