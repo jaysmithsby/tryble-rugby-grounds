@@ -65,7 +65,7 @@ async function getChildName(supabase: any, childUserId: string): Promise<string>
   return profile?.first_name || "Your child";
 }
 
-serve(async (req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
