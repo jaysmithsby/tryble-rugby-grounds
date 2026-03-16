@@ -72,14 +72,14 @@ export default function Schools() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<DiscoveryMode>("schools");
-  const [search, setSearch] = useState("");
+  const [selectedSchoolNames, setSelectedSchoolNames] = useState<string[]>([]);
+  const [selectedTournamentNames, setSelectedTournamentNames] = useState<string[]>([]);
   const [province, setProvince] = useState<string>("all");
   const now = new Date();
   const [tournamentDateRange, setTournamentDateRange] = useState({
     from: startOfYear(now),
     to: endOfYear(now),
   });
-  const debouncedSearch = useDebounce(search, 300);
   const pagination = usePagination(1, PAGE_SIZE);
 
   // Unified dialog state
