@@ -295,6 +295,12 @@ export default function SchoolProfile() {
 
       <main className="px-4 py-4 space-y-6 max-w-7xl mx-auto">
 
+        {/* Recent Results */}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
+          <RecentResultsTable schoolId={school.id} />
+        </section>
+
         {/* Upcoming Fixtures */}
         <section>
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming Fixtures</h2>
@@ -396,12 +402,6 @@ export default function SchoolProfile() {
               No upcoming fixtures
             </p>
           )}
-        </section>
-
-        {/* Recent Results */}
-        <section>
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Results</h2>
-          <RecentResultsTable schoolId={school.id} />
         </section>
 
         {/* Springboks */}
