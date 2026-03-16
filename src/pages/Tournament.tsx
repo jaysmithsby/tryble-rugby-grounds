@@ -91,7 +91,7 @@ export default function Tournament() {
     });
   }, [allFixtures, selectedSchools, dateRange]);
 
-  useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [debouncedSearch, dateRange, selectedSchools]);
+  useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [dateRange, selectedSchools]);
 
   const totalFixturePages = Math.max(1, Math.ceil(filteredFixtures.length / FIXTURES_PER_PAGE));
   const paginatedFixtures = filteredFixtures.slice(
