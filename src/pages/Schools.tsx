@@ -9,7 +9,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 import { usePagination } from "@/hooks/usePagination";
-import { useDebounce } from "@/hooks/use-debounce";
+
 import { CACHE_TIMES } from "@/lib/queryConfig";
 import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 import { saProvinces } from "@/data/saProvinces";

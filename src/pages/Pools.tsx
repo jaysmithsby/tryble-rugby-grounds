@@ -10,7 +10,7 @@ import { PoolListRow } from "@/components/pools/PoolListRow";
 import { LeaderboardRow } from "@/components/pools/LeaderboardRow";
 import { PoolActionDialog } from "@/components/pools/PoolActionDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useDebounce } from "@/hooks/use-debounce";
+
 import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 
 type Pool = {
