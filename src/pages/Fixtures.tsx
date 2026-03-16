@@ -197,8 +197,9 @@ const Fixtures = () => {
       <FixturesFilters
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
+        schools={availableSchools}
+        selectedSchools={selectedSchools}
+        onSelectedSchoolsChange={setSelectedSchools}
         selectedProvince={selectedProvince}
         onProvinceChange={setSelectedProvince}
         dateRange={dateRange}
