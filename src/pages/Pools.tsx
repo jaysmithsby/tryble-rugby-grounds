@@ -190,14 +190,15 @@ export const Pools = () => {
         </div>
 
         {/* Search + Add */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search pools..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 h-9 text-sm"
+        <div className="flex gap-2 items-center">
+          <SchoolMultiSelectFilter
+            schools={allPoolNames}
+            selectedSchools={selectedPoolNames}
+            onSelectionChange={setSelectedPoolNames}
+            label="Pools"
           />
-          <Button size="icon" className="h-9 w-9 shrink-0" onClick={() => setActionOpen(true)}>
+          <div className="flex-1" />
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={() => setActionOpen(true)}>
             <Plus className="h-4 w-4" />
           </Button>
         </div>
