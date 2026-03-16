@@ -64,7 +64,7 @@ export default function Tournament() {
 
   // Filters
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  
   const [dateRange, setDateRange] = useState({ from: new Date(new Date().getFullYear(), 0, 1), to: endOfYear(new Date()) });
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [fixturesPage, setFixturesPage] = useState(1);
