@@ -529,8 +529,8 @@ export default function Tournament() {
               </>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-6">
-                {debouncedSearch
-                  ? `No fixtures found for '${debouncedSearch}'`
+                {selectedSchools.length > 0
+                  ? "No fixtures found for selected schools"
                   : "No fixtures in this range"}
               </p>
             )}
