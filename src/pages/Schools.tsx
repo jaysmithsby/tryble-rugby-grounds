@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 import { startOfYear, endOfYear } from "date-fns";
 
 import GlobalHeader from "@/components/GlobalHeader";
