@@ -351,34 +351,34 @@ export default function Schools() {
           </h1>
         </div>
 
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder={mode === "schools" ? "Search schools..." : "Search tournaments..."}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
+        <div className="flex items-center gap-2">
           {mode === "schools" ? (
-            <Select value={province} onValueChange={setProvince}>
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue placeholder="Province" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Provinces</SelectItem>
-                {saProvinces.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <SchoolMultiSelectFilter
+                schools={allSchoolNames}
+                selectedSchools={selectedSchoolNames}
+                onSelectionChange={setSelectedSchoolNames}
+              />
+              <Select value={province} onValueChange={setProvince}>
+                <SelectTrigger className="w-auto h-8 text-xs gap-1 shrink-0">
+                  <SelectValue placeholder="Province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Provinces</SelectItem>
+                  {saProvinces.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           ) : (
-            <FixturesDateSelector
-              dateRange={tournamentDateRange}
-              onDateRangeChange={setTournamentDateRange}
+            <SchoolMultiSelectFilter
+              schools={allTournamentNames}
+              selectedSchools={selectedTournamentNames}
+              onSelectionChange={setSelectedTournamentNames}
+              label="Tournaments"
             />
           )}
         </div>
