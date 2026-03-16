@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Star, School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, School, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 import { startOfYear, endOfYear } from "date-fns";
 
 import GlobalHeader from "@/components/GlobalHeader";
@@ -9,12 +9,11 @@ import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchoolsQuery } from "@/hooks/useSchoolsQuery";
 import { usePagination } from "@/hooks/usePagination";
-import { useDebounce } from "@/hooks/use-debounce";
+
 import { CACHE_TIMES } from "@/lib/queryConfig";
 import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 import { saProvinces } from "@/data/saProvinces";
-import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
-import { Input } from "@/components/ui/input";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,14 +72,14 @@ export default function Schools() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<DiscoveryMode>("schools");
-  const [search, setSearch] = useState("");
+  const [selectedSchoolNames, setSelectedSchoolNames] = useState<string[]>([]);
+  const [selectedTournamentNames, setSelectedTournamentNames] = useState<string[]>([]);
   const [province, setProvince] = useState<string>("all");
   const now = new Date();
   const [tournamentDateRange, setTournamentDateRange] = useState({
     from: startOfYear(now),
     to: endOfYear(now),
   });
-  const debouncedSearch = useDebounce(search, 300);
   const pagination = usePagination(1, PAGE_SIZE);
 
   // Unified dialog state
@@ -201,29 +200,33 @@ export default function Schools() {
     return ids;
   }, [tournamentEditions, tournamentDateRange]);
 
+  // ── All school names for filter ──
+  const allSchoolNames = useMemo(() => schools.map(s => s.name).sort(), [schools]);
+
+  // ── All tournament names for filter ──
+  const allTournamentNames = useMemo(() => sortedTournaments.map(t => t.name), [sortedTournaments]);
+
   const filteredTournaments = useMemo(() => {
     let list = sortedTournaments;
     // Filter by year range
     list = list.filter((t) => tournamentIdsInRange.has(t.id));
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter((t) => t.name.toLowerCase().includes(q));
+    if (selectedTournamentNames.length > 0) {
+      list = list.filter((t) => selectedTournamentNames.includes(t.name));
     }
     return list;
-  }, [sortedTournaments, debouncedSearch, tournamentIdsInRange]);
+  }, [sortedTournaments, selectedTournamentNames, tournamentIdsInRange]);
 
   // ── Filtered schools ──
   const filteredSchools = useMemo(() => {
     let list = schools;
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter((s) => s.name.toLowerCase().includes(q));
+    if (selectedSchoolNames.length > 0) {
+      list = list.filter((s) => selectedSchoolNames.includes(s.name));
     }
     if (province !== "all") {
       list = list.filter((s) => s.province === province);
     }
     return list;
-  }, [schools, debouncedSearch, province]);
+  }, [schools, selectedSchoolNames, province]);
 
   // Active filtered list for pagination
   const activeList = mode === "schools" ? filteredSchools : filteredTournaments;
@@ -236,7 +239,7 @@ export default function Schools() {
   // Reset to page 1 on filter/mode change
   useMemo(() => {
     pagination.goToPage(1);
-  }, [debouncedSearch, province, mode, tournamentDateRange]);
+  }, [selectedSchoolNames, selectedTournamentNames, province, mode, tournamentDateRange]);
 
   const pageItems = useMemo(
     () => activeList.slice(pagination.from, pagination.to + 1),
@@ -348,34 +351,34 @@ export default function Schools() {
           </h1>
         </div>
 
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder={mode === "schools" ? "Search schools..." : "Search tournaments..."}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
+        <div className="flex items-center gap-2">
           {mode === "schools" ? (
-            <Select value={province} onValueChange={setProvince}>
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue placeholder="Province" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Provinces</SelectItem>
-                {saProvinces.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <SchoolMultiSelectFilter
+                schools={allSchoolNames}
+                selectedSchools={selectedSchoolNames}
+                onSelectionChange={setSelectedSchoolNames}
+              />
+              <Select value={province} onValueChange={setProvince}>
+                <SelectTrigger className="w-auto h-8 text-xs gap-1 shrink-0">
+                  <SelectValue placeholder="Province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Provinces</SelectItem>
+                  {saProvinces.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           ) : (
-            <FixturesDateSelector
-              dateRange={tournamentDateRange}
-              onDateRangeChange={setTournamentDateRange}
+            <SchoolMultiSelectFilter
+              schools={allTournamentNames}
+              selectedSchools={selectedTournamentNames}
+              onSelectionChange={setSelectedTournamentNames}
+              label="Tournaments"
             />
           )}
         </div>

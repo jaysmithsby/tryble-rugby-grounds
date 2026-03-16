@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Button } from "@/components/ui/button";
 import { Trophy, Users, Plus, Globe } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -10,7 +10,7 @@ import { PoolListRow } from "@/components/pools/PoolListRow";
 import { LeaderboardRow } from "@/components/pools/LeaderboardRow";
 import { PoolActionDialog } from "@/components/pools/PoolActionDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useDebounce } from "@/hooks/use-debounce";
+
 import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 
 type Pool = {
@@ -38,9 +38,8 @@ export const Pools = () => {
   const { toast } = useToast();
   const [pools, setPools] = useState<Pool[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [selectedPoolNames, setSelectedPoolNames] = useState<string[]>([]);
   const [actionOpen, setActionOpen] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
 
   // Leaderboard state
   const [globalRank, setGlobalRank] = useState<number | null>(null);
@@ -155,9 +154,10 @@ export const Pools = () => {
     }
   };
 
-  const filteredPools = pools.filter(pool =>
-    pool.name.toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const allPoolNames = pools.map(p => p.name).sort();
+  const filteredPools = selectedPoolNames.length > 0
+    ? pools.filter(pool => selectedPoolNames.includes(pool.name))
+    : pools;
 
   const renderSchoolIcon = (school: { emblem_url?: string | null; jersey_url?: string | null; name: string }) => {
     const imgUrl = getSchoolDisplayImage(school);
@@ -190,14 +190,15 @@ export const Pools = () => {
         </div>
 
         {/* Search + Add */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search pools..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 h-9 text-sm"
+        <div className="flex gap-2 items-center">
+          <SchoolMultiSelectFilter
+            schools={allPoolNames}
+            selectedSchools={selectedPoolNames}
+            onSelectionChange={setSelectedPoolNames}
+            label="Pools"
           />
-          <Button size="icon" className="h-9 w-9 shrink-0" onClick={() => setActionOpen(true)}>
+          <div className="flex-1" />
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={() => setActionOpen(true)}>
             <Plus className="h-4 w-4" />
           </Button>
         </div>
