@@ -16,7 +16,6 @@ import { saProvinces } from "@/data/saProvinces";
 import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
