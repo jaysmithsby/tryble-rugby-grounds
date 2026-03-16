@@ -29,7 +29,7 @@ const Fixtures = () => {
   });
   const [viewMode, setViewMode] = useState<"my-schools" | "all-schools">("my-schools");
   const [selectedProvince, setSelectedProvince] = useState<string | undefined>();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const startDate = useMemo(() => dateRange.from.toISOString(), [dateRange.from]);
@@ -111,31 +111,41 @@ const Fixtures = () => {
     [userId, toast, fixtures, consentStatus.needsConsent, consentStatus.userSchoolId]
   );
 
+  // Derive available school names from fixtures
+  const availableSchools = useMemo(() => {
+    const names = new Set<string>();
+    const source = viewMode === "my-schools" ? groupedFixtures.flatMap(g => g.fixtures) : fixtures;
+    source.forEach(f => {
+      if (f.school_a?.name) names.add(f.school_a.name);
+      if (f.school_b?.name) names.add(f.school_b.name);
+    });
+    return [...names].sort();
+  }, [fixtures, groupedFixtures, viewMode]);
+
   const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;
   const showEmptyNoFixtures = !isLoading && groupedFixtures.length === 0 && !showEmptyMySchools;
 
-  // Filter grouped fixtures by search query for my-schools view
+  // Filter grouped fixtures by selected schools for my-schools view
   const filteredGroupedFixtures = useMemo(() => {
-    if (!searchQuery) return groupedFixtures;
-    const q = searchQuery.toLowerCase();
+    if (selectedSchools.length === 0) return groupedFixtures;
     return groupedFixtures
       .map((group) => ({
         ...group,
         fixtures: group.fixtures.filter(
           (f) =>
-            f.school_a?.name?.toLowerCase().includes(q) ||
-            f.school_b?.name?.toLowerCase().includes(q)
+            selectedSchools.includes(f.school_a?.name) ||
+            selectedSchools.includes(f.school_b?.name)
         ),
       }))
       .filter((group) => group.fixtures.length > 0);
-  }, [groupedFixtures, searchQuery]);
+  }, [groupedFixtures, selectedSchools]);
 
   // Flatten all fixtures for pagination
   const FIXTURES_PER_PAGE = 8;
   const [page, setPage] = useState(1);
 
   // Reset page on filter changes
-  useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, searchQuery]);
+  useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, selectedSchools]);
 
   // My-schools: filter dismissed, then paginate, then re-group
   const allMyFixtures = useMemo(() =>
@@ -161,13 +171,12 @@ const Fixtures = () => {
   // All-schools: filter dismissed, then paginate
   const filteredAllFixtures = useMemo(() => {
     let list = fixtures.filter(f => !dismissedIds.has(f.id));
-    if (!searchQuery) return list;
-    const q = searchQuery.toLowerCase();
+    if (selectedSchools.length === 0) return list;
     return list.filter(f =>
-      f.school_a?.name?.toLowerCase().includes(q) ||
-      f.school_b?.name?.toLowerCase().includes(q)
+      selectedSchools.includes(f.school_a?.name) ||
+      selectedSchools.includes(f.school_b?.name)
     );
-  }, [fixtures, searchQuery, dismissedIds]);
+  }, [fixtures, selectedSchools, dismissedIds]);
   const totalAllPages = Math.max(1, Math.ceil(filteredAllFixtures.length / FIXTURES_PER_PAGE));
   const paginatedAllFixtures = filteredAllFixtures.slice((page - 1) * FIXTURES_PER_PAGE, page * FIXTURES_PER_PAGE);
 
@@ -191,8 +200,9 @@ const Fixtures = () => {
       <FixturesFilters
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
+        schools={availableSchools}
+        selectedSchools={selectedSchools}
+        onSelectedSchoolsChange={setSelectedSchools}
         selectedProvince={selectedProvince}
         onProvinceChange={setSelectedProvince}
         dateRange={dateRange}

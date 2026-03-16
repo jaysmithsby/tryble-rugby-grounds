@@ -3,21 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar, Star, Users, Trophy, Loader2, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
+import { Calendar, Star, Users, Trophy, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, endOfYear } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
-import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
-import { useDebounce } from "@/hooks/use-debounce";
+
 import { resolveVenueName } from "@/lib/venueUtils";
 
 interface Edition {
@@ -69,9 +62,8 @@ export default function Tournament() {
 
   // Filters
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  
   const [dateRange, setDateRange] = useState({ from: new Date(new Date().getFullYear(), 0, 1), to: endOfYear(new Date()) });
-  const debouncedSearch = useDebounce(searchQuery, 300);
   const [fixturesPage, setFixturesPage] = useState(1);
 
   // Derive participating schools from fixtures
@@ -93,20 +85,13 @@ export default function Tournament() {
         selectedSchools.includes(f.school_b?.name)
       );
     }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      return list.filter(f =>
-        f.school_a?.name?.toLowerCase().includes(q) ||
-        f.school_b?.name?.toLowerCase().includes(q)
-      );
-    }
     return list.filter(f => {
       const d = new Date(f.match_date);
       return d >= dateRange.from && d <= dateRange.to;
     });
-  }, [allFixtures, selectedSchools, debouncedSearch, dateRange]);
+  }, [allFixtures, selectedSchools, dateRange]);
 
-  useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [debouncedSearch, dateRange, selectedSchools]);
+  useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [dateRange, selectedSchools]);
 
   const totalFixturePages = Math.max(1, Math.ceil(filteredFixtures.length / FIXTURES_PER_PAGE));
   const paginatedFixtures = filteredFixtures.slice(
@@ -321,11 +306,6 @@ export default function Tournament() {
     }
   }, []);
 
-  const toggleSchoolFilter = (school: string) => {
-    setSelectedSchools(prev =>
-      prev.includes(school) ? prev.filter(s => s !== school) : [...prev, school]
-    );
-  };
 
   if (loading) {
     return (
@@ -464,34 +444,11 @@ export default function Tournament() {
             {/* Filter row */}
             <div className="flex items-center gap-2 mb-3">
               {participatingSchools.length > 0 && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8 px-2.5 shrink-0">
-                      <Filter className="h-3.5 w-3.5" />
-                      {selectedSchools.length > 0
-                        ? `Schools (${selectedSchools.length}/${participatingSchools.length})`
-                        : "All Schools"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3 max-h-64 overflow-y-auto" align="start">
-                    <div className="space-y-2">
-                      {participatingSchools.map((school) => (
-                        <label key={school} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                          <Checkbox
-                            checked={selectedSchools.includes(school)}
-                            onCheckedChange={() => toggleSchoolFilter(school)}
-                          />
-                          <span className="truncate">{school}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {selectedSchools.length > 0 && (
-                      <button onClick={() => setSelectedSchools([])} className="text-xs text-primary mt-2 hover:underline">
-                        Clear all
-                      </button>
-                    )}
-                  </PopoverContent>
-                </Popover>
+                <SchoolMultiSelectFilter
+                  schools={participatingSchools}
+                  selectedSchools={selectedSchools}
+                  onSelectionChange={setSelectedSchools}
+                />
               )}
               
             </div>
@@ -572,8 +529,8 @@ export default function Tournament() {
               </>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-6">
-                {debouncedSearch
-                  ? `No fixtures found for '${debouncedSearch}'`
+                {selectedSchools.length > 0
+                  ? "No fixtures found for selected schools"
                   : "No fixtures in this range"}
               </p>
             )}

@@ -1,6 +1,7 @@
-import { Search, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { saProvinces } from "@/data/saProvinces";
+import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import {
   Select,
   SelectContent,
@@ -8,15 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { saProvinces } from "@/data/saProvinces";
-import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
+import { Button } from "@/components/ui/button";
 
 interface FixturesFiltersProps {
   viewMode: "my-schools" | "all-schools";
   onViewModeChange: (mode: "my-schools" | "all-schools") => void;
-  searchQuery: string;
-  onSearchQueryChange: (query: string) => void;
+  schools: string[];
+  selectedSchools: string[];
+  onSelectedSchoolsChange: (schools: string[]) => void;
   selectedProvince?: string;
   onProvinceChange: (province: string | undefined) => void;
   dateRange: { from: Date; to: Date };
@@ -26,8 +26,9 @@ interface FixturesFiltersProps {
 export const FixturesFilters = ({
   viewMode,
   onViewModeChange,
-  searchQuery,
-  onSearchQueryChange,
+  schools,
+  selectedSchools,
+  onSelectedSchoolsChange,
   selectedProvince,
   onProvinceChange,
   dateRange,
@@ -55,25 +56,13 @@ export const FixturesFilters = ({
         </Button>
       </div>
 
-      {/* Search + Date + Province in one row */}
+      {/* Filter row */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-          <Input
-            placeholder="Search school..."
-            value={searchQuery}
-            onChange={(e) => onSearchQueryChange(e.target.value)}
-            className="pl-7 h-8 text-xs"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchQueryChange("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
+        <SchoolMultiSelectFilter
+          schools={schools}
+          selectedSchools={selectedSchools}
+          onSelectionChange={onSelectedSchoolsChange}
+        />
 
         <FixturesDateSelector dateRange={dateRange} onDateRangeChange={onDateRangeChange} />
 

@@ -1,35 +1,48 @@
 
 
-## Create shared SchoolMultiSelectFilter component
+## Plan: Redefine Streak as Weekly Participation Streak
 
-### Problem
-The school filtering pattern (popover with checkboxes) is implemented inline in Tournament.tsx, and the Fixtures page uses a plain text search instead. The user wants a single reusable component used everywhere.
+### What Changes
 
-### New Component: `src/components/ui/SchoolMultiSelectFilter.tsx`
-A compact popover button with:
-- Filter icon + label showing "All Schools" or "Schools (N/M)"
-- Popover content: search input at top, scrollable checkbox list, "Clear all" link
-- Props: `schools: string[]`, `selectedSchools: string[]`, `onSelectionChange: (schools: string[]) => void`, optional `label?: string`
-- Matches the Tournament page's compact `h-8 text-xs` styling
+**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
 
-### Changes to `src/components/fixtures/FixturesFilters.tsx`
-- Replace the `<Input>` search field with the new `SchoolMultiSelectFilter`
-- Add new props: `schools: string[]`, `selectedSchools: string[]`, `onSelectedSchoolsChange`
-- Remove `searchQuery` / `onSearchQueryChange` props (filtering now done via multiselect, not text search)
-- Keep the date selector and province filter as-is
+### Changes Required
 
-### Changes to `src/pages/Fixtures.tsx`
-- Pass available school names + selected schools state to `FixturesFilters`
-- Replace text-based search filtering with `selectedSchools`-based filtering
-- Derive school list from fixtures data
+#### 1. New/Updated Database Function — `get_user_season_stats`
 
-### Changes to `src/pages/Tournament.tsx`
-- Replace the inline Popover+Checkbox block (~lines 467-494) with the shared `SchoolMultiSelectFilter` component
-- Remove the `toggleSchoolFilter` function, use `setSelectedSchools` directly
+Update the streak calculation in the existing `get_user_season_stats` function:
 
-### Changes to `src/components/pools/CreatePoolDialog.tsx` and `EditPoolDialog.tsx`
-- These have different UX (max 10, badges, different layout) — leave as-is for now to avoid breaking pool creation flow
+- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
+- Check if the user has a prediction for every such fixture that week.
+- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
+- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
 
-### Summary
-One new file, three files modified. The shared component handles search-within-popover + multiselect checkboxes + clear all.
+#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+
+The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
+
+- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
+- Remove the local streak calculation from the `analytics` memo.
+- Display the server-provided streak value instead.
+
+#### 3. Wire Up `useUserStats` Streak
+
+The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
+
+### Technical Detail
+
+**DB function streak logic** (pseudocode):
+```text
+FOR each week in season (descending):
+  IF week > current_week: SKIP
+  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
+  IF eligible_fixtures = 0: SKIP (no fixtures that week)
+  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
+  IF count(user_predictions) = count(eligible_fixtures): streak += 1
+  ELSE: BREAK
+```
+
+### Files Affected
+- `supabase` — migration to update `get_user_season_stats` function (streak portion)
+- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
 
