@@ -134,7 +134,7 @@ const Fixtures = () => {
   const [page, setPage] = useState(1);
 
   // Reset page on filter changes
-  useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, searchQuery]);
+  useEffect(() => { setPage(1); setDismissedIds(new Set()); }, [dateRange, viewMode, selectedProvince, selectedSchools]);
 
   // My-schools: filter dismissed, then paginate, then re-group
   const allMyFixtures = useMemo(() =>
