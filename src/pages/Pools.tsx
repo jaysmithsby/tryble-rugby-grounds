@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Button } from "@/components/ui/button";
 import { Trophy, Users, Plus, Globe } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
