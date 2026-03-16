@@ -1,48 +1,43 @@
 
 
-## Plan: Redefine Streak as Weekly Participation Streak
+## Build n8n Data API Edge Function
 
-### What Changes
+### Overview
+Create a single edge function `n8n-data-api` that exposes endpoints for n8n to read schools, read fixtures, and update fixtures (scores/status). Authenticated via a shared API key stored as a secret (`N8N_API_KEY`), avoiding exposure of the service role key.
 
-**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
+### Secret Setup
+- Add a new secret `N8N_API_KEY` — a random string the user generates and also configures in n8n's HTTP Request node headers. This is distinct from the existing `N8N_SCHOOL_WEBHOOK_URL`.
 
-### Changes Required
+### Edge Function: `supabase/functions/n8n-data-api/index.ts`
 
-#### 1. New/Updated Database Function — `get_user_season_stats`
+**Authentication**: Every request must include `x-api-key` header matching the `N8N_API_KEY` secret. Returns 401 otherwise.
 
-Update the streak calculation in the existing `get_user_season_stats` function:
+**Routes** (determined by `action` query param or JSON body):
 
-- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
-- Check if the user has a prediction for every such fixture that week.
-- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
-- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+| Action | Method | Description |
+|---|---|---|
+| `get-schools` | GET | Returns all visible, non-archived schools (id, name, slug, province, jersey_url, status, etc.) |
+| `get-fixtures` | GET | Returns fixtures with school names. Supports query params: `start_date`, `end_date`, `status`, `school_id` |
+| `update-fixture` | POST | Updates a fixture row by `id`. Accepts `score_a`, `score_b`, `status` fields. Uses service role client so RLS is bypassed server-side. |
 
-#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+**Key implementation details**:
+- Uses `SUPABASE_SERVICE_ROLE_KEY` internally (already available as a secret) to read/write data without RLS restrictions
+- Input validation: fixture `id` must be UUID, scores must be non-negative integers, status must be one of the allowed values
+- Returns structured JSON with `success`, `data`, `error` fields
+- CORS headers included for completeness but n8n calls server-to-server
 
-The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
+**Config**: Add `verify_jwt = false` in `supabase/config.toml` since auth is via API key, not JWT.
 
-- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
-- Remove the local streak calculation from the `analytics` memo.
-- Display the server-provided streak value instead.
+### Frontend Reactivity
+Fixture updates from n8n write directly to the `fixtures` table. The frontend already uses React Query to fetch fixtures — data will appear on next refetch/page load. No additional frontend changes needed. If real-time is desired later, we can add Supabase Realtime on the fixtures table.
 
-#### 3. Wire Up `useUserStats` Streak
+### n8n Usage
+In n8n HTTP Request nodes:
+- **URL**: `https://fhqnakctskrzqurcksqv.supabase.co/functions/v1/n8n-data-api?action=get-schools`
+- **Header**: `x-api-key: <the N8N_API_KEY value>`
+- For updates: POST to `?action=update-fixture` with JSON body `{ "id": "fixture-uuid", "score_a": 24, "score_b": 17, "status": "completed" }`
 
-The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
-
-### Technical Detail
-
-**DB function streak logic** (pseudocode):
-```text
-FOR each week in season (descending):
-  IF week > current_week: SKIP
-  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
-  IF eligible_fixtures = 0: SKIP (no fixtures that week)
-  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
-  IF count(user_predictions) = count(eligible_fixtures): streak += 1
-  ELSE: BREAK
-```
-
-### Files Affected
-- `supabase` — migration to update `get_user_season_stats` function (streak portion)
-- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
+### Files
+- **New**: `supabase/functions/n8n-data-api/index.ts`
+- **Edit**: `supabase/config.toml` (add `[functions.n8n-data-api]` with `verify_jwt = false`)
 
