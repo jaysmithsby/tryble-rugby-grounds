@@ -111,8 +111,16 @@ const Fixtures = () => {
     [userId, toast, fixtures, consentStatus.needsConsent, consentStatus.userSchoolId]
   );
 
-  const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;
-  const showEmptyNoFixtures = !isLoading && groupedFixtures.length === 0 && !showEmptyMySchools;
+  // Derive available school names from fixtures
+  const availableSchools = useMemo(() => {
+    const names = new Set<string>();
+    const source = viewMode === "my-schools" ? groupedFixtures.flatMap(g => g.fixtures) : fixtures;
+    source.forEach(f => {
+      if (f.school_a?.name) names.add(f.school_a.name);
+      if (f.school_b?.name) names.add(f.school_b.name);
+    });
+    return [...names].sort();
+  }, [fixtures, groupedFixtures, viewMode]);
 
   // Filter grouped fixtures by selected schools for my-schools view
   const filteredGroupedFixtures = useMemo(() => {
