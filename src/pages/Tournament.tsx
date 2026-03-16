@@ -87,18 +87,11 @@ export default function Tournament() {
         selectedSchools.includes(f.school_b?.name)
       );
     }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      return list.filter(f =>
-        f.school_a?.name?.toLowerCase().includes(q) ||
-        f.school_b?.name?.toLowerCase().includes(q)
-      );
-    }
     return list.filter(f => {
       const d = new Date(f.match_date);
       return d >= dateRange.from && d <= dateRange.to;
     });
-  }, [allFixtures, selectedSchools, debouncedSearch, dateRange]);
+  }, [allFixtures, selectedSchools, dateRange]);
 
   useEffect(() => { setFixturesPage(1); setDismissedIds(new Set()); }, [debouncedSearch, dateRange, selectedSchools]);
 
