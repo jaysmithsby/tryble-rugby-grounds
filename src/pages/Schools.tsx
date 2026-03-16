@@ -200,29 +200,33 @@ export default function Schools() {
     return ids;
   }, [tournamentEditions, tournamentDateRange]);
 
+  // ── All school names for filter ──
+  const allSchoolNames = useMemo(() => schools.map(s => s.name).sort(), [schools]);
+
+  // ── All tournament names for filter ──
+  const allTournamentNames = useMemo(() => sortedTournaments.map(t => t.name), [sortedTournaments]);
+
   const filteredTournaments = useMemo(() => {
     let list = sortedTournaments;
     // Filter by year range
     list = list.filter((t) => tournamentIdsInRange.has(t.id));
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter((t) => t.name.toLowerCase().includes(q));
+    if (selectedTournamentNames.length > 0) {
+      list = list.filter((t) => selectedTournamentNames.includes(t.name));
     }
     return list;
-  }, [sortedTournaments, debouncedSearch, tournamentIdsInRange]);
+  }, [sortedTournaments, selectedTournamentNames, tournamentIdsInRange]);
 
   // ── Filtered schools ──
   const filteredSchools = useMemo(() => {
     let list = schools;
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter((s) => s.name.toLowerCase().includes(q));
+    if (selectedSchoolNames.length > 0) {
+      list = list.filter((s) => selectedSchoolNames.includes(s.name));
     }
     if (province !== "all") {
       list = list.filter((s) => s.province === province);
     }
     return list;
-  }, [schools, debouncedSearch, province]);
+  }, [schools, selectedSchoolNames, province]);
 
   // Active filtered list for pagination
   const activeList = mode === "schools" ? filteredSchools : filteredTournaments;
