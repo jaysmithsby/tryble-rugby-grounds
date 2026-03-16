@@ -154,9 +154,10 @@ export const Pools = () => {
     }
   };
 
-  const filteredPools = pools.filter(pool =>
-    pool.name.toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const allPoolNames = pools.map(p => p.name).sort();
+  const filteredPools = selectedPoolNames.length > 0
+    ? pools.filter(pool => selectedPoolNames.includes(pool.name))
+    : pools;
 
   const renderSchoolIcon = (school: { emblem_url?: string | null; jersey_url?: string | null; name: string }) => {
     const imgUrl = getSchoolDisplayImage(school);
