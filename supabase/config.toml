@@ -1,5 +1,8 @@
 project_id = "fhqnakctskrzqurcksqv"
 
+[functions.n8n-data-api]
+verify_jwt = false
+
 [functions.health]
 verify_jwt = false
 
