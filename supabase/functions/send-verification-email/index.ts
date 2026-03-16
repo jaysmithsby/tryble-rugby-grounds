@@ -5,7 +5,7 @@
  * Looks up user via admin API, generates a verification token, and sends a branded email via Resend.
  * Returns a generic success response on all code paths to prevent user enumeration.
  */
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
