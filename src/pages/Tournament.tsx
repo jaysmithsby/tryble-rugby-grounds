@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { FixtureCard } from "@/components/fixtures/FixtureCard";
 import { SwipeableFixtureCard } from "@/components/fixtures/SwipeableFixtureCard";
-import { useDebounce } from "@/hooks/use-debounce";
+
 import { resolveVenueName } from "@/lib/venueUtils";
 
 interface Edition {
