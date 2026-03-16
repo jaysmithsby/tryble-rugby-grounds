@@ -13,9 +13,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { CACHE_TIMES } from "@/lib/queryConfig";
 import { getSchoolDisplayImage } from "@/lib/schoolImageUtils";
 import { saProvinces } from "@/data/saProvinces";
-import { FixturesDateSelector } from "@/components/fixtures/FixturesDateSelector";
-import { Input } from "@/components/ui/input";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import {
   Select,
