@@ -38,9 +38,8 @@ export const Pools = () => {
   const { toast } = useToast();
   const [pools, setPools] = useState<Pool[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [selectedPoolNames, setSelectedPoolNames] = useState<string[]>([]);
   const [actionOpen, setActionOpen] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
 
   // Leaderboard state
   const [globalRank, setGlobalRank] = useState<number | null>(null);
