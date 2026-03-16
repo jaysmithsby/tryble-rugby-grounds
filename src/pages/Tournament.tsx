@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import GlobalHeader from "@/components/GlobalHeader";
-import { Button } from "@/components/ui/button";
+import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { SchoolMultiSelectFilter } from "@/components/ui/SchoolMultiSelectFilter";
 import { Calendar, Star, Users, Trophy, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, endOfYear } from "date-fns";
