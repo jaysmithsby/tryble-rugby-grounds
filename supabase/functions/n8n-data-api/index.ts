@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     if (action === "get-schools" && req.method === "GET") {
       const { data, error } = await supabase
         .from("schools")
-        .select("id, name, slug, province, jersey_url, status, primary_color, secondary_color, nickname, school_type, is_visible, is_archived")
+        .select("id, name, slug, province, jersey_url, status, primary_color, secondary_color, nickname, school_type, is_visible, is_archived, alias")
         .eq("is_archived", false)
         .eq("is_visible", true)
         .order("name");
