@@ -4,7 +4,7 @@
  * Validates a verification token and marks the user's email as confirmed.
  * This is called when user clicks the verification link.
  */
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
