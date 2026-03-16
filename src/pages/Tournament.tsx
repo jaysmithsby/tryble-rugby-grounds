@@ -65,7 +65,6 @@ export default function Tournament() {
   
   const [dateRange, setDateRange] = useState({ from: new Date(new Date().getFullYear(), 0, 1), to: endOfYear(new Date()) });
   const [fixturesPage, setFixturesPage] = useState(1);
-  const [fixturesPage, setFixturesPage] = useState(1);
 
   // Derive participating schools from fixtures
   const participatingSchools = useMemo(() => {
