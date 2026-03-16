@@ -122,6 +122,9 @@ const Fixtures = () => {
     return [...names].sort();
   }, [fixtures, groupedFixtures, viewMode]);
 
+  const showEmptyMySchools = viewMode === "my-schools" && userSchoolIds.length === 0 && !isLoading;
+  const showEmptyNoFixtures = !isLoading && groupedFixtures.length === 0 && !showEmptyMySchools;
+
   // Filter grouped fixtures by selected schools for my-schools view
   const filteredGroupedFixtures = useMemo(() => {
     if (selectedSchools.length === 0) return groupedFixtures;
