@@ -316,11 +316,6 @@ export default function Tournament() {
     }
   }, []);
 
-  const toggleSchoolFilter = (school: string) => {
-    setSelectedSchools(prev =>
-      prev.includes(school) ? prev.filter(s => s !== school) : [...prev, school]
-    );
-  };
 
   if (loading) {
     return (
