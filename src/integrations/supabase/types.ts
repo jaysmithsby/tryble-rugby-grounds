@@ -803,6 +803,74 @@ export type Database = {
           },
         ]
       }
+      scrape_sources: {
+        Row: {
+          account_owner_type: string
+          active: boolean
+          created_at: string | null
+          id: string
+          is_official: boolean
+          label: string
+          last_scraped_at: string | null
+          priority: number
+          province_hint: string | null
+          reliability_score: number
+          requires_auth: boolean
+          school_id: string | null
+          scrape_strategy: string
+          source_type: string
+          updated_at: string | null
+          url: string
+          verification_role: string
+        }
+        Insert: {
+          account_owner_type: string
+          active?: boolean
+          created_at?: string | null
+          id?: string
+          is_official?: boolean
+          label: string
+          last_scraped_at?: string | null
+          priority: number
+          province_hint?: string | null
+          reliability_score?: number
+          requires_auth?: boolean
+          school_id?: string | null
+          scrape_strategy: string
+          source_type: string
+          updated_at?: string | null
+          url: string
+          verification_role?: string
+        }
+        Update: {
+          account_owner_type?: string
+          active?: boolean
+          created_at?: string | null
+          id?: string
+          is_official?: boolean
+          label?: string
+          last_scraped_at?: string | null
+          priority?: number
+          province_hint?: string | null
+          reliability_score?: number
+          requires_auth?: boolean
+          school_id?: string | null
+          scrape_strategy?: string
+          source_type?: string
+          updated_at?: string | null
+          url?: string
+          verification_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scrape_sources_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       springboks: {
         Row: {
           cap_number: number
