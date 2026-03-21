@@ -133,7 +133,27 @@ Deno.serve(async (req) => {
       return json({ success: true, data: data[0] });
     }
 
-    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, or update-fixture.` }, 400);
+    // ========== GET SCRAPE SOURCES ==========
+    if (action === "get-scrape-sources" && req.method === "GET") {
+      let query = supabase
+        .from("scrape_sources")
+        .select("*")
+        .order("priority", { ascending: true });
+
+      const active = url.searchParams.get("active");
+      const schoolId = url.searchParams.get("school_id");
+      if (active !== null) query = query.eq("active", active === "true");
+      if (schoolId) {
+        if (!UUID_RE.test(schoolId)) return json({ error: "Invalid school_id format" }, 400);
+        query = query.eq("school_id", schoolId);
+      }
+
+      const { data, error } = await query;
+      if (error) return json({ success: false, error: error.message }, 500);
+      return json({ success: true, data, count: data.length });
+    }
+
+    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, or get-scrape-sources.` }, 400);
   } catch (err) {
     console.error("n8n-data-api error:", err);
     return json({ error: "Internal server error" }, 500);
