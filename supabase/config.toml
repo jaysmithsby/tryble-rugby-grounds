@@ -15,5 +15,8 @@ verify_jwt = false
 [functions.school-onboarding]
 verify_jwt = false
 
+[functions.get-fixture-for-scoring]
+verify_jwt = false
+
 [functions.verify-parental-consent]
 verify_jwt = false
