@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.verify-parental-consent]
 verify_jwt = false
+
+[functions.update-fixture-score]
+verify_jwt = false
