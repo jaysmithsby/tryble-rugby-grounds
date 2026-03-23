@@ -153,7 +153,26 @@ Deno.serve(async (req) => {
       return json({ success: true, data, count: data.length });
     }
 
-    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, or get-scrape-sources.` }, 400);
+    // ========== GET TOURNAMENTS ==========
+    if (action === "get-tournaments" && req.method === "GET") {
+      const [tournamentsRes, editionsRes] = await Promise.all([
+        supabase.from("tournaments").select("id, name, alias").order("name"),
+        supabase.from("tournament_editions").select("id, tournament_id, year, start_date, end_date, is_active, host_school, venue, province, format_notes, logo_url, sponsor_name, sponsor_logo_url").order("year", { ascending: false }),
+      ]);
+
+      if (tournamentsRes.error) return json({ success: false, error: tournamentsRes.error.message }, 500);
+      if (editionsRes.error) return json({ success: false, error: editionsRes.error.message }, 500);
+
+      return json({
+        success: true,
+        tournaments: tournamentsRes.data,
+        editions: editionsRes.data,
+        tournament_count: tournamentsRes.data.length,
+        edition_count: editionsRes.data.length,
+      });
+    }
+
+    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, get-scrape-sources, or get-tournaments.` }, 400);
   } catch (err) {
     console.error("n8n-data-api error:", err);
     return json({ error: "Internal server error" }, 500);
