@@ -172,7 +172,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, get-scrape-sources, or get-tournaments.` }, 400);
+    // ========== CREATE SCHOOL ==========
+    if (action === "create-school" && req.method === "POST") {
+      const body = await req.json();
+      const { name, slug, province, primary_color, secondary_color, nickname, school_type, alias, website, motto, established_year, main_rival, trivia_fact, status } = body;
+
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return json({ error: "name (non-empty string) is required" }, 400);
+      }
+      if (!slug || typeof slug !== "string" || !slug.trim()) {
+        return json({ error: "slug (non-empty string) is required" }, 400);
+      }
+
+      const insert: Record<string, unknown> = {
+        name: name.trim(),
+        slug: slug.trim().toLowerCase(),
+        status: status || "approved",
+        is_visible: true,
+        is_archived: false,
+      };
+
+      if (province) insert.province = province;
+      if (primary_color) insert.primary_color = primary_color;
+      if (secondary_color) insert.secondary_color = secondary_color;
+      if (nickname) insert.nickname = nickname;
+      if (school_type) insert.school_type = school_type;
+      if (alias !== undefined) insert.alias = alias;
+      if (website) insert.website = website;
+      if (motto) insert.motto = motto;
+      if (established_year !== undefined) insert.established_year = established_year;
+      if (main_rival) insert.main_rival = main_rival;
+      if (trivia_fact) insert.trivia_fact = trivia_fact;
+
+      const { data, error } = await supabase
+        .from("schools")
+        .insert(insert)
+        .select("id, name, slug, province, status");
+
+      if (error) return json({ success: false, error: error.message }, 500);
+      return json({ success: true, data: data[0] }, 201);
+    }
+
+    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, get-scrape-sources, get-tournaments, or create-school.` }, 400);
   } catch (err) {
     console.error("n8n-data-api error:", err);
     return json({ error: "Internal server error" }, 500);
