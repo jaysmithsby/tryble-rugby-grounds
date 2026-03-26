@@ -213,7 +213,79 @@ Deno.serve(async (req) => {
       return json({ success: true, data: data[0] }, 201);
     }
 
-    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, get-scrape-sources, get-tournaments, or create-school.` }, 400);
+    // ========== CREATE FIXTURE ==========
+    if (action === "create-fixture" && req.method === "POST") {
+      const body = await req.json();
+      const { school_a_id, school_b_id, match_date, season, year, sport, is_derby, is_visible, venue_type, score_a, score_b, status, tournament_id, edition_id } = body;
+
+      // Required field validation
+      if (!school_a_id || !UUID_RE.test(school_a_id)) return json({ error: "Valid school_a_id (UUID) is required" }, 400);
+      if (!school_b_id || !UUID_RE.test(school_b_id)) return json({ error: "Valid school_b_id (UUID) is required" }, 400);
+      if (!match_date || typeof match_date !== "string") return json({ error: "match_date (ISO string) is required" }, 400);
+      if (!season || typeof season !== "string") return json({ error: "season (string) is required" }, 400);
+      if (year === undefined || !Number.isInteger(year)) return json({ error: "year (integer) is required" }, 400);
+
+      // Optional field validation
+      if (status !== undefined && !VALID_STATUSES.includes(status)) {
+        return json({ error: `status must be one of: ${VALID_STATUSES.join(", ")}` }, 400);
+      }
+      if (tournament_id !== undefined && !UUID_RE.test(tournament_id)) {
+        return json({ error: "tournament_id must be a valid UUID" }, 400);
+      }
+      if (edition_id !== undefined && !UUID_RE.test(edition_id)) {
+        return json({ error: "edition_id must be a valid UUID" }, 400);
+      }
+      if (score_a !== undefined && (typeof score_a !== "number" || !Number.isInteger(score_a) || score_a < 0)) {
+        return json({ error: "score_a must be a non-negative integer" }, 400);
+      }
+      if (score_b !== undefined && (typeof score_b !== "number" || !Number.isInteger(score_b) || score_b < 0)) {
+        return json({ error: "score_b must be a non-negative integer" }, 400);
+      }
+
+      // Mirror-duplicate detection
+      const { data: existing } = await supabase.rpc("fixture_match_day", { ts: match_date }).single();
+      // Manual duplicate check using raw query approach
+      const { data: dupes, error: dupeErr } = await supabase
+        .from("fixtures")
+        .select("id")
+        .or(`and(school_a_id.eq.${school_a_id},school_b_id.eq.${school_b_id}),and(school_a_id.eq.${school_b_id},school_b_id.eq.${school_a_id})`)
+        .gte("match_date", match_date.split("T")[0] + "T00:00:00")
+        .lte("match_date", match_date.split("T")[0] + "T23:59:59");
+
+      if (dupes && dupes.length > 0) {
+        return json({ error: "Duplicate fixture exists for this school pair and date", existing_fixture_id: dupes[0].id }, 409);
+      }
+
+      // Build insert object
+      const insert: Record<string, unknown> = {
+        school_a_id,
+        school_b_id,
+        match_date,
+        season,
+        year,
+        sport: sport || "Rugby",
+        is_derby: is_derby ?? false,
+        is_visible: is_visible ?? true,
+        venue_type: venue_type || "school",
+        status: status || "upcoming",
+      };
+
+      if (score_a !== undefined) insert.score_a = score_a;
+      if (score_b !== undefined) insert.score_b = score_b;
+      // edition_id maps to the tournament_id column (fixtures.tournament_id → tournament_editions.id)
+      if (edition_id) insert.tournament_id = edition_id;
+      else if (tournament_id) insert.tournament_id = tournament_id;
+
+      const { data, error } = await supabase
+        .from("fixtures")
+        .insert(insert)
+        .select("id, school_a_id, school_b_id, match_date, season, year, status, sport");
+
+      if (error) return json({ success: false, error: error.message }, 500);
+      return json({ success: true, data: data[0] }, 201);
+    }
+
+    return json({ error: `Unknown action: ${action}. Use get-schools, get-fixtures, update-fixture, get-scrape-sources, get-tournaments, create-school, or create-fixture.` }, 400);
   } catch (err) {
     console.error("n8n-data-api error:", err);
     return json({ error: "Internal server error" }, 500);
