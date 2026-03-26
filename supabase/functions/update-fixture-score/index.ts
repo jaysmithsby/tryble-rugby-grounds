@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { fixture_id, score_a, score_b, status, updated_at } = body;
+    const { fixture_id, score_a, score_b, status, updated_at, match_date } = body;
 
     if (!fixture_id || !UUID_RE.test(fixture_id)) {
       return json({ error: "Valid fixture_id (UUID) is required" }, 400);
