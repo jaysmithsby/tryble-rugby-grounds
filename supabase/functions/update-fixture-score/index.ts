@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { fixture_id, score_a, score_b, status, updated_at } = body;
+    const { fixture_id, score_a, score_b, status, updated_at, match_date } = body;
 
     if (!fixture_id || !UUID_RE.test(fixture_id)) {
       return json({ error: "Valid fixture_id (UUID) is required" }, 400);
@@ -50,15 +50,23 @@ Deno.serve(async (req) => {
     if (!updated_at || typeof updated_at !== "string") {
       return json({ error: "updated_at (ISO timestamp string) is required" }, 400);
     }
+    if (match_date !== undefined && typeof match_date !== "string") {
+      return json({ error: "match_date must be an ISO timestamp string if provided" }, 400);
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const updateData: Record<string, unknown> = { score_a, score_b, status, updated_at };
+    if (match_date) {
+      updateData.match_date = match_date;
+    }
+
     const { data, error } = await supabase
       .from("fixtures")
-      .update({ score_a, score_b, status, updated_at })
+      .update(updateData)
       .eq("id", fixture_id)
       .select("id");
 
