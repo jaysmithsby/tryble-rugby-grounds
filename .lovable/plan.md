@@ -1,48 +1,27 @@
 
 
-## Plan: Redefine Streak as Weekly Participation Streak
+## Add `create-fixture` Action to n8n-data-api
 
-### What Changes
+### What
+Add a new `create-fixture` POST action to the existing `n8n-data-api` edge function that inserts a fixture into the `fixtures` table.
 
-**Streak definition**: Count of consecutive weeks where the user predicted on ALL fixtures for schools they follow. Calculated week-by-week (week ends Sunday 23:59). Correctness doesn't matter — only that every eligible fixture has a prediction.
+### File: `supabase/functions/n8n-data-api/index.ts`
 
-### Changes Required
+Add a new `create-fixture` handler block (after the existing `create-school` block) that:
 
-#### 1. New/Updated Database Function — `get_user_season_stats`
+1. Reads and validates the POST body fields:
+   - **Required**: `school_a_id` (UUID), `school_b_id` (UUID), `match_date` (ISO string), `season` (string), `year` (integer)
+   - **Optional**: `sport` (default `"Rugby"`), `is_derby` (default `false`), `is_visible` (default `true`), `venue_type` (default `"school"`), `score_a`, `score_b`, `status` (default `"upcoming"`), `tournament_id` (UUID), `edition_id` (UUID — mapped to the `tournament_id` column in the fixtures table per the edition-based architecture)
 
-Update the streak calculation in the existing `get_user_season_stats` function:
+2. Validates UUIDs with the existing `UUID_RE` regex, validates `status` against the existing `VALID_STATUSES` array, and checks `year` is an integer.
 
-- For each week in the season (grouped by `date_trunc('week', match_date)`), find all fixtures where `school_a_id` or `school_b_id` is in the user's followed schools (`user_school_follows`).
-- Check if the user has a prediction for every such fixture that week.
-- Count consecutive complete weeks, starting from the most recent completed week (current or last Sunday), going backwards.
-- A week with zero eligible fixtures is skipped (doesn't break or extend the streak).
+3. Performs **mirror-duplicate detection** — queries fixtures where `LEAST(school_a_id, school_b_id)` and `GREATEST(school_a_id, school_b_id)` match the input pair on the same `match_date::date`. If a match exists, returns `409 Conflict` with the existing fixture ID.
 
-#### 2. Update Client-Side Streak in `src/pages/Logs.tsx`
+4. Inserts into `fixtures` and returns `{ success: true, data: <inserted row> }` with status `201`.
 
-The Logs page currently calculates streak client-side from sorted predictions. This needs to be replaced:
-
-- Fetch the streak from the `get_user_season_stats` RPC (already used in `useUserStats`), rather than calculating it locally.
-- Remove the local streak calculation from the `analytics` memo.
-- Display the server-provided streak value instead.
-
-#### 3. Wire Up `useUserStats` Streak
-
-The `useUserStats` hook already reads `current_streak` from the RPC. Once the DB function is updated, the Logs page just needs to consume it from that hook (or call the same RPC).
-
-### Technical Detail
-
-**DB function streak logic** (pseudocode):
-```text
-FOR each week in season (descending):
-  IF week > current_week: SKIP
-  eligible_fixtures = fixtures WHERE (school_a_id IN followed OR school_b_id IN followed) AND week(match_date) = this_week
-  IF eligible_fixtures = 0: SKIP (no fixtures that week)
-  user_predictions = predictions WHERE fixture_id IN eligible_fixtures AND user_id = p_user_id
-  IF count(user_predictions) = count(eligible_fixtures): streak += 1
-  ELSE: BREAK
-```
-
-### Files Affected
-- `supabase` — migration to update `get_user_season_stats` function (streak portion)
-- `src/pages/Logs.tsx` — remove client-side streak calc, use server value
+### Technical Details
+- The `edition_id` parameter maps to the `tournament_id` column on the `fixtures` table (since `fixtures.tournament_id` references `tournament_editions.id`, not `tournaments.id`).
+- Uses the service role client (already instantiated) to bypass RLS.
+- Follows the same validation, error handling, and CORS pattern as `create-school`.
+- Update the error message listing known actions to include `create-fixture`.
 
